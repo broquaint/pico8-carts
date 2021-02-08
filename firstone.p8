@@ -1,28 +1,30 @@
 pico-8 cartridge // http://www.pico-8.com
 version 29
 __lua__
-x = 64  y = 64
+-- loodling
+-- by broquaint
+
+x = 4
+y = 104
+dx = 0
+
 
 function _update()
-   if (btn(0) and x >= 0) then x=x-3 end
+   if (btn(0) and x >= 1) then x=x-3 end
    if (btn(1)) then x=x+2 end
-   if (btn(2) and y >= 0) then y=y-3 end
-   if (btn(3)) then y=y+2 end
+   if (btn(2) and (y-1) <= 104) then y=y-1 end
+   if (btn(3) and (y+1) <= 104) then y=y+1 end
    
-   if(x < 120) x += 1
-   if(y < 120) y += 1
+--   if(x < 120) x += 1
+--   if(y < 120) y += 1
 end
 
 function _draw()
    cls(1)
 
-   for ix=1,18 do
-      line(ix * 8, 0, ix * 8, 128)
+   for ix=14,18 do
+      line(0, ix * 8, 128, ix * 8)
    end
-   for iy=1,18 do
-      line(0, iy * 8, 128, iy * 8)
-   end
-
    
    spr(1, x, y)
 end

@@ -8,6 +8,7 @@ x = 4
 y = 8
 level = 1
 jumping = false
+falling = false
 dy = 0
 
 function jump()
@@ -37,6 +38,13 @@ function jump()
    end
 end
 
+function fall()
+   y += 2 -- flr(abs(dy*5))
+   if((y + 8) % 16 == 0) then
+      falling = false
+   end
+end
+
 function _update()
    if (btn(0) and x >= 1) then x=x-2 end
    if (btn(1) and x <= 118) then x=x+2 end
@@ -44,24 +52,29 @@ function _update()
    if (btn(2) and y % 8 == 0) then
       jumping = true
       dy = 0.5
-      sfx(0)
+--      sfx(0)
    end
 
-   if (jumping) then
+   local curgap = gapset[level] or {-1,-1}
+   if(not jumping and not falling and x > curgap[1] and x < curgap[2]) then
+      falling = true
+      dy = 0.5
+      level += 1
+   end
+
+
+   if (jumping and not falling) then
       jump()
    end
-
-   local curgap = gapset[level]
-   if(curgap != null and x > curgap[1] and x < curgap[2]) then
-      y += 16
-      level += 1
+   if (falling and not jumping) then
+      fall()
    end
 end
 
 function _draw()
    cls(1)
 
-   for iy=1,9 do
+   for iy=1,7 do
       local liney = iy * 16
       line(0, liney, 128, liney, 7)
       local gap=gapset[iy]
@@ -69,7 +82,7 @@ function _draw()
    end
 
    spr(1, x, y)
-   print(x .. " x " .. y, 0, 0, 12)
+   print(x .. " x " .. y .. " @ " .. level, 0, 0, 12)
 end
 
 gapset={}
@@ -79,7 +92,7 @@ function _init()
       {8,16}, {16,24}, {24,32}, {32,40}, {40,48}, {48,56}, {56,64}, {64,72},
       {72,80}, {80,88}, {88,96}, {96,104}, {104,112}
    }
-   for iy=1,9 do
+   for iy=1,7 do
       gapset[iy] = gaps[flr(rnd(#gaps))+1]
    end
 

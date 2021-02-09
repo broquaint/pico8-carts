@@ -6,12 +6,14 @@ __lua__
 
 x = 4
 y = 8
-level = 1
+floor = 1
 jumping = false
 falling = false
 facing = 4
 dy = 0
 begin = t()
+gamestate = 'running'
+lvldone = nil
 
 function jump()
    if(dy > 0) then
@@ -63,12 +65,17 @@ function _update()
       sfx(0)
    end
 
-   local curgap = gapset[level] or {-1,-1}
-   if(not jumping and not falling and x > curgap[1] and x < curgap[2]) then
-      falling = true
-      dy = 0.5
-      level += 1
-      sfx(1)
+
+   if(not jumping and not falling) then
+      for gap in all(gapset[floor] or {{-1,-1}}) do
+         if(x > gap[1] and x < gap[2]) then
+            falling = true
+            dy = 0.5
+            floor += 1
+            sfx(1)
+            break
+         end
+      end
    end
 
    if (jumping and not falling) then
@@ -76,6 +83,11 @@ function _update()
    end
    if (falling and not jumping) then
       fall()
+   end
+
+   if(y == 120) then
+      gamestate = 'end of level'
+      if(lvldone == nil) lvldone = t()
    end
 end
 
@@ -85,24 +97,60 @@ function _draw()
    for iy=1,7 do
       local liney = iy * 16
       line(0, liney, 128, liney, 7)
-      local gap=gapset[iy]
-      line(gap[1], liney, gap[2] - 1, liney, 1)
-      spr(2, gap[1], liney)
+
+      for gap in all(gapset[iy]) do
+         line(gap[1], liney, gap[2] - 1, liney, 1)
+         spr(2, gap[1], liney)
+      end
    end
 
    spr(facing, x, y)
-   print(flr(t() - begin) .. " -- " .. x .. " x " .. y .. " @ " .. level, 0, 0, 12)
+
+   local lvltime = nil
+   local msg = ''
+   if(gamestate == 'running') then
+      lvltime = nice_time(t() - begin)
+      msg = 'floor ' .. floor
+   else
+      lvltime = nice_time(lvldone - begin)
+      msg = 'completed'
+   end
+
+   print(msg .. ': '.. lvltime .. 's [' .. x .. " x " .. y .. ']', 0, 0, 12)
+end
+
+function nice_time(inms)
+   local sec = flr(inms)
+   local ms = flr(inms * 100 % 100)
+   return sec .. '.' .. ms
+end
+
+function copy_table(tbl)
+   local ret = {}
+   for i,v in pairs(tbl) do
+      ret[i] = v
+   end
+   return ret
 end
 
 gapset={}
 function _init()
-   print("hi")
-   local gaps={
+   local default_gaps={
       {8,16}, {16,24}, {24,32}, {32,40}, {40,48}, {48,56}, {56,64}, {64,72},
       {72,80}, {80,88}, {88,96}, {96,104}, {104,112}
    }
+   local gaps = copy_table(default_gaps)
    for iy=1,7 do
-      gapset[iy] = gaps[flr(rnd(#gaps))+1]
+      local gapcount = flr(rnd(2)) + 1
+      gapset[iy]={}
+      for idx=1,gapcount do
+         -- Remove gaps so they aren't repeated across floors.
+         local gap = deli(gaps, flr(rnd(#gaps))+1)
+         gapset[iy][idx] = gap
+         if(#gaps == 0) then
+            gaps = copy_table(default_gaps)
+         end
+      end
    end
 
 end

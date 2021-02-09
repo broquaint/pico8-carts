@@ -185,7 +185,11 @@ end
 function copy_table(tbl)
    local ret = {}
    for i,v in pairs(tbl) do
-      ret[i] = v
+      if(type(v) == 'table') then
+         ret[i] = copy_table(v)
+      else
+         ret[i] = v
+      end
    end
    return ret
 end
@@ -195,12 +199,26 @@ function randn(n)
 end
 
 function every(t, f)
-  for v in all(t) do
-    if not f(v) then
-      return false
-    end
-  end
-  return true
+   for v in all(t) do
+      if not f(v) then
+         return false
+      end
+   end
+   return true
+end
+
+-- Not supporting non-array tables as not using them.
+function arr_to_str(a)
+   local res = '['
+   for v in all(a) do
+      if(type(v) == 'table') then
+         res = res .. arr_to_str(v)
+      else
+         res = res .. tostr(v)
+      end
+      res = res .. ", "
+   end
+   return sub(res, 0, #res - 2) .. "]"
 end
 
 gapset={}
@@ -215,13 +233,14 @@ function _init()
       local gapcount = randn(3)
       gapset[iy]={}
       for idx=1,gapcount do
-         if(#gaps == 0) then
-            gaps = copy_table(default_gaps)
-         end
          -- Remove gaps so they aren't repeated across floors.
          local gap = deli(gaps, randn(#gaps))
          add(gap, gapspr[randn(#gapspr)])
          gapset[iy][idx] = gap
+
+         if(#gaps == 0) then
+            gaps = copy_table(default_gaps)
+         end
       end
 
       -- Ensure there's at least one non-slow gap.

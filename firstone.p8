@@ -96,7 +96,7 @@ function _update()
             floor += 1
             if(floor % 2 == 0 and floor < 8) then
                floor_locked = true
-               key_at = {randn(16) * 8, floor * 16 - 8}
+               key_at = {randn(15) * 8, floor * 16 - 8}
             else
                floor_locked = false
             end
@@ -106,7 +106,7 @@ function _update()
       end
    end
 
-   if(not falling and floor_locked and x > key_at[1] and x < key_at[1] + 8) then
+   if(not falling and floor_locked and (x + 2) > key_at[1] and x < key_at[1] + 8) then
       floor_locked = false
       sfx(4)
    end

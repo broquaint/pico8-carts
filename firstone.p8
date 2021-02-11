@@ -36,6 +36,7 @@ function reset_level_vars()
    floor = 1
    floor_unlocked = true
    key_at = {}
+   time_limit = 32 - min(level, 15)
 
    begin = t()
    gamestate = state_running
@@ -147,7 +148,7 @@ function _update()
    end
 
    local running_time = t() - begin
-   if(flr(running_time) >= 32) then
+   if(flr(running_time) >= time_limit) then
       gamestate = state_no_void
       return
    end
@@ -178,7 +179,11 @@ function _update()
 
             if(level > 1 and floor < 8 and randn(10) < level) then
                floor_locked = true
-               key_at = {randn(15) * 8, floor * 16 - 8}
+               key_at = {}
+               for _=1,min(4,ceil(randn(level)/4)) do
+                  -- todo prevent dupes
+                  add(key_at, {randn(15) * 8, floor * 16 - 8})
+               end
             else
                floor_locked = false
             end
@@ -196,9 +201,16 @@ function _update()
       sfx(0)
    end
 
-   if(not falling and floor_locked and (x + 2) > key_at[1] and x < key_at[1] + 8) then
-      floor_locked = false
-      sfx(4)
+   if(not falling and floor_locked) then
+      for idx,key in pairs(key_at) do
+         if((x + 2) > key[1] and x < key[1] + 8) then
+            deli(key_at, idx)
+            sfx(4)
+            break
+         end
+      end
+
+      if(#key_at == 0) floor_locked = false
    end
 
    if (jumping and not falling) then
@@ -225,17 +237,23 @@ function _update()
 end
 
 function draw_key_at(key_x, key_y)
-   local at = t() * 10 % 10
-   if(at % 10 < 2) then
-      spr(7, key_x, key_y)
-   elseif(at % 10 < 4) then
-      spr(8, key_x, key_y)
-   elseif(at % 10 < 6) then
-      spr(7, key_x, key_y)
-   elseif(at % 10 < 8) then
-      spr(9, key_x, key_y)
-   else
-      spr(7, key_x, key_y)
+   for key in all(key_at) do
+      local key_x = key[1]
+      local key_y = key[2]
+      local at = t() * 10 % 10
+      local spr_idx = 7
+      if(at % 10 < 2) then
+         spr_idx = 7
+      elseif(at % 10 < 4) then
+         spr_idx = 8
+      elseif(at % 10 < 6) then
+         spr_idx = 7
+      elseif(at % 10 < 8) then
+         spr_idx = 9
+      else
+         spr_idx = 7
+      end
+      spr(spr_idx, key_x, key_y)
    end
 end
 
@@ -246,8 +264,9 @@ function draw_void(running_time)
    line(28, 126, 100, 126, 6)
    line(32, 127, 96, 127, 6)
 
-   local void_x1 = 32 + flr(running_time)
-   local void_x2 = 96 - flr(running_time)
+   local offset  = min(level, 15)
+   local void_x1 = 32 + flr(running_time) + offset
+   local void_x2 = 96 - flr(running_time) - offset
 
    -- The void has ended
    if(void_x1 >= 64) return
@@ -285,7 +304,7 @@ function _draw()
    draw_void(running_time)
 
    if(floor_locked) then
-      draw_key_at(key_at[1], key_at[2])
+      draw_key_at()
    end
 
    if(gamestate == state_no_void) then
@@ -298,7 +317,7 @@ function _draw()
    local lvltime = nil
    local msg = ''
    if(gamestate == state_running) then
-      msg = 'level ' .. level .. ': ' .. nice_time(running_time) .. 's'
+      msg = 'level ' .. level .. ': ' .. nice_time(time_limit - running_time) .. 's'
    elseif(gamestate == state_no_void) then
       msg = 'missed the void, reached lvl ' .. level
       print('press ❎ to retry', 0, 120, 12)

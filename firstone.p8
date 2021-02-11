@@ -4,21 +4,7 @@ __lua__
 -- loodling
 -- by broquaint
 
-x = 4
-y = 8
-dy = 0
-jumping = false
-falling = false
-facing = 4
-
-floor = 1
-floor_unlocked = true
-key_at = {}
-
-begin = t()
-gamestate = 'running'
-lvldone = nil
-
+-- constants
 drop_normal = 1
 drop_slow   = 2
 drop_fast   = 4
@@ -28,6 +14,72 @@ sfx_drop_tbl = {
    [drop_slow]   = 3,
    [drop_fast]   = 2
 }
+
+gapspr={2,5,6}
+
+state_level_end = 'end of level'
+state_running   = 'running'
+state_no_void   = 'no void'
+
+function reset_game_vars()
+   level = 1
+end
+
+function reset_level_vars()
+   x = 0
+   y = 8
+   dy = 0
+   jumping = false
+   falling = false
+   facing = 4
+
+   floor = 1
+   floor_unlocked = true
+   key_at = {}
+
+   begin = t()
+   gamestate = state_running
+   lvldone = nil
+   in_void = false
+
+   set_gaps()
+end
+
+function set_gaps()
+   gapset={}
+
+   local default_gaps={
+      {8,16}, {16,24}, {24,32}, {32,40}, {40,48}, {48,56}, {56,64}, {64,72},
+      {72,80}, {80,88}, {88,96}, {96,104}, {104,112}
+   }
+   local gaps = copy_table(default_gaps)
+   for iy=1,7 do
+      local gapcount = randn(3)
+      gapset[iy]={}
+      for idx=1,gapcount do
+         -- Remove gaps so they aren't repeated across floors.
+         local gap = deli(gaps, randn(#gaps))
+         add(gap, gapspr[randn(#gapspr)])
+         gapset[iy][idx] = gap
+
+         if(#gaps == 0) then
+            gaps = copy_table(default_gaps)
+         end
+      end
+
+      -- Ensure there's at least one non-slow gap.
+      if every(gapset[iy], function(g) return fget(g[3]) == drop_slow end) then
+         local gap = deli(gaps, randn(#gaps))
+         add(gap, gapspr[1])
+         gapset[iy][#gapset[iy] + 1] = gap
+      end
+   end
+end
+
+function _init()
+   reset_level_vars()
+   reset_game_vars()
+end
 
 function jump()
    if(dy > 0) then
@@ -56,6 +108,12 @@ function jump()
    end
 end
 
+function ceil(n)
+   return -flr(-n)
+end
+
+-- is_floor = 8
+
 function fall()
    y += dy
    local sy = y + 8
@@ -75,6 +133,23 @@ function fall()
 end
 
 function _update()
+   if(gamestate == state_level_end and btn(5)) then
+      reset_level_vars()
+      return
+   end
+
+   if(gamestate == state_no_void and btn(5)) then
+      _init()
+      return
+   end
+
+
+   local running_time = t() - begin
+   if(flr(running_time) >= 32) then
+      gamestate = state_no_void
+      return
+   end
+
    if (btn(0) and x >= 1) then
       x -= 2
       facing = 3
@@ -84,15 +159,9 @@ function _update()
       facing = 4
    end
 
-   if (not falling and btn(2) and y % 8 == 0) then
-      jumping = true
-      dy = 0.5
-      sfx(0)
-   end
-
    if(not jumping and not falling and not floor_locked) then
       for gap in all(gapset[floor] or {{-1,-1}}) do
-         if(x > gap[1] and x < gap[2]) then
+         if((x + 2) > gap[1] and (x + 4) < gap[2]) then
             local effect = fget(gap[3])
             if(effect == drop_normal) then
                dy = 1
@@ -104,7 +173,8 @@ function _update()
 
             falling = true
             floor += 1
-            if(floor % 2 == 0 and floor < 8) then
+
+            if(floor % 12 == 0 and floor < 8) then
                floor_locked = true
                key_at = {randn(15) * 8, floor * 16 - 8}
             else
@@ -114,6 +184,14 @@ function _update()
             break
          end
       end
+   end
+
+   -- This should be after the falling check so a) you can't just spam
+   -- jump to avoid slow gaps and b) so you can fall straight through gaps below.
+   if (not falling and btn(5) and y % 8 == 0) then
+      jumping = true
+      dy = 0.5
+      sfx(0)
    end
 
    if(not falling and floor_locked and (x + 2) > key_at[1] and x < key_at[1] + 8) then
@@ -135,8 +213,11 @@ function _update()
 
       if(x + 8 > void_x1 and x < void_x2) then
          fall()
-         gamestate = 'end of level'
-         if(lvldone == nil) lvldone = t()
+         gamestate = state_level_end
+         if(lvldone == nil) then
+            lvldone = t()
+            level += 1
+         end
       end
    end
 end
@@ -165,6 +246,10 @@ function draw_void(running_time)
 
    local void_x1 = 32 + flr(running_time)
    local void_x2 = 96 - flr(running_time)
+
+   -- The void has ended
+   if(void_x1 >= 64) return
+
    if(void_x1 <= 64) then
       line(void_x1 - 4, 126, void_x2 + 4, 126, 5)
       line(void_x1, 126, void_x2, 126, 0)
@@ -206,16 +291,18 @@ function _draw()
 
    local lvltime = nil
    local msg = ''
-   if(gamestate == 'running') then
-      lvltime = nice_time(running_time)
-      msg = 'floor ' .. floor
+   if(gamestate == state_running) then
+      msg = 'level ' .. level .. ': ' .. nice_time(running_time) .. 's'
+   elseif(gamestate == state_no_void) then
+      msg = 'missed the void ;_;'
+      print('press ❎ to retry', 0, 120, 12)
    else
-      lvltime = nice_time(lvldone - begin)
-      msg = 'completed'
+      msg = 'entered the void at ' .. nice_time(lvldone - begin) .. 's'
+      print('press ❎ to proceed', 0, 120, 12)
    end
 
 --   print(msg .. ': '.. lvltime .. 's [' .. x .. " x " .. y .. '] ', 0, 0, 12)
-   print(msg .. ': '.. lvltime .. 's', 0, 0, 12)
+   print(msg, 0, 0, 12)
 end
 
 function nice_time(inms)
@@ -261,37 +348,6 @@ function arr_to_str(a)
       res = res .. ", "
    end
    return sub(res, 0, #res - 2) .. "]"
-end
-
-gapset={}
-gapspr={2,5,6}
-function _init()
-   local default_gaps={
-      {8,16}, {16,24}, {24,32}, {32,40}, {40,48}, {48,56}, {56,64}, {64,72},
-      {72,80}, {80,88}, {88,96}, {96,104}, {104,112}
-   }
-   local gaps = copy_table(default_gaps)
-   for iy=1,7 do
-      local gapcount = randn(3)
-      gapset[iy]={}
-      for idx=1,gapcount do
-         -- Remove gaps so they aren't repeated across floors.
-         local gap = deli(gaps, randn(#gaps))
-         add(gap, gapspr[randn(#gapspr)])
-         gapset[iy][idx] = gap
-
-         if(#gaps == 0) then
-            gaps = copy_table(default_gaps)
-         end
-      end
-
-      -- Ensure there's at least one non-slow gap.
-      if every(gapset[iy], function(g) return fget(g[3]) == drop_slow end) then
-         local gap = deli(gaps, randn(#gaps))
-         add(gap, gapspr[1])
-         gapset[iy][#gapset[iy] + 1] = gap
-      end
-   end
 end
 
 __gfx__

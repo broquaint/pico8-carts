@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 29
 __lua__
--- loodling
+-- find the gap
 -- by broquaint
 
 -- constants
@@ -143,8 +143,8 @@ function _update()
       return
    end
 
-   if(gamestate == state_no_void and btn(5)) then
-      _init()
+   if(gamestate == state_no_void) then
+      if(btn(5)) _init()
       return
    end
 

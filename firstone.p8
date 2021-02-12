@@ -139,114 +139,113 @@ function _update()
    -- lazy/temp hack to avoid x triggering a jump after level restart.
    if(t() - begin < 0.3) return
 
-   if(gamestate == state_level_end and btn(5)) then
-      reset_level_vars()
-      return
-   end
-
-   if(gamestate == state_no_void) then
+   if(gamestate == state_level_end) then
+      if(btn(5)) reset_level_vars()
+      -- Fall past the void, but not forever.
+      if(y < 150) fall()
+   elseif(gamestate == state_no_void) then
       if(btn(5)) _init()
-      return
-   end
-
-   local running_time = t() - begin
-   if(gamestate == state_running and flr(running_time) >= time_limit) then
-      gamestate = state_no_void
-      sfx(6)
-      return
-   end
-
-   if(btn(0) or btn(1) and not state_level_end) then
-      moving = true
-      if (btn(0) and x >= 1) then
-         x -= dx
-         facing = 3
-      end
-      if (btn(1) and x <= 118) then
-         x += dx
-         facing = 4
-      end
    else
-      moving = false
-   end
-
-   if(not jumping and not falling and not floor_locked) then
-      for gap in all(gapset[floor] or {{-1,-1}}) do
-         if((x + 2) > gap[1] and (x + 4) < gap[2]) then
-            local effect = fget(gap[3])
-            if(effect == drop_normal) then
-               dy = 1
-               dx = 2
-            elseif(effect == drop_slow) then
-               dy = 0.25
-               dx = 2
-            elseif(effect == drop_fast) then
-               dy = 4
-               dx = 3
-            else
-               dx = 1
-               dy = 0.1
-               printh("what the heck?" .. arr_to_str(gap) .. " flag " .. effect)
-            end
-
-            falling = true
-            floor += 1
-
-            if(level > 1 and floor < 8 and randn(10) < level) then
-               floor_locked = true
-               key_at = {}
-               for _=1,min(4,ceil(randn(level)/4)) do
-                  -- todo prevent dupes
-                  add(key_at, {randn(15) * 8, floor * 16 - 8})
-               end
-               sfx(5)
-            else
-               floor_locked = false
-            end
-            sfx(sfx_drop_tbl[effect])
-            break
-         end
-      end
-   end
-
-   -- This should be after the falling check so a) you can't just spam
-   -- jump to avoid slow gaps and b) so you can fall straight through gaps below.
-   if (not falling and btn(5) and y % 8 == 0) then
-      jumping = true
-      dy = 0.5
-      sfx(0)
-   end
-
-   if(not falling and floor_locked) then
-      for idx,key in pairs(key_at) do
-         if((x + 6) > key[1] and x < (key[1] + 6)) then
-            deli(key_at, idx)
-            sfx(4)
-            break
-         end
-      end
-
-      if(#key_at == 0) floor_locked = false
-   end
-
-   if (jumping and not falling) then
-      jump()
-   end
-   if (falling and not jumping) then
-      fall()
-   end
-
-   if(y >= 118) then
       local running_time = t() - begin
-      local void_x1 = 32 + flr(running_time)
-      local void_x2 = 96 - flr(running_time)
+         if(flr(running_time) >= time_limit) then
+         gamestate = state_no_void
+         sfx(6)
+         return
+      end
 
-      if(x + 8 > void_x1 and x < void_x2) then
+      if(btn(0) or btn(1)) then
+         moving = true
+         if (btn(0) and x >= 1) then
+            x -= dx
+            facing = 3
+         end
+         if (btn(1) and x <= 118) then
+            x += dx
+            facing = 4
+         end
+      else
+         moving = false
+      end
+
+      if(not jumping and not falling and not floor_locked) then
+         for gap in all(gapset[floor] or {{-1,-1}}) do
+            if((x + 2) > gap[1] and (x + 4) < gap[2]) then
+               local effect = fget(gap[3])
+               if(effect == drop_normal) then
+                  dy = 1
+                  dx = 2
+               elseif(effect == drop_slow) then
+                  dy = 0.25
+                  dx = 2
+               elseif(effect == drop_fast) then
+                  dy = 4
+                  dx = 3
+               else
+                  dx = 1
+                  dy = 0.1
+                  printh("what the heck?" .. arr_to_str(gap) .. " flag " .. effect)
+               end
+
+               falling = true
+               floor += 1
+
+               if(level > 1 and floor < 8 and randn(10) < level) then
+                  floor_locked = true
+                  key_at = {}
+                  for _=1,min(4,ceil(randn(level)/4)) do
+                     -- todo prevent dupes
+                     add(key_at, {randn(15) * 8, floor * 16 - 8})
+                  end
+                  sfx(5)
+               else
+                  floor_locked = false
+               end
+               sfx(sfx_drop_tbl[effect])
+               break
+            end
+         end
+      end
+
+      -- This should be after the falling check so a) you can't just spam
+      -- jump to avoid slow gaps and b) so you can fall straight through gaps below.
+      if (not falling and btn(5) and y % 8 == 0) then
+         jumping = true
+         dy = 0.5
+         sfx(0)
+      end
+
+      if(not falling and floor_locked) then
+         for idx,key in pairs(key_at) do
+            if((x + 6) > key[1] and x < (key[1] + 6)) then
+               deli(key_at, idx)
+               sfx(4)
+               break
+            end
+         end
+
+         if(#key_at == 0) floor_locked = false
+      end
+
+      if (jumping and not falling) then
+         jump()
+      end
+      if (falling and not jumping) then
          fall()
-         gamestate = state_level_end
-         if(lvldone == nil) then
-            lvldone = t()
-            level += 1
+      end
+
+      if(y >= 118) then
+         local offset  = min(level, 15)
+         local running_time = t() - begin
+         local void_x1 = 32 + flr(running_time) + offset
+         local void_x2 = 96 - flr(running_time) - offset
+
+         if((x + 8) > void_x1 and x < void_x2) then
+            fall()
+            gamestate = state_level_end
+            if(lvldone == nil) then
+               lvldone = t()
+               level += 1
+            end
          end
       end
    end

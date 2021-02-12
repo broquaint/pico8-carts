@@ -28,6 +28,7 @@ end
 function reset_level_vars()
    x = 0
    y = 8
+   dx = 2
    dy = 0
    jumping = false
    falling = false
@@ -154,11 +155,11 @@ function _update()
    end
 
    if (btn(0) and x >= 1) then
-      x -= 2
+      x -= dx
       facing = 3
    end
    if (btn(1) and x <= 118) then
-      x += 2
+      x += dx
       facing = 4
    end
 
@@ -168,10 +169,13 @@ function _update()
             local effect = fget(gap[3])
             if(effect == drop_normal) then
                dy = 1
+               dx = 2
             elseif(effect == drop_slow) then
                dy = 0.25
-            else
+               dx = 2
+            elseif(effect == drop_fast) then
                dy = 4
+               dx = 3
             end
 
             falling = true

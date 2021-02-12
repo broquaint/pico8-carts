@@ -208,7 +208,7 @@ function _update()
 
    if(not falling and floor_locked) then
       for idx,key in pairs(key_at) do
-         if((x + 2) > key[1] and x < key[1] + 8) then
+         if((x + 6) > key[1] and x < (key[1] + 6)) then
             deli(key_at, idx)
             sfx(4)
             break
@@ -259,6 +259,7 @@ function draw_key_at(key_x, key_y)
          spr_idx = 7
       end
       spr(spr_idx, key_x, key_y)
+      -- rect(key_x,key_y,key_x+8,key_y+8,7)
    end
 end
 

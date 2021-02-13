@@ -38,7 +38,10 @@ function reset_level_vars()
    floor = 1
    floor_unlocked = true
    key_at = {}
-   time_limit = 32 - min(level, 15)
+   timers_seen = 0
+   timer_at = {}
+   time_limit = 32 - min(level, 20)
+   extra_time = 0
 
    begin = t()
    gamestate = state_running
@@ -136,8 +139,7 @@ function fall()
 end
 
 function _update()
-   -- lazy/temp hack to avoid x triggering a jump after level restart.
-   if(t() - begin < 0.3) return
+   local running_time = t() - begin - extra_time
 
    if(gamestate == state_level_end) then
       if(btn(4)) reset_level_vars()
@@ -146,7 +148,6 @@ function _update()
    elseif(gamestate == state_no_void) then
       if(btn(4)) _init()
    else
-      local running_time = t() - begin
          if(flr(running_time) >= time_limit) then
          gamestate = state_no_void
          sfx(6)
@@ -180,14 +181,18 @@ function _update()
                elseif(effect == drop_fast) then
                   dy = 4
                   dx = 3
-               else
-                  dx = 1
-                  dy = 0.1
-                  printh("what the heck?" .. arr_to_str(gap) .. " flag " .. effect)
                end
 
                falling = true
                floor += 1
+               timer_at = {}
+
+               timer_max = min(flr(floor/5), 2)
+               if(floor < 8 and level > 5 and randn(15) < level and timers_seen < timer_max) then
+                  timers_seen += 1
+                  -- todo avoid key collision ...
+                  timer_at = {randn(15) * 8, floor * 16 - 8}
+               end
 
                if(level > 1 and floor < 8 and randn(10) < level) then
                   floor_locked = true
@@ -214,16 +219,24 @@ function _update()
          sfx(0)
       end
 
-      if(not falling and floor_locked) then
-         for idx,key in pairs(key_at) do
-            if((x + 6) > key[1] and x < (key[1] + 6)) then
-               deli(key_at, idx)
-               sfx(4)
-               break
+      if(not falling) then
+         if(floor_locked) then
+            for idx,key in pairs(key_at) do
+               if((x + 6) > key[1] and x < (key[1] + 6)) then
+                  deli(key_at, idx)
+                  sfx(4)
+                  break
+               end
             end
+
+            if(#key_at == 0) floor_locked = false
          end
 
-         if(#key_at == 0) floor_locked = false
+         if(#timer_at > 0 and (x + 6) > timer_at[1] and x < (timer_at[1] + 6)) then
+            timer_at = {}
+            extra_time += 5
+            sfx(7)
+         end
       end
 
       if (jumping and not falling) then
@@ -235,7 +248,6 @@ function _update()
 
       if(y >= 118) then
          local offset  = min(level, 15)
-         local running_time = t() - begin
          local void_x1 = 32 + flr(running_time) + offset
          local void_x2 = 96 - flr(running_time) - offset
 
@@ -251,7 +263,7 @@ function _update()
    end
 end
 
-function draw_key_at(key_x, key_y)
+function draw_key_at()
    for key in all(key_at) do
       local key_x = key[1]
       local key_y = key[2]
@@ -271,6 +283,23 @@ function draw_key_at(key_x, key_y)
       spr(spr_idx, key_x, key_y)
       -- rect(key_x,key_y,key_x+8,key_y+8,7)
    end
+end
+
+function draw_timer_at(timer_x, timer_y)
+   local at = t() * 10 % 10
+   local offset = 1
+   if(at % 10 < 2) then
+      offset = 0
+   elseif(at % 10 < 4) then
+      offset = -1
+   elseif(at % 10 < 6) then
+      offset = 0
+   elseif(at % 10 < 8) then
+      offset = 1
+   else
+      offset = 0
+   end
+   spr(14, timer_x, timer_y + offset)
 end
 
 function draw_void(running_time)
@@ -315,10 +344,14 @@ function _draw()
    end
 
    local running_time = t() - begin
-   draw_void(running_time)
+   draw_void(running_time - extra_time) 
 
    if(floor_locked) then
       draw_key_at()
+   end
+
+   if(#timer_at > 0) then
+      draw_timer_at(timer_at[1], timer_at[2])
    end
 
    if(gamestate == state_no_void) then
@@ -346,7 +379,7 @@ function _draw()
    local lvltime = nil
    local msg = ''
    if(gamestate == state_running) then
-      msg = 'level ' .. level .. ': ' .. nice_time(time_limit - running_time) .. 's'
+      msg = 'level ' .. level .. ': ' .. nice_time(time_limit - running_time + extra_time) .. 's'
    elseif(gamestate == state_no_void) then
       msg = 'missed the void, reached lvl ' .. level
       print('press 🅾️ to retry', 0, 120, 12)
@@ -405,14 +438,14 @@ function arr_to_str(a)
 end
 
 __gfx__
-000000001aaaaaa171d666d10000000000000000712ddd21713bbb31000000000000000000000000000000000000000000000000000000000000000000000000
-00000000aaeeaeea11d161d100aaaa0000aaaa001121d1211131b13100000000000000000aa0000000aaaa0000aaaa0000000000000000000000000000000000
-00700700aefaefaa111d1d110acacaa00aacaca011121211111313110aa00000000000000aaaaaa00aaaaaa00aaaaaa000000000000000000000000000000000
-00077000aaaaaaaa1111d1110acacaa00aacaca011112111111131110aaa99900aa000000aa090900acacaa00aacaca000000000000000000000000000000000
-00077000aaaaaaaa111111110aaaa9a00a9aaaa011111111111111110aa090900aaa9990000000000aaaaaa00aaaaaa000000000000000000000000000000000
-00700700a9eaae9a111111110aa99aa00aa99aa01111111111111111000000000aa0a0a0000000000aa99aa00aa99aa000000000000000000000000000000000
-00000000aaeeeeaa1111111100aaaa0000aaaa00111111111111111100000000000000000000000000aaaa0000aaaa0000000000000000000000000000000000
-000000001aaaaaa11111111104400440044004401111111111111111000000000000000000000000055005500550055000000000000000000000000000000000
+000000001aaaaaa171d666d10000000000000000712ddd21713bbb31000000000000000000000000000000000000000000000000066666600000000000000000
+00000000aaeeaeea11d161d100aaaa0000aaaa001121d1211131b13100000000000000000aa0000000aaaa0000aaaa00000000006777c7760066660000000000
+00700700aefaefaa111d1d110acacaa00aacaca011121211111313110aa00000000000000aaaaaa00aaaaaa00aaaaaa0000000006777c7760677c76000000000
+00077000aaaaaaaa1111d1110acacaa00aacaca011112111111131110aaa99900aa000000aa090900acacaa00aacaca0000000006777c7760677c76000000000
+00077000aaaaaaaa111111110aaaa9a00a9aaaa011111111111111110aa090900aaa9990000000000aaaaaa00aaaaaa00000000067ccc776067cc76000000000
+00700700a9eaae9a111111110aa99aa00aa99aa01111111111111111000000000aa0a0a0000000000aa99aa00aa99aa000000000677777760677776000000000
+00000000aaeeeeaa1111111100aaaa0000aaaa00111111111111111100000000000000000000000000aaaa0000aaaa0000000000677777760066660000000000
+000000001aaaaaa11111111104400440044004401111111111111111000000000000000000000000055005500550055000000000066666600000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000aaaa0000aaaa0000000000000000000000000000000000000000000000000000000000
 000000000000000000000000000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
@@ -465,7 +498,7 @@ __sfx__
 0004000024110201201e1301e130201202413028140281402b1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0106000012600126001460014600126211262314633146330e6210e62305613056130e6000e600056000560000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0110000013554135521355210541105441054113552135520d5540d5510c5410c5450000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0114000018710187511d7520000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000140d0500d0500d050000000705007050070500c0500c0500c05000000070500805003050040000c0500c0500c0500000000000000000000000000000000000000000000000000000000000000000000000

@@ -140,11 +140,11 @@ function _update()
    if(t() - begin < 0.3) return
 
    if(gamestate == state_level_end) then
-      if(btn(5)) reset_level_vars()
+      if(btn(4)) reset_level_vars()
       -- Fall past the void, but not forever.
       if(y < 150) fall()
    elseif(gamestate == state_no_void) then
-      if(btn(5)) _init()
+      if(btn(4)) _init()
    else
       local running_time = t() - begin
          if(flr(running_time) >= time_limit) then
@@ -349,10 +349,10 @@ function _draw()
       msg = 'level ' .. level .. ': ' .. nice_time(time_limit - running_time) .. 's'
    elseif(gamestate == state_no_void) then
       msg = 'missed the void, reached lvl ' .. level
-      print('press ❎ to retry', 0, 120, 12)
+      print('press 🅾️ to retry', 0, 120, 12)
    else
       msg = 'entered the void at ' .. nice_time(lvldone - begin) .. 's'
-      print('press ❎ to proceed', 0, 120, 12)
+      print('press 🅾️	to proceed', 0, 120, 12)
    end
 
 --   print(msg .. ': '.. lvltime .. 's [' .. x .. " x " .. y .. '] ', 0, 0, 12)

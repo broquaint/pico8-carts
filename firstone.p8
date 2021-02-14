@@ -35,6 +35,7 @@ function reset_level_vars()
    moving  = false
    facing = 4
 
+   gapset = {}
    floor = 1
    floor_unlocked = true
    key_at = {}
@@ -51,34 +52,48 @@ function reset_level_vars()
    set_gaps()
 end
 
-function set_gaps()
-   gapset={}
+function is_pos_in_set(pos_set, pos)
+   for p in all(pos_set) do
+      if(pos[1] == p[1] and pos[2] == pos[2]) return true
+   end
+   return false
+end
 
-   local default_gaps={
-      {8,16}, {16,24}, {24,32}, {32,40}, {40,48}, {48,56}, {56,64}, {64,72},
-      {72,80}, {80,88}, {88,96}, {96,104}, {104,112}
-   }
-   local gaps = copy_table(default_gaps)
+function find_free_tile(known, tile_gen)
+   local new_y   = floor * 16 - 8
+   local new_pos = tile_gen()
+   -- Enter loop if the new tile position is already present to generate a new position.
+   while(is_pos_in_set(known, new_pos)) do
+      new_pos = tile_gen()
+   end
+   return new_pos
+end
+
+function set_gaps()
+   local function gap_gen()
+      local x1 = randn(14) * 8
+      return { x1, x1 + 8, gapspr[randn(#gapspr)] }
+   end
    for iy=1,7 do
       local gapcount = randn(3)
-      gapset[iy]={}
+      local gaps = {}
       for idx=1,gapcount do
-         -- Remove gaps so they aren't repeated across floors.
-         local gap = deli(gaps, randn(#gaps))
-         add(gap, gapspr[randn(#gapspr)])
-         gapset[iy][idx] = gap
-
-         if(#gaps == 0) then
-            gaps = copy_table(default_gaps)
-         end
+         -- Jam the gap sprite onto the position.
+         add(gaps, find_free_tile(gaps, gap_gen))
       end
 
       -- Ensure there's at least one non-slow gap.
       if every(gapset[iy], function(g) return fget(g[3]) == drop_slow end) then
-         local gap = deli(gaps, randn(#gaps))
-         add(gap, gapspr[1])
-         gapset[iy][#gapset[iy] + 1] = gap
+         -- Don't add another gap if there's already 4
+         if(#gaps == 4) then
+            gaps[#gaps][3] = gapspr[1]
+         else
+            local gap = find_free_tile(gaps, gap_gen)
+            gap[3] = gapspr[1]
+            add(gaps, gap)
+         end
       end
+      gapset[iy] = gaps
    end
 end
 
@@ -138,6 +153,10 @@ function fall()
    end
 end
 
+function tile_gen()
+   return {(randn(15) * 8) - 1, floor * 16 - 8}
+end
+
 function _update()
    local running_time = t() - begin - extra_time
 
@@ -189,24 +208,24 @@ function _update()
                floor += 1
                timer_at = {}
 
-               timer_max = min(flr(floor/5), 2)
-               if(floor < 8 and level > 5 and randn(15) < level and timers_seen < timer_max) then
-                  timers_seen += 1
-                  -- todo avoid key collision ...
-                  timer_at = {randn(15) * 8, floor * 16 - 8}
-               end
-
                if(level > 1 and floor < 8 and randn(10) < level) then
                   floor_locked = true
                   key_at = {}
                   for _=1,min(4,ceil(randn(level)/4)) do
-                     -- todo prevent dupes
-                     add(key_at, {randn(15) * 8, floor * 16 - 8})
+                     add(key_at, find_free_tile(key_at, tile_gen))
                   end
+                  printh("Keys at: " .. arr_to_str(key_at))
                   sfx(5)
                else
                   floor_locked = false
                end
+
+               timer_max = min(flr(floor/5), 2)
+               if(floor < 8 and level > 5 and randn(15) < level and timers_seen < timer_max) then
+                  timers_seen += 1
+                  timer_at = find_free_tile(key_at, tile_gen)
+               end
+
                sfx(sfx_drop_tbl[effect])
                break
             end

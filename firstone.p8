@@ -76,7 +76,7 @@ function set_gaps()
       return { x1, x1 + 8, gapspr[randn(#gapspr)] }
    end
    for iy=1,7 do
-      local gapcount = randn(3)
+      local gapcount = randn(2)
       local gaps = {}
       for idx=1,gapcount do
          -- Jam the gap sprite onto the position.
@@ -226,17 +226,17 @@ function _update()
                if(level > 1 and floor < 8 and randn(10) < level) then
                   floor_locked = true
                   key_at = {}
-                  for _=1,min(4,ceil(randn(level)/4)) do
+                  for _=1,min(3,ceil(randn(level)/4)) do
                      add(key_at, find_free_tile(key_at, tile_gen))
                   end
-                  printh("Keys at: " .. arr_to_str(key_at))
+                  -- printh("Keys at: " .. arr_to_str(key_at))
                   sfx(5)
                else
                   floor_locked = false
                end
 
                timer_max = min(flr(floor/5), 2)
-               if(floor < 8 and level > 5 and randn(15) < level and timers_seen < timer_max) then
+               if(floor < 7 and level > 5 and randn(15) < level and timers_seen < timer_max) then
                   timers_seen += 1
                   timer_at = find_free_tile(key_at, tile_gen)
                end
@@ -270,7 +270,7 @@ function _update()
 
          if(#timer_at > 0 and (x + 6) > timer_at[1] and x < (timer_at[1] + 6)) then
             timer_at = {}
-            extra_time += 5
+            extra_time += 3
             sfx(7)
          end
       end

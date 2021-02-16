@@ -22,6 +22,8 @@ state_running   = 'running'
 state_no_void   = 'no void'
 state_menu      = 'menu'
 
+lower_limit = 19
+
 function reset_game_vars()
    level = 1
 end
@@ -44,7 +46,7 @@ function reset_level_vars()
    timers_seen = 0
    timer_at = {}
    if(not bonus_level) then
-      time_limit = 32 - min(level, 19)
+      time_limit = 32 - min(level, lower_limit)
    else
       time_limit = max(11 - (level/10), 6)
    end
@@ -299,7 +301,7 @@ function _update()
       end
 
       if(y >= 118) then
-         local offset  = min(level, 15)
+         local offset  = min(level, lower_limit)
          local void_x1 = 32 + flr(running_time) + offset
          local void_x2 = 96 - flr(running_time) - offset
 
@@ -361,7 +363,7 @@ function draw_void(running_time)
    line(28, 126, 100, 126, 6)
    line(32, 127, 96, 127, 6)
 
-   local offset  = min(level, 15)
+   local offset  = min(level, lower_limit)
    local void_x1 = 32 + flr(running_time) + offset
    local void_x2 = 96 - flr(running_time) - offset
 

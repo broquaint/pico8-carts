@@ -219,12 +219,13 @@ function _update()
       if(y < 150) fall()
    elseif(gamestate == state_no_void) then
       if(btn(4)) then
-         reset_level_vars()
          reset_game_vars()
+         reset_level_vars()
          sfx(9)
       end
    else
       if(flr(running_time) >= time_limit) then
+         printh("Ran out of time at " .. t() .. " started " .. begin .. " extra time " .. extra_time .. " - time limit was " .. time_limit)
          gamestate = state_no_void
          sfx(6)
          local hiscore = dget(0)

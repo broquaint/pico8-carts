@@ -24,6 +24,14 @@ state_menu      = 'menu'
 
 lower_limit = 19
 
+function _init()
+   reset_game_vars()
+   reset_level_vars()
+   gamestate = state_menu
+   cartdata("broquaint_findthegap")
+   -- dset(0,0) -- reset score
+end
+
 function reset_game_vars()
    level = 1
 end
@@ -56,6 +64,7 @@ function reset_level_vars()
    gamestate = state_running
    lvldone = nil
    in_void = false
+   new_highscore = false
 
    set_gaps()
 end
@@ -114,12 +123,6 @@ function set_gaps()
       end
       gapset[iy] = gaps
    end
-end
-
-function _init()
-   reset_game_vars()
-   reset_level_vars()
-   gamestate = state_menu
 end
 
 function jump()
@@ -205,6 +208,11 @@ function _update()
       if(flr(running_time) >= time_limit) then
          gamestate = state_no_void
          sfx(6)
+         local hiscore = dget(0)
+         if(hiscore < level) then
+            dset(0, level)
+            new_highscore = true
+         end
          return
       end
 
@@ -400,6 +408,9 @@ function draw_menu()
    else
       spr(facing, 8, 56)
    end
+   if(dget(0) > 0) then
+      print('high score: level ' .. dget(0), 20, 80, 7)
+   end
    print("press 🅾️ to start game", 20, 40, 7)
    print("to move use ⬅️➡️", 20, 100, 7)
    print("and press ❎ to jump", 20, 110, 7)
@@ -464,7 +475,12 @@ function draw_game()
          msg = msg .. " ★ bonus level"
       end
    elseif(gamestate == state_no_void) then
-      msg = 'missed the void, reached lvl ' .. level
+      msg = 'void missed'
+      if(new_highscore) then
+         msg = msg .. ' ★ new high score ' .. level
+      else
+         msg = msg .. ', reached lvl ' .. level
+      end
       print('press 🅾️ to retry', 0, 120, 12)
    else
       msg = 'entered void with ' .. nice_time((time_limit - (lvldone - begin)) + extra_time) .. 's left'

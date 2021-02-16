@@ -38,11 +38,16 @@ function reset_level_vars()
 
    gapset = {}
    floor = 1
+   bonus_level = level % 10 == 0
    floor_unlocked = true
    key_at = {}
    timers_seen = 0
    timer_at = {}
-   time_limit = 32 - min(level, 20)
+   if(not bonus_level) then
+      time_limit = 32 - min(level, 19)
+   else
+      time_limit = max(11 - (level/10), 6)
+   end
    extra_time = 0
 
    begin = t()
@@ -73,10 +78,21 @@ end
 function set_gaps()
    local function gap_gen()
       local x1 = randn(14) * 8
-      return { x1, x1 + 8, gapspr[randn(#gapspr)] }
+      local sprite
+      if(not bonus_level) then
+         sprite = gapspr[randn(#gapspr)]
+      else
+         sprite = ({2,6})[randn(2)]
+      end
+      return { x1, x1 + 8, sprite }
    end
    for iy=1,7 do
-      local gapcount = randn(2)
+      local gapcount
+      if(not bonus_level) then
+         gapcount = randn(2)
+      else
+         gapcount = randn(1)
+      end
       local gaps = {}
       for idx=1,gapcount do
          -- Jam the gap sprite onto the position.
@@ -99,8 +115,8 @@ function set_gaps()
 end
 
 function _init()
-   reset_level_vars()
    reset_game_vars()
+   reset_level_vars()
    gamestate = state_menu
 end
 
@@ -223,7 +239,7 @@ function _update()
                floor += 1
                timer_at = {}
 
-               if(level > 1 and floor < 8 and randn(10) < level) then
+               if(level > 1 and floor < 8 and randn(10) < level and not bonus_level) then
                   floor_locked = true
                   key_at = {}
                   for _=1,min(3,ceil(randn(level)/4)) do
@@ -236,7 +252,7 @@ function _update()
                end
 
                timer_max = min(flr(floor/5), 2)
-               if(floor < 7 and level > 5 and randn(15) < level and timers_seen < timer_max) then
+               if(floor < 7 and level > 5 and randn(15) < level and timers_seen < timer_max and not bonus_level) then
                   timers_seen += 1
                   timer_at = find_free_tile(key_at, tile_gen)
                end
@@ -438,10 +454,13 @@ function draw_game()
    end
    -- rect(x,y,x+8,y+8,7)
 
-   local lvltime = nil
    local msg = ''
    if(gamestate == state_running) then
       msg = 'level ' .. level .. ' ⧗' .. nice_time((time_limit - running_time) + extra_time) .. 's'
+
+      if(bonus_level) then
+         msg = msg .. " ★ bonus level"
+      end
    elseif(gamestate == state_no_void) then
       msg = 'missed the void, reached lvl ' .. level
       print('press 🅾️ to retry', 0, 120, 12)
@@ -456,7 +475,12 @@ end
 
 function nice_time(inms)
    local sec = flr(inms)
-   local ms = flr(inms * 100 % 100)
+   local ms  = flr(inms * 100 % 100)
+   if(ms == 0) then
+      ms = '00'
+   elseif(ms < 10) then
+      ms = '0' .. ms
+   end
    return sec .. '.' .. ms
 end
 

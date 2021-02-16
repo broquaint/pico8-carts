@@ -441,12 +441,12 @@ function draw_game()
    local lvltime = nil
    local msg = ''
    if(gamestate == state_running) then
-      msg = 'level ' .. level .. ': ' .. nice_time(time_limit - running_time + extra_time) .. 's'
+      msg = 'level ' .. level .. ' ⧗' .. nice_time((time_limit - running_time) + extra_time) .. 's'
    elseif(gamestate == state_no_void) then
       msg = 'missed the void, reached lvl ' .. level
       print('press 🅾️ to retry', 0, 120, 12)
    else
-      msg = 'entered the void at ' .. nice_time(lvldone - begin) .. 's'
+      msg = 'entered void with ' .. nice_time((time_limit - (lvldone - begin)) + extra_time) .. 's left'
       print('press 🅾️	to proceed', 0, 120, 12)
    end
 

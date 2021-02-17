@@ -45,12 +45,20 @@ function reset_level_vars()
    falling = false
    moving  = false
    facing = 4
+   jumped_from = x
 
    gapset = {}
    floor = 1
-   bonus_level = level % 10 == 0
    floor_unlocked = true
+   if(level > 5 and randn(20) < level) then
+      -- Never the first or last floor.
+      sticky_floor = randn(5) + 1
+   else
+      sticky_floor = -1
+   end
+
    key_set = {}
+
    timers_seen = 0
    timer_at = {}
    if(not bonus_level) then
@@ -59,6 +67,8 @@ function reset_level_vars()
       time_limit = max(11 - (level/10), 6)
    end
    extra_time = 0
+
+   bonus_level = level % 10 == 0
 
    begin = t()
    gamestate = state_running
@@ -177,8 +187,6 @@ function ceil(n)
    return -flr(-n)
 end
 
--- is_floor = 8
-
 function fall()
    y += dy
    local sy = y + 8
@@ -235,14 +243,17 @@ function _update()
       end
 
       if(btn(0) or btn(1)) then
-         moving = true
-         if (btn(0) and x >= 1) then
-            x -= dx
-            facing = 3
-         end
-         if (btn(1) and x <= 118) then
-            x += dx
-            facing = 4
+         -- If the floor is stick you can only move when jumping
+         if(sticky_floor != floor or falling or jumping) then
+            moving = true
+            if (btn(0) and x >= 1) then
+               x -= dx
+               facing = 3
+            end
+            if (btn(1) and x <= 118) then
+               x += dx
+               facing = 4
+            end
          end
       else
          moving = false
@@ -286,6 +297,7 @@ function _update()
       -- jump to avoid slow gaps and b) so you can fall straight through gaps below.
       if (not falling and btn(5) and y % 8 == 0) then
          jumping = true
+         jumped_from = x
          dy = 0.5
          sfx(0)
       end
@@ -434,6 +446,9 @@ function draw_game()
    for iy=1,7 do
       local liney = iy * 16
       local locked = key_set[iy] != nil and #key_set[iy] or 0
+      if(iy == sticky_floor) then
+         line(0, liney, 128, liney, 3)
+      end
       for idx, gap in pairs(gapset[iy]) do
          -- An indication that the floor is locked.
          if(locked > 0) then
@@ -489,7 +504,11 @@ function draw_game()
          spr(facing, x, y)
       end
    end
-   -- rect(x,y,x+8,y+8,7)
+
+   if(jumping and sticky_floor == floor) then
+      line(jumped_from,     floor * 16, x,     y + 8, 11)
+      line(jumped_from + 4, floor * 16, x + 4, y + 8, 11)
+   end
 
    local msg = ''
    if(gamestate == state_running) then

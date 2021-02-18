@@ -41,6 +41,7 @@ function reset_game_vars()
 end
 
 function reset_level_vars()
+   gravity = normal_gravity
    x = 0
    y = 8
    dx = 2
@@ -50,6 +51,8 @@ function reset_level_vars()
    moving  = false
    facing = 4
    jumped_from = x
+
+   bonus_level = level % 10 == 0
 
    gapset = {}
    floor = 1
@@ -72,7 +75,6 @@ function reset_level_vars()
    end
    extra_time = 0
 
-   bonus_level = level % 10 == 0
 
    begin = t()
    gamestate = state_running

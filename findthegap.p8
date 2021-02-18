@@ -147,7 +147,8 @@ function set_keys()
 
    for iy = 2,7 do
       local function key_gen()
-         return {(randn(15) * 8) - 1, iy * 16 - 8}
+         local y_offset = randn(4) > 2 and 8 or 13
+         return {(randn(15) * 8) - 1, iy * 16 - y_offset}
       end
       local keys = {}
       if(not bonus_level and (randn(9) + 1) < level) then
@@ -286,7 +287,8 @@ function _update()
          if(floor_locked) then
             local keys = key_set[floor]
             for idx,key in pairs(keys) do
-               if((x + 6) > key[1] and x < (key[1] + 6)) then
+               if  ((x + 6) > key[1] and x < (key[1] + 6))
+                  and (y <= key[2] or flr(y - 2) == key[2]) then
                   deli(keys, idx)
                   sfx(4)
                   break

@@ -24,6 +24,10 @@ state_menu      = 'menu'
 
 lower_limit = 19
 
+normal_gravity = 0.25
+gravity = normal_gravity -- Not constant, changes for slow falls.
+jump_velocity = 1.6
+
 function _init()
    reset_game_vars()
    reset_level_vars()
@@ -156,52 +160,21 @@ function set_keys()
    add(key_set, {})
 end
 
-function jump()
-   if(dy > 0) then
-      y -= flr(abs(dy*5))
-      if(dy == 0.5) then
-         dy += 0.3
-      elseif(dy == 0.8) then
-         dy += 0.2
-      elseif(dy == 1) then
-         dy += 0.1
-      else
-         dy = -0.5
-      end
-   else
-      y += flr(abs(dy*5))
-      if(dy == -0.5) then
-         dy -= 0.3
-      elseif(dy == -0.8) then
-         dy -= 0.2
-      elseif(dy == -1) then
-         dy -= 0.1
-      else
-         dy = 0
-         jumping = false
-      end
-   end
-end
-
-function ceil(n)
-   return -flr(-n)
-end
-
-function fall()
-   y += dy
-   local sy = y + 8
-   if(floor < 8 and sy % 16 == 0) then
-      falling = false
+function apply_gravity()
+   dy += gravity
+   y  += dy
+   local player_feet = y + 8
+   local next_floor  = floor * 16
+   local should_stop = player_feet >= next_floor
+   if gamestate == state_level_end then return end
+   if dy >= 0 and (player_feet >= next_floor) then
+      -- Handle the void floor so the player is placed on the "surface"
+      y = next_floor - (floor == 8 and 10 or 8)
       dy = 0
-   elseif(flr(sy) >= 126) then
-      if(dy == 0 and y >= 118) then
-         y += 2
-         in_void = true
-      else
-         y = 118
-         falling = false
-         dy = 0
-      end
+      -- Reset gravity after slow falls
+      gravity = normal_gravity
+      falling = false
+      jumping = false
    end
 end
 
@@ -221,8 +194,11 @@ function _update()
       -- Have the zoop play a short time after the fall sfx.
       if(y == 124) sfx(8)
       if(btn(4)) reset_level_vars()
-      -- Fall past the void, but not forever.
-      if(y < 150) fall()
+      -- Fall through the void and move towards the center.
+      if(y < 150) then
+         apply_gravity()
+         if((x + 8) < 64 or x > 64) x += dx
+      end
    elseif(gamestate == state_no_void) then
       if(btn(4)) then
          reset_game_vars()
@@ -267,7 +243,9 @@ function _update()
                   dy = 1
                   dx = 2
                elseif(effect == drop_slow) then
-                  dy = 0.25
+                  y += 1 -- Indicate movement .. not ideal though.
+                  gravity = 0.01
+                  dy = 0.01
                   dx = 2
                elseif(effect == drop_fast) then
                   dy = 4
@@ -298,7 +276,7 @@ function _update()
       if (not falling and btn(5) and y % 8 == 0) then
          jumping = true
          jumped_from = x
-         dy = 0.5
+         dy -= jump_velocity
          sfx(0)
       end
 
@@ -323,11 +301,8 @@ function _update()
          end
       end
 
-      if (jumping and not falling) then
-         jump()
-      end
-      if (falling and not jumping) then
-         fall()
+      if (jumping or falling) then
+         apply_gravity()
       end
 
       if(y >= 118) then
@@ -336,9 +311,12 @@ function _update()
          local void_x2 = 96 - flr(running_time) - offset
 
          if((x + 8) > void_x1 and x < void_x2) then
-            fall()
-            gamestate = state_level_end
+            falling = true
+            dy = 0.1
+            apply_gravity()
+            dx = (x + 8) < 64 and 2 or -2
             if(lvldone == nil) then
+               gamestate = state_level_end
                lvldone = t()
                level += 1
             end
@@ -802,7 +780,7 @@ __sfx__
 000400000f7301174014740150401c0401f04021040220401e7400e7300d7300a7300572002720140000100013000190001900019000190003a00024000001000010000000000010000000000000000000000000
 000600001a5501a55019550175501555013550105500c550085500055007500025000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00050000225502255022540205401f5301e5301b520145200c5200955005500005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000e0000125701156011560115501055010540105400f5400f5400e5400d5400d5300c5300c5400a5400953007520045100050006300085000750006500055000450004500035000250000500005000000000000
+000c0000125701156011560115501055010540105400f5400f5400e5400d5400d5300c5300c5400a5400953007520045100050006300085000750006500055000450004500035000250000500005000000000000
 0105000024114201201e1301e130201212412028130281352b1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0106000012600126001460014600126211262314633146330e6210e62305613056130e6000e600056000560000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0110000013554135521355210541105441054113552135520d5540d5510c5410c5450000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

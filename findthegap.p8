@@ -17,6 +17,9 @@ sfx_drop_tbl = {
 
 gapspr={2,5,6}
 
+warp_item_spr = 16
+item_warp = 'warp'
+
 state_level_end = 'end of level'
 state_running   = 'running'
 state_no_void   = 'no void'
@@ -38,6 +41,7 @@ end
 
 function reset_game_vars()
    level = 1
+   current_item = {}
 end
 
 function reset_level_vars()
@@ -75,7 +79,6 @@ function reset_level_vars()
    end
    extra_time = 0
 
-
    begin = t()
    gamestate = state_running
    lvldone = nil
@@ -84,6 +87,7 @@ function reset_level_vars()
 
    set_gaps()
    set_keys()
+   set_items()
 end
 
 function is_pos_in_set(pos_set, pos)
@@ -127,10 +131,23 @@ function set_gaps()
          add(gaps, find_free_tile(gaps, gap_gen))
       end
 
+      -- If the current item is warp always ensure 1 slow gap.
+      if current_item[4] == item_warp and
+         every(gapset[iy], function(g) return fget(g[3]) != drop_slow end) then
+                  -- Don't add another gap if there's already 3
+         if(#gaps == 3) then
+            gaps[#gaps][3] = gapspr[2]
+         else
+            local gap = find_free_tile(gaps, gap_gen)
+            gap[3] = gapspr[2]
+            add(gaps, gap)
+         end
+      end
+
       -- Ensure there's at least one non-slow gap.
       if every(gapset[iy], function(g) return fget(g[3]) == drop_slow end) then
-         -- Don't add another gap if there's already 4
-         if(#gaps == 4) then
+         -- Don't add another gap if there's already 3
+         if(#gaps == 3) then
             gaps[#gaps][3] = gapspr[1]
          else
             local gap = find_free_tile(gaps, gap_gen)
@@ -138,6 +155,7 @@ function set_gaps()
             add(gaps, gap)
          end
       end
+
       gapset[iy] = gaps
    end
 end
@@ -161,6 +179,17 @@ function set_keys()
    -- Ensure at least one floor is free of keys.
    key_set[randn(#key_set - 2) + 2] = {}
    add(key_set, {})
+end
+
+function set_items()
+   if level > 4 and randn(4) == 2 and #current_item == 0 then
+      local item_y = (randn(6) + 1) * 16 - 8
+      item_set = {
+         {4, item_y, warp_item_spr, item_warp}
+      }
+   else
+      item_set = {}
+   end
 end
 
 function apply_gravity()
@@ -225,12 +254,20 @@ function _update()
          -- If the floor is stick you can only move when jumping
          if(sticky_floor != floor or falling or jumping) then
             moving = true
-            if (btn(0) and x >= 1) then
-               x -= dx
+            if (btn(0)) then
+               if current_item[4] == item_warp and x <= 0 then
+                  x = 118
+               elseif x > 0 then
+                  x -= dx
+               end
                facing = 3
             end
-            if (btn(1) and x <= 118) then
-               x += dx
+            if (btn(1)) then
+               if current_item[4] == item_warp and x >= 120 then
+                  x = 0
+               elseif x < 120 then
+                  x += dx
+               end
                facing = 4
             end
          end
@@ -302,6 +339,13 @@ function _update()
             timer_at = {}
             extra_time += 3
             sfx(7)
+         end
+
+         for idx, item in pairs(item_set) do
+            if y == item[2] and (x + 6) > item[1] and x < (item[1] + 6) then
+               current_item = item
+               deli(item_set, idx)
+            end
          end
       end
 
@@ -466,6 +510,14 @@ function draw_game()
       draw_timer_at(timer_at[1], timer_at[2])
    end
 
+   for item in all(item_set) do
+      spr(item[3], item[1], item[2])
+   end
+
+   if gamestate != state_no_void and #current_item > 0 then
+      spr(current_item[3], 118, 0)
+   end
+
    if(gamestate == state_no_void) then
       spr(facing + 7, x, y)
    else
@@ -576,12 +628,12 @@ __gfx__
 00000000aaeeeeaa1111111100aaaa0000aaaa00111111111111111100000000000000000000000000aaaa0000aaaa0000000000677777760066660000000000
 000000001aaaaaa11111111104400440044004401111111111111111000000000000000000000000055005500550055000000000066666600000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000aaaa0000aaaa0000000000000000000000000000000000000000000000000000000000
-000000000000000000000000000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
-000000000000000000000000000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
-000000000000000000000000000000000000000000000000000000000aaaa9a00a9aaaa000000000000000000000000000000000000000000000000000000000
-000000000000000000000000000000000000000000000000000000000aa99aa00aa99aa000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000044aaa0000aaa44000000000000000000000000000000000000000000000000000000000
+a000000a00000000000000000000000000000000000000000000000000aaaa0000aaaa0000000000000000000000000000000000000000000000000000000000
+ca0000ac0000000000000000000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
+ca0000ac0000000000000000000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
+aa0000aa0000000000000000000000000000000000000000000000000aaaa9a00a9aaaa000000000000000000000000000000000000000000000000000000000
+9a0000a90000000000000000000000000000000000000000000000000aa99aa00aa99aa000000000000000000000000000000000000000000000000000000000
+a000000a000000000000000000000000000000000000000000000000044aaa0000aaa44000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000004400440000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000077777777777777770000000000000000000000000000000071d666d10000000000000000712ddd21713bbb3100000000
 0000000000000000000000000000000056005600560056000000000000aaaa0000aaaa000000000011da6ad10000000000000000112ada21113aba3100000000

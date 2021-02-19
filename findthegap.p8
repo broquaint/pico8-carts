@@ -724,13 +724,13 @@ function draw_game()
    local msg = ''
    if(gamestate == state_running) then
       if(bonus_level) then
-         msg = '★ bonus '
+         msg = '★ challenge '
       end
       msg = msg .. 'level ' .. level .. ' ⧗' .. nice_time((time_limit - running_time) + extra_time) .. 's'
    elseif(gamestate == state_no_void) then
       msg = 'void missed'
       if(new_highscore) then
-         msg = msg .. ' ★ new high score ' .. level
+         msg = msg .. ' ★ new hi score ' .. level
       else
          msg = msg .. ', reached lvl ' .. level
       end

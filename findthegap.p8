@@ -21,6 +21,8 @@ warp_item_spr = 16
 item_warp = 'warp'
 skeleton_key_item_spr = 17
 item_skeleton_key = 'skele key'
+shoes_item_spr = 18
+item_speed_shoes = 'fast boots'
 
 state_level_end = 'end of level'
 state_running   = 'running'
@@ -30,8 +32,10 @@ state_menu      = 'menu'
 lower_limit = 13
 
 normal_gravity = 0.25
-gravity = normal_gravity -- Not constant, changes for slow falls.
+gravity = normal_gravity -- Not constant, changes for slow falls etc
 jump_velocity = 1.6
+normal_speed = 2
+speed = normal_speed
 
 function _init()
    reset_game_vars()
@@ -50,7 +54,7 @@ function reset_level_vars()
    gravity = normal_gravity
    x = 0
    y = 8
-   dx = 2
+   dx = current_item[4] == item_speed_shoes and (normal_speed + 1) or normal_speed
    dy = 0
    jumping = false
    falling = false
@@ -163,6 +167,13 @@ function set_gaps()
          end
       end
 
+      -- If the current item is speed shoes ensure no fast gaps.
+      if current_item[4] == item_speed_shoes then
+         for gap in all(gaps) do
+            if(gap[3] == 6) gap[3] = 5
+         end
+      end
+
       -- Ensure there's at least one non-slow gap.
       if every(gaps, function(g) return fget(g[3]) == drop_slow end) then
          -- Don't add another gap if there's already 3
@@ -207,7 +218,8 @@ function set_items()
    if level > 4 and randn(4) == 2 and not bonus_level then
       local possible_items = shuffle({
          {8,   warp_item_spr, item_warp},
-         {112, skeleton_key_item_spr, item_skeleton_key}
+         {112, skeleton_key_item_spr, item_skeleton_key},
+         {64,  shoes_item_spr, item_speed_shoes}
       })
       for item in all(possible_items) do
          if current_item[4] != item[3] then
@@ -380,16 +392,19 @@ function _update()
                local effect = fget(gap[3])
                if(effect == drop_normal) then
                   dy = 1
-                  dx = 2
+                  dx = speed
                elseif(effect == drop_slow) then
                   y += 1 -- Indicate movement .. not ideal though.
                   gravity = 0.01
                   dy = 0.01
-                  dx = 1.5
+                  dx = current_item[4] == item_speed_shoes and speed or speed * 0.75
                elseif(effect == drop_fast) then
                   dy = 4
-                  dx = 3
+                  -- No fast gaps with speed shoes.
+                  dx = speed + 1
                end
+
+               printh("dx = " .. dx .. " speed = " .. speed)
 
                falling = true
                floor += 1
@@ -443,6 +458,15 @@ function _update()
 
          for idx, item in pairs(item_set) do
             if y == item[2] and (x + 6) > item[1] and x < (item[1] + 6) then
+               if item[4] != item_speed_shoes then
+                  -- Reset speed if we're switching from speed shoes.
+                  dx = normal_speed
+                  speed = normal_speed
+               else
+                  dx = normal_speed + 1.6
+                  speed = dx
+               end
+
                current_item = item
                deli(item_set, idx)
                sfx(12)
@@ -750,9 +774,9 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 a000000a00000000000000000000000000000000000000000000000000aaaa0000aaaa0000000000000000000000000000000000000000000000000000000000
 ca0000ac0550000000000000000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
-ca0000ac0575666000000000000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
-aa0000aa0550606000000000000000000000000000000000000000000aaaa9a00a9aaaa000000000000000000000000000000000000000000000000000000000
-9a0000a90000000000000000000000000000000000000000000000000aa99aa00aa99aa000000000000000000000000000000000000000000000000000000000
+ca0000ac0575666008900890000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
+aa0000aa0550606008890889000000000000000000000000000000000aaaa9a00a9aaaa000000000000000000000000000000000000000000000000000000000
+9a0000a9000000000aaa0aaa000000000000000000000000000000000aa99aa00aa99aa000000000000000000000000000000000000000000000000000000000
 a000000a000000000000000000000000000000000000000000000000044aaa0000aaa44000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000004400440000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000077777777777777770000000000000000000000000000000001d666d10000000000000000012ddd21013bbb3100000000

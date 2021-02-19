@@ -70,11 +70,31 @@ function reset_level_vars()
    gapset = {}
    floor = 1
    floor_unlocked = true
-   if(level > 5 and randn(20) < level) then
-      -- Never the first or last floor.
-      sticky_floor = randn(5) + 1
-   else
-      sticky_floor = -1
+
+   sticky_floor = -1
+   bouncy_floor = -1
+
+   -- Only have "flavour" floors after 5th level.
+   if level > 5 then
+      if level < 20 then
+         if randn(3) == 2 then
+            -- Never the first or last floor.
+            sticky_floor = randn(5) + 1
+         else
+            bouncy_floor = randn(5) + 1
+         end
+      -- After 20th level allow >1 flavour floor.
+      else
+         local rem = level % 10
+         if rem % 3 == 0 then
+            sticky_floor = randn(5) + 1
+            bouncy_floor = sticky_floor > 3 and 2 or 4
+         elseif rem % 4 == 0 then
+            bouncy_floor = randn(5) + 1
+         elseif rem % 2 == 0 then
+            sticky_floor = randn(5) + 1
+         end
+      end
    end
 
    key_set = {}
@@ -257,6 +277,14 @@ function progress_floor()
    end
 end
 
+function start_jump()
+   jumping = true
+   jumped_from = x
+   dy -= jump_velocity
+   if(sticky_floor == floor) dx = speed
+   sfx(0)
+end
+
 function apply_gravity()
    dy += gravity
    y  += dy
@@ -291,22 +319,26 @@ function apply_gravity()
          -- Handle the void floor so the player is placed on the "surface"
          y = next_floor - (floor == 8 and 10 or 8)
          dy = 0
-         -- Reset gravity after slow falls
-         gravity = normal_gravity
-         falling = false
-         jumping = false
-         if floors_dropped > 2 then
-            key_set[floor] = {}
-            -- TODO SFX
+
+         if bouncy_floor == floor then
+            start_jump()
+         else
+            -- Reset gravity after slow falls
+            gravity = normal_gravity
+            falling = false
+            jumping = false
+
+            if sticky_floor == floor then
+               dx = speed * 0.2
+            end
+
+            if floors_dropped > 1 and not has_speed_shoes then
+               dx += floors_dropped / 2
+               info_flash('speed boost!', 1)
+            end
+
+            floors_dropped = 0
          end
-         if sticky_floor == floor then
-            dx = speed * 0.2
-         end
-         if floors_dropped > 1 and not has_speed_shoes then
-            dx += floors_dropped / 2
-            info_flash('speed boost!', 1)
-         end
-         floors_dropped = 0
       end
    end
 end
@@ -475,14 +507,10 @@ function _update()
       -- This should be after the falling check so a) you can't just spam
       -- jump to avoid slow gaps and b) so you can fall straight through gaps below.
       if (not falling and btn(5) and y % 8 == 0) then
-         jumping = true
-         jumped_from = x
-         dy -= jump_velocity
-         if(sticky_floor == floor) dx = speed
-         sfx(0)
+         start_jump()
       end
 
-      if not falling or current_item[4] == item_skeleton_key then
+      if not falling or current_item[4] == item_skeleton_key or bouncy_floor == floor then
          if floor_locked then
             local keys = key_set[floor]
             for idx,key in pairs(keys) do
@@ -649,6 +677,8 @@ function draw_game()
       local locked = key_set[iy] != nil and #key_set[iy] or 0
       if(iy == sticky_floor) then
          line(0, liney, 128, liney, 3)
+      elseif (iy == bouncy_floor) then
+         line(0, liney, 128, liney, 12)
       end
       for idx, gap in pairs(gapset[iy]) do
          -- An indication that the floor is locked.
@@ -671,7 +701,7 @@ function draw_game()
 
    for iy in all({floor, floor + 1}) do
       local keys = key_set[iy] or {}
-      if iy == floor and (not falling or current_item[4] == item_skeleton_key) then
+      if iy == floor and (not falling or current_item[4] == item_skeleton_key or bouncy_floor == floor) then
          draw_keys(keys)
       else
          for key in all(keys) do

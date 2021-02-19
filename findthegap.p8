@@ -299,6 +299,9 @@ function apply_gravity()
             key_set[floor] = {}
             -- TODO SFX
          end
+         if sticky_floor == floor then
+            dx = speed * 0.2
+         end
          if floors_dropped > 1 and not has_speed_shoes then
             dx += floors_dropped / 2
             info_flash('speed boost!', 1)
@@ -419,28 +422,25 @@ function _update()
          return
       end
 
-      if(btn(0) or btn(1)) then
-         -- If the floor is stick you can only move when jumping
-         if(sticky_floor != floor or falling or jumping) then
-            moving = true
-            if (btn(0)) then
-               if current_item[4] == item_warp and x <= 0 then
-                  x = 118
-                  sfx(14)
-               elseif x > 0 then
-                  x -= dx
-               end
-               facing = 3
+      if btn(0) or btn(1) then
+         moving = true
+         if btn(0) then
+            if current_item[4] == item_warp and x <= 0 then
+               x = 118
+               sfx(14)
+            elseif x > 0 then
+               x -= dx
             end
-            if (btn(1)) then
-               if current_item[4] == item_warp and x >= 119 then
-                  x = 0
-                  sfx(13)
-               elseif x < 119 then
-                  x += dx
-               end
-               facing = 4
+            facing = 3
+         end
+         if btn(1) then
+            if current_item[4] == item_warp and x >= 119 then
+               x = 0
+               sfx(13)
+            elseif x < 119 then
+               x += dx
             end
+            facing = 4
          end
       else
          moving = false
@@ -478,6 +478,7 @@ function _update()
          jumping = true
          jumped_from = x
          dy -= jump_velocity
+         if(sticky_floor == floor) dx = speed
          sfx(0)
       end
 

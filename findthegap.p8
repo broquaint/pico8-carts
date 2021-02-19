@@ -284,9 +284,9 @@ function _update()
                facing = 3
             end
             if (btn(1)) then
-               if current_item[4] == item_warp and x >= 120 then
+               if current_item[4] == item_warp and x >= 119 then
                   x = 0
-               elseif x < 120 then
+               elseif x < 119 then
                   x += dx
                end
                facing = 4
@@ -535,6 +535,11 @@ function draw_game()
       spr(item[3], item[1], item[2])
    end
 
+   if current_item[4] != item_warp then
+      line(0, 0, 0, 128, 7)
+      line(127, 0, 127, 128, 7)
+   end
+
    if gamestate != state_no_void and #current_item > 0 then
       spr(current_item[3], 118, 0)
    end
@@ -578,14 +583,14 @@ function draw_game()
       else
          msg = msg .. ', reached lvl ' .. level
       end
-      print('press 🅾️ to retry', 0, 120, 12)
+      print('press 🅾️ to retry', 2, 120, 12)
    else
       msg = 'entered void with ' .. nice_time((time_limit - (lvldone - begin)) + extra_time) .. 's left'
-      print('press 🅾️ to proceed', 0, 120, 12)
+      print('press 🅾️ to proceed', 2, 120, 12)
    end
 
 --   print(msg .. ': '.. lvltime .. 's [' .. x .. " x " .. y .. '] ', 0, 0, 12)
-   print(msg, 0, 0, 12)
+   print(msg, 2, 0, 12)
 end
 
 function nice_time(inms)

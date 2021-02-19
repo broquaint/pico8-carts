@@ -31,7 +31,7 @@ state_menu      = 'menu'
 
 lower_limit = 13
 
-normal_gravity = 0.25
+normal_gravity = 0.2
 gravity = normal_gravity -- Not constant, changes for slow falls etc
 jump_velocity = 1.6
 normal_speed = 2
@@ -61,6 +61,7 @@ function reset_level_vars()
    moving  = false
    facing = 4
    jumped_from = x
+   floors_dropped = 0
 
    bonus_level = level % 10 == 0
 
@@ -231,6 +232,29 @@ function set_items()
    end
 end
 
+function above_gap()
+   for gap in all(gapset[floor] or {{-1,-1}}) do
+      if((x + 2) > gap[1] and (x + 4) < gap[2]) return gap
+   end
+   return false
+end
+
+function progress_floor()
+   falling = true
+   floor += 1
+   timer_at = {}
+   floors_dropped += 1
+
+   floor_locked = #key_set[floor] > 0
+
+   timer_max = min(flr(floor/5), 2)
+   if(floor < 7 and level > 5 and randn(15) < level and timers_seen < timer_max and not bonus_level) then
+      timers_seen += 1
+      local timer_gen = function () return {(randn(15) * 8), floor * 16 - 8} end
+      timer_at = find_free_item_tile(key_set[floor], timer_gen)
+   end
+end
+
 function apply_gravity()
    dy += gravity
    y  += dy
@@ -239,13 +263,45 @@ function apply_gravity()
    local should_stop = player_feet >= next_floor
    if gamestate == state_level_end then return end
    if dy >= 0 and (player_feet >= next_floor) then
-      -- Handle the void floor so the player is placed on the "surface"
-      y = next_floor - (floor == 8 and 10 or 8)
-      dy = 0
-      -- Reset gravity after slow falls
-      gravity = normal_gravity
-      falling = false
-      jumping = false
+      local gap = above_gap()
+      local effect = gap and fget(gap[3])
+      if gap and not floor_locked then
+         -- Hack to handle jumping into a slow gap
+         -- Code duped from _update()!
+         progress_floor()
+
+         if effect == drop_slow and floors_dropped == 1 then
+            y += 1 -- Indicate movement .. not ideal though.
+            gravity = 0.01
+            dy = 0.01
+            dx = current_item[4] == item_speed_shoes and speed or speed * 0.75
+         else
+            dy += 1
+         end
+
+         printh('floors dropped ' .. floors_dropped .. ' effect ' .. effect)
+         if floors_dropped == 1 then
+            sfx(sfx_drop_tbl[effect])
+         else
+            sfx(13 + floors_dropped)
+         end
+      else
+         -- Handle the void floor so the player is placed on the "surface"
+         y = next_floor - (floor == 8 and 10 or 8)
+         dy = 0
+         -- Reset gravity after slow falls
+         gravity = normal_gravity
+         falling = false
+         jumping = false
+         if floors_dropped > 2 then
+            key_set[floor] = {}
+            -- TODO SFX
+         end
+         if floors_dropped > 1 then
+            dx += floors_dropped / 2
+         end
+         floors_dropped = 0
+      end
    end
 end
 
@@ -387,41 +443,28 @@ function _update()
       end
 
       if(not jumping and not falling and not floor_locked) then
-         for gap in all(gapset[floor] or {{-1,-1}}) do
-            if((x + 2) > gap[1] and (x + 4) < gap[2]) then
-               local effect = fget(gap[3])
-               if(effect == drop_normal) then
-                  dy = 1
-                  dx = speed
-               elseif(effect == drop_slow) then
-                  y += 1 -- Indicate movement .. not ideal though.
-                  gravity = 0.01
-                  dy = 0.01
-                  dx = current_item[4] == item_speed_shoes and speed or speed * 0.75
-               elseif(effect == drop_fast) then
-                  dy = 4
-                  -- No fast gaps with speed shoes.
-                  dx = speed + 1
-               end
-
-               printh("dx = " .. dx .. " speed = " .. speed)
-
-               falling = true
-               floor += 1
-               timer_at = {}
-
-               floor_locked = #key_set[floor] > 0
-
-               timer_max = min(flr(floor/5), 2)
-               if(floor < 7 and level > 5 and randn(15) < level and timers_seen < timer_max and not bonus_level) then
-                  timers_seen += 1
-                  local timer_gen = function () return {(randn(15) * 8), floor * 16 - 8} end
-                  timer_at = find_free_item_tile(key_set[floor], timer_gen)
-               end
-
-               sfx(sfx_drop_tbl[effect])
-               break
+         local gap = above_gap()
+         if gap then
+            local effect = fget(gap[3])
+            if(effect == drop_normal) then
+               dy = 1
+               dx = speed
+            elseif(effect == drop_slow) then
+               y += 1 -- Indicate movement .. not ideal though.
+               gravity = 0.01
+               dy = 0.01
+               dx = current_item[4] == item_speed_shoes and speed or speed * 0.75
+            elseif(effect == drop_fast) then
+               dy = 4
+               -- No fast gaps with speed shoes.
+               dx = speed + 1
             end
+
+            printh("dx = " .. dx .. " speed = " .. speed)
+
+            progress_floor()
+
+            sfx(sfx_drop_tbl[effect])
          end
       end
 
@@ -978,7 +1021,7 @@ __map__
 2424242424322424243324242424342400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 010400000f7111172114721150211c0211f02121021220201e7200e7100d7100a7100571002715140000100013000190001900019000190003a00024000001000010000000000010000000000000000000000000
-000600001a5501a55019550175501555013550105500c550085500055007500025000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+090400001a5441a54019540175401555013550105400c540085400054507500025000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00050000225502255022540205401f5301e5301b520145200c5200955005500005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000c0000125701156011560115501055010540105400f5400f5400e5400d5400d5300c5300c5400a5400953007520045100050006300085000750006500055000450004500035000250000500005000000000000
 4905000024114201201e1301e130201212412028130281352b1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -992,6 +1035,8 @@ __sfx__
 1109000018754187511c7501c7511f750000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 090800001f52421521235250000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0108000023524215211f5250000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+090600001f7441f740217402173300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010600002174421740247402473300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __music__
 00 0a0b4344
 

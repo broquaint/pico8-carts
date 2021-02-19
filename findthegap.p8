@@ -147,8 +147,8 @@ function set_gaps()
 
       -- If the current item is warp always ensure 1 slow gap.
       if current_item[4] == item_warp and
-         every(gapset[iy], function(g) return fget(g[3]) != drop_slow end) then
-                  -- Don't add another gap if there's already 3
+         every(gaps, function(g) return fget(g[3]) != drop_slow end) then
+         -- Don't add another gap if there's already 3
          if(#gaps == 3) then
             gaps[#gaps][3] = gapspr[2]
          else
@@ -159,7 +159,7 @@ function set_gaps()
       end
 
       -- Ensure there's at least one non-slow gap.
-      if every(gapset[iy], function(g) return fget(g[3]) == drop_slow end) then
+      if every(gaps, function(g) return fget(g[3]) == drop_slow end) then
          -- Don't add another gap if there's already 3
          if(#gaps == 3) then
             gaps[#gaps][3] = gapspr[1]

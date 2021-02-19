@@ -128,10 +128,12 @@ function set_gaps()
    local function gap_gen()
       local x1 = randn(14) * 8
       local sprite
-      if(not bonus_level) then
-         sprite = gapspr[randn(#gapspr)]
-      else
+      if level == 1 then
+         sprite = gapspr[1]
+      elseif level == 2 or bonus_level then
          sprite = ({2,6})[randn(2)]
+      else
+         sprite = gapspr[randn(#gapspr)]
       end
       return { x1, x1 + 8, sprite }
    end
@@ -182,11 +184,12 @@ function set_keys()
 
    for iy = 2,7 do
       local function key_gen()
-         local y_offset = randn(4) > 2 and 8 or 13
-         return {(randn(15) * 8) - 1, iy * 16 - y_offset}
+         local y_offset = 8
+         if(level > 5 and randn(4) > 3) y_offset = 13
+         return {(randn(15) * 8), iy * 16 - y_offset}
       end
       local keys = {}
-      if(not bonus_level and (randn(9) + 1) < level) then
+      if not bonus_level and level > 3 and randn(10) < level then
          local key_count = current_item[4] == item_skeleton_key and 1 or #gapset[iy]
          for _ = 1, key_count do
             add(keys, find_free_item_tile(keys, key_gen))
@@ -310,7 +313,7 @@ function _update()
                   y += 1 -- Indicate movement .. not ideal though.
                   gravity = 0.01
                   dy = 0.01
-                  dx = 2
+                  dx = 1.5
                elseif(effect == drop_fast) then
                   dy = 4
                   dx = 3
@@ -520,7 +523,7 @@ function draw_game()
 
    for iy in all({floor, floor + 1}) do
       local keys = key_set[iy] or {}
-      if(iy == floor) then
+      if iy == floor and not falling then
          draw_keys(keys)
       else
          for key in all(keys) do

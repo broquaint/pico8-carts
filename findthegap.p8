@@ -204,12 +204,12 @@ end
 
 function set_items()
    item_set = {}
-   if level > 4 and randn(4) == 2 then
-      -- TODO avoid key/timer collision
-      for item in all({
-         {4,   warp_item_spr, item_warp},
+   if level > 4 and randn(4) == 2 and not bonus_level then
+      local possible_items = shuffle({
+         {8,   warp_item_spr, item_warp},
          {112, skeleton_key_item_spr, item_skeleton_key}
-      }) do
+      })
+      for item in all(possible_items) do
          if current_item[4] != item[3] then
             local item_y = (randn(6) + 1) * 16 - 8
             add(item_set, {item[1], item_y, item[2], item[3]})
@@ -667,7 +667,7 @@ end
 
 -- Not supporting non-array tables as not using them.
 function arr_to_str(a)
-   local res = '['
+   local res = '{'
    for v in all(a) do
       if(type(v) == 'table') then
          res = res .. arr_to_str(v)
@@ -676,7 +676,18 @@ function arr_to_str(a)
       end
       res = res .. ", "
    end
-   return sub(res, 0, #res - 2) .. "]"
+   return sub(res, 0, #res - 2) .. "}"
+end
+
+function shuffle(a)
+   local copy = copy_table(a)
+   local res = {}
+   for _ = 1, #copy do
+      local idx = randn(#copy)
+      add(res, copy_table(copy[idx]))
+      deli(copy, idx)
+   end
+   return res
 end
 
 __gfx__

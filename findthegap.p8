@@ -248,7 +248,7 @@ function progress_floor()
    floor_locked = #key_set[floor] > 0
 
    timer_max = min(flr(floor/5), 2)
-   if(floor < 7 and level > 5 and randn(15) < level and timers_seen < timer_max and not bonus_level) then
+   if floor < 7 and level > 5 and randn(15) < level and timers_seen < timer_max and not bonus_level and current_item[4] != item_speed_shoes then
       timers_seen += 1
       local timer_gen = function () return {(randn(15) * 8), floor * 16 - 8} end
       timer_at = find_free_item_tile(key_set[floor], timer_gen)

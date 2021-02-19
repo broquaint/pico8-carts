@@ -27,7 +27,7 @@ state_running   = 'running'
 state_no_void   = 'no void'
 state_menu      = 'menu'
 
-lower_limit = 19
+lower_limit = 13
 
 normal_gravity = 0.25
 gravity = normal_gravity -- Not constant, changes for slow falls.
@@ -75,10 +75,13 @@ function reset_level_vars()
    timers_seen = 0
    timer_at = {}
    if(not bonus_level) then
-      if current_item[4] == item_skeleton_key then
-         time_limit = 26 - min(level, lower_limit)
+      -- If you have the skeleton key it's a 6s penalty each level.
+      local base_time = (current_item[4] == item_skeleton_key and 26 or 32) - flr(level / 10)
+      local pressure  = level * 0.7
+      if level > 10 then
+         time_limit = base_time - min(pressure, lower_limit)
       else
-         time_limit = 32 - min(level, lower_limit)
+         time_limit = base_time - level
       end
    else
       time_limit = max(11 - (level/10), 6)
@@ -375,9 +378,9 @@ function _update()
       end
 
       if(y >= 118) then
-         local offset  = min(level, lower_limit)
-         local void_x1 = 32 + flr(running_time) + offset
-         local void_x2 = 96 - flr(running_time) - offset
+         local offset  = time_limit - running_time
+         local void_x1 = 64 - offset
+         local void_x2 = 64 + offset
 
          if((x + 8) > void_x1 and x < void_x2) then
             falling = true
@@ -440,9 +443,9 @@ function draw_void(running_time)
    line(28, 126, 100, 126, 6)
    line(32, 127, 96, 127, 6)
 
-   local offset  = min(level, lower_limit)
-   local void_x1 = 32 + flr(running_time) + offset
-   local void_x2 = 96 - flr(running_time) - offset
+   local offset  = time_limit - running_time
+   local void_x1 = 64 - offset -- 32 + flr(running_time) + offset
+   local void_x2 = 64 + offset
 
    -- The void has ended
    if(void_x1 >= 64) return

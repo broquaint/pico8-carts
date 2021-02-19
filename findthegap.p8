@@ -216,7 +216,7 @@ end
 
 function set_items()
    item_set = {}
-   if level > 4 and randn(4) == 2 and not bonus_level then
+   if level > 3 and not bonus_level and level % 2 == 0 then
       local possible_items = shuffle({
          {8,   warp_item_spr, item_warp},
          {112, skeleton_key_item_spr, item_skeleton_key},

@@ -22,22 +22,55 @@ function delay(f, n)
    add(delays, co)
 end
 
-function run_delays()
+flashes = {}
+-- Momentary display
+function flash(f, n)
+   local started = t()
+   local co
+   co = cocreate(function()
+         while (t() - started) < n do
+            f()
+            yield()
+         end
+
+         for idx, v in pairs(flashes) do
+            if v == co then
+               deli(flashes, idx)
+               break
+            end
+         end
+   end)
+   add(flashes, co)
+end
+
+function run_coroutines()
    for co in all(delays) do
+      coresume(co)
+   end
+   for co in all(flashes) do
       coresume(co)
    end
 end
 
 function _update()
-  run_delays()
+end
+
+function _draw()
+   cls()
+   print('testing testing 1 2 3', 0, 0, 7)
+   run_coroutines()
 end
 
 function _init()
-   cls()
-   print('testing testing 1 2 3', 0, 0, 7)
    delay(
       function()
-         print('success!', 0, 20, 11)
+         print('flashing for 3 ...', 0, 20, 11)
+         flash(
+            function()
+               print('hi o/', 0, 40, 13)
+            end,
+            3
+         )
       end,
       2
    )

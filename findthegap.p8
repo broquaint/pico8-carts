@@ -20,7 +20,7 @@ gapspr={2,5,6}
 warp_item_spr = 16
 item_warp = 'warp'
 skeleton_key_item_spr = 17
-item_skeleton_key = 'skeleton key'
+item_skeleton_key = 'skele key'
 
 state_level_end = 'end of level'
 state_running   = 'running'
@@ -257,9 +257,53 @@ function delay(f, n)
    add(delays, co)
 end
 
+flashes = {}
+-- Momentary display
+function flash(f, n)
+   local started = t()
+   local co
+   co = cocreate(function()
+         while (t() - started) < n do
+            if(gamestate == state_running) f()
+            yield()
+         end
+
+         for idx, v in pairs(flashes) do
+            if v == co then
+               deli(flashes, idx)
+               break
+            end
+         end
+   end)
+   add(flashes, co)
+end
+
+-- Only run in _update because probably don't need to draw with a delay?
 function run_delays()
    for co in all(delays) do
       coresume(co)
+   end
+end
+
+-- Only run in _draw because probably only need for rendering?
+function run_flashes()
+   for co in all(flashes) do
+      coresume(co)
+   end
+end
+
+info_flashing = false
+function info_flash(msg)
+   if not info_flashing then
+      info_flashing = true
+      flash(
+         function()
+            local colour = ((t() * 10 % 10) < 5) and 11 or 3
+            print(msg, 72, 1, colour)
+         end,
+         3
+      )
+      delay(function() info_flashing = false end, 3)
    end
 end
 
@@ -394,6 +438,7 @@ function _update()
             timer_at = {}
             extra_time += 3
             sfx(7)
+            info_flash('+3s')
          end
 
          for idx, item in pairs(item_set) do
@@ -401,6 +446,7 @@ function _update()
                current_item = item
                deli(item_set, idx)
                sfx(12)
+               info_flash(item[4])
             end
          end
       end
@@ -605,6 +651,8 @@ function draw_game()
       line(jumped_from,     floor * 16, x,     y + 8, 11)
       line(jumped_from + 4, floor * 16, x + 4, y + 8, 11)
    end
+
+   run_flashes()
 
    local msg = ''
    if(gamestate == state_running) then

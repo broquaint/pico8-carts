@@ -91,9 +91,9 @@ function reset_level_vars()
    in_void = false
    new_highscore = false
 
+   set_items()
    set_gaps()
    set_keys()
-   set_items()
 end
 
 function is_pos_in_set(pos_set, pos)
@@ -111,6 +111,14 @@ function find_free_tile(known, tile_gen)
       new_pos = tile_gen()
    end
    return new_pos
+end
+
+function find_free_item_tile(known, tile_gen)
+   local to_consider = copy_table(item_set)
+   for v in all(known) do
+      add(to_consider, v)
+   end
+   return find_free_tile(to_consider, tile_gen)
 end
 
 function set_gaps()
@@ -178,7 +186,7 @@ function set_keys()
       if(not bonus_level and (randn(9) + 1) < level) then
          local key_count = current_item[4] == item_skeleton_key and 1 or #gapset[iy]
          for _ = 1, key_count do
-            add(keys, find_free_tile(keys, key_gen))
+            add(keys, find_free_item_tile(keys, key_gen))
          end
       end
       key_set[iy] = keys
@@ -314,8 +322,8 @@ function _update()
                timer_max = min(flr(floor/5), 2)
                if(floor < 7 and level > 5 and randn(15) < level and timers_seen < timer_max and not bonus_level) then
                   timers_seen += 1
-                  local timer_gen = function () return {(randn(15) * 8) - 1, floor * 16 - 8} end
-                  timer_at = find_free_tile(key_set[floor], timer_gen)
+                  local timer_gen = function () return {(randn(15) * 8), floor * 16 - 8} end
+                  timer_at = find_free_item_tile(key_set[floor], timer_gen)
                end
 
                sfx(sfx_drop_tbl[effect])
@@ -559,11 +567,10 @@ function draw_game()
 
    local msg = ''
    if(gamestate == state_running) then
-      msg = 'level ' .. level .. ' ⧗' .. nice_time((time_limit - running_time) + extra_time) .. 's'
-
       if(bonus_level) then
-         msg = msg .. " ★ bonus level"
+         msg = '★ bonus '
       end
+      msg = msg .. 'level ' .. level .. ' ⧗' .. nice_time((time_limit - running_time) + extra_time) .. 's'
    elseif(gamestate == state_no_void) then
       msg = 'void missed'
       if(new_highscore) then

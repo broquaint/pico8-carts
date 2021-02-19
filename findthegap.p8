@@ -272,16 +272,16 @@ function apply_gravity()
          -- Code duped from _update()!
          progress_floor()
 
+         local has_speed_shoes = current_item[4] == item_speed_shoes
          if effect == drop_slow and floors_dropped == 1 then
             y += 1 -- Indicate movement .. not ideal though.
             gravity = 0.01
             dy = 0.01
-            dx = current_item[4] == item_speed_shoes and speed or speed * 0.75
+            dx = has_speed_shoes and speed or speed * 0.75
          else
             dy += 1
          end
 
-         printh('floors dropped ' .. floors_dropped .. ' effect ' .. effect)
          if floors_dropped == 1 then
             sfx(sfx_drop_tbl[effect])
          else
@@ -299,8 +299,9 @@ function apply_gravity()
             key_set[floor] = {}
             -- TODO SFX
          end
-         if floors_dropped > 1 then
+         if floors_dropped > 1 and not has_speed_shoes then
             dx += floors_dropped / 2
+            info_flash('speed boost!', 1)
          end
          floors_dropped = 0
       end
@@ -363,7 +364,8 @@ function run_flashes()
 end
 
 info_flashing = false
-function info_flash(msg)
+function info_flash(msg, flash_length)
+   if(flash_length == nil) flash_length = 3
    if not info_flashing then
       info_flashing = true
       flash(
@@ -371,9 +373,9 @@ function info_flash(msg)
             local colour = ((t() * 10 % 10) < 5) and 11 or 3
             print(msg, 72, 1, colour)
          end,
-         3
+         flash_length
       )
-      delay(function() info_flashing = false end, 3)
+      delay(function() info_flashing = false end, flash_length)
    end
 end
 

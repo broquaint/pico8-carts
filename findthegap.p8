@@ -477,8 +477,8 @@ function _update()
          sfx(0)
       end
 
-      if(not falling) then
-         if(floor_locked) then
+      if not falling or current_item[4] == item_skeleton_key then
+         if floor_locked then
             local keys = key_set[floor]
             for idx,key in pairs(keys) do
                if  ((x + 6) > key[1] and x < (key[1] + 6))
@@ -666,7 +666,7 @@ function draw_game()
 
    for iy in all({floor, floor + 1}) do
       local keys = key_set[iy] or {}
-      if iy == floor and not falling then
+      if iy == floor and (not falling or current_item[4] == item_skeleton_key) then
          draw_keys(keys)
       else
          for key in all(keys) do

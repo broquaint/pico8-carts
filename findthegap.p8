@@ -237,7 +237,35 @@ function apply_gravity()
    end
 end
 
+delays = {}
+function delay(f, n)
+   local started = t()
+   local co
+   co = cocreate(function()
+         while (t() - started) < n do
+            yield()
+         end
+
+         f()
+         for idx, v in pairs(delays) do
+            if v == co then
+               deli(delays, idx)
+               break
+            end
+         end
+   end)
+   add(delays, co)
+end
+
+function run_delays()
+   for co in all(delays) do
+      coresume(co)
+   end
+end
+
 function _update()
+   run_delays()
+
    if(gamestate == state_menu) then
       if(btn(4)) then
          gamestate = state_running
@@ -250,8 +278,6 @@ function _update()
    local running_time = t() - begin - extra_time
 
    if(gamestate == state_level_end) then
-      -- Have the zoop play a short time after the fall sfx.
-      if(y == 124) sfx(8)
       if(btn(4)) reset_level_vars()
       -- Fall through the void and move towards the center.
       if(y < 150) then
@@ -391,6 +417,7 @@ function _update()
             apply_gravity()
             dx = (x + 8) < 64 and 2 or -2
             if(lvldone == nil) then
+               delay(function() sfx(8) end, 0.3)
                gamestate = state_level_end
                lvldone = t()
                level += 1

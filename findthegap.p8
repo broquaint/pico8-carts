@@ -328,6 +328,8 @@ function apply_gravity()
          dy = 0
 
          if bouncy_floor == floor then
+            -- Reset gravity otherwise bouncing from a slow gap is bugged.
+            gravity = normal_gravity
             start_jump()
          else
             -- Reset gravity after slow falls

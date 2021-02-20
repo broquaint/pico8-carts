@@ -93,12 +93,12 @@ function reset_level_vars()
       -- After 20th level allow >1 flavour floor.
       else
          local rem = level % 10
-         if rem % 3 == 0 then
+         if rem % 3 == 0 and not bonus_level then
             sticky_floor = randn(5) + 1
             bouncy_floor = sticky_floor > 3 and 2 or 4
          elseif rem % 4 == 0 then
             bouncy_floor = randn(5) + 1
-         elseif rem % 2 == 0 then
+         elseif rem % 2 == 0 and not bonus_level then
             sticky_floor = randn(5) + 1
          end
       end

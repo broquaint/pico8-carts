@@ -22,6 +22,9 @@ sfx_drop_tbl = {
    [drop_fast]   = 2
 }
 
+facing_right_spr = 4
+facing_left_spr  = 3
+
 gapspr={2,5,6}
 
 warp_item_spr = 16
@@ -41,8 +44,12 @@ lower_limit = 13
 normal_gravity = 0.2
 gravity = normal_gravity -- Not constant, changes for slow falls etc
 jump_velocity = 1.6
-normal_speed = 2
-speed = normal_speed
+speed_boost = 0.01
+max_speed = 2.2
+normal_friction = 0.8
+friction = normal_friction
+normal_acceleration = 0.25
+acceleration = normal_acceleration
 
 function _init()
    reset_game_vars()
@@ -63,14 +70,16 @@ function reset_level_vars()
    gravity = normal_gravity
    x = 0
    y = 8
-   dx = current_item[4] == item_speed_shoes and (normal_speed + 1) or normal_speed
+   dx = 0
    dy = 0
    jumping = false
    falling = false
    moving  = false
-   facing = 4
+   direction = 1
    jumped_from = x
    floors_dropped = 0
+
+   acceleration = current_item[4] == item_speed_shoes and normal_acceleration + speed_boost or normal_acceleration
 
    bonus_level = level % 10 == 0
 
@@ -288,7 +297,8 @@ function start_jump()
    jumping = true
    jumped_from = x
    dy -= jump_velocity
-   if(sticky_floor == floor) dx = speed
+   -- if(sticky_floor == floor) dx = speed * direction
+   if(sticky_floor == floor) acceleration = normal_acceleration
    sfx(0)
 end
 
@@ -312,7 +322,8 @@ function apply_gravity()
             y += 1 -- Indicate movement .. not ideal though.
             gravity = 0.01
             dy = 0.01
-            dx = has_speed_shoes and speed or speed * 0.75
+            -- dx = direction * (has_speed_shoes and speed or speed * 0.75)
+            acceleration = has_speed_shoes and normal_acceleration or acceleration * 0.75
          else
             dy += 1
          end
@@ -338,11 +349,13 @@ function apply_gravity()
             jumping = false
 
             if sticky_floor == floor then
-               dx = speed * 0.2
+               -- dx = direction * (speed * 0.2)
+               acceleration *= 0.1
             end
 
             if floors_dropped > 1 and not has_speed_shoes then
-               dx += floors_dropped / 2
+               -- dx += floors_dropped / 2
+               acceleration += (floors_dropped / 2) * 0.07
                info_flash('speed boost!', 1)
             end
 
@@ -350,6 +363,49 @@ function apply_gravity()
          end
       end
    end
+end
+
+
+function move_player_horizontal()
+   local cx = x + dx
+   local can_warp = current_item[4] == item_warp
+   if cx <= 0 then
+      if can_warp then
+         x = 118
+         sfx(14)
+      else
+         x = 0
+      end
+   elseif cx >= 119 then
+      if can_warp then
+         x = 0
+         sfx(13)
+      else
+         x = 118
+      end
+   else
+      x += dx
+   end
+
+   dx *= friction
+   if(not moving) dx *= friction
+
+   local accel = acceleration
+
+   -- Speed shoes means bad air control
+   if jumping and current_item[4] == item_speed_shoes then
+      accel *= 0.17
+   end
+
+   if btn(0) then
+      dx = dx - accel
+      direction = -1
+   elseif btn(1) then
+      dx = dx + accel
+      direction = 1
+   end
+
+   if(abs(dx) > max_speed) dx = max_speed * direction
 end
 
 delays = {}
@@ -466,47 +522,37 @@ function _update()
 
       if btn(0) or btn(1) then
          moving = true
-         if btn(0) then
-            if current_item[4] == item_warp and x <= 0 then
-               x = 118
-               sfx(14)
-            elseif x > 0 then
-               x -= dx
-            end
-            facing = 3
-         end
-         if btn(1) then
-            if current_item[4] == item_warp and x >= 119 then
-               x = 0
-               sfx(13)
-            elseif x < 119 then
-               x += dx
-            end
-            facing = 4
-         end
+
+         -- local msg = 'dx was ' .. dx .. ' @ ' .. x
+         move_player_horizontal()
+         -- if(t() % 0.25 == 0) printh(msg .. ', dx now ' .. dx .. ' @ ' .. x)
       else
          moving = false
       end
 
+      local has_ss = current_item[4] == item_speed_shoes
       if(not jumping and not falling and not floor_locked) then
          local gap = above_gap()
          if gap then
             local effect = fget(gap[3])
             if(effect == drop_normal) then
                dy = 1
-               dx = speed
+               -- dx = speed
+               acceleration = has_ss and normal_acceleration + speed_boost or normal_acceleration
             elseif(effect == drop_slow) then
                y += 1 -- Indicate movement .. not ideal though.
                gravity = 0.01
                dy = 0.01
-               dx = current_item[4] == item_speed_shoes and speed or speed * 0.75
+               -- dx = direction * (current_item[4] == item_speed_shoes and speed or speed * 0.75)
+               acceleration = has_ss and normal_acceleration or normal_acceleration * 0.7
             elseif(effect == drop_fast) then
                dy = 4
                -- No fast gaps with speed shoes.
-               dx = speed + 1
+               -- dx = direction * (speed + 1)
+               acceleration += 0.07
             end
 
-            printh("dx = " .. dx .. " speed = " .. speed)
+            -- printh("dx = " .. dx .. " speed = " .. speed)
 
             progress_floor()
 
@@ -546,11 +592,15 @@ function _update()
             if y == item[2] and (x + 6) > item[1] and x < (item[1] + 6) then
                if item[4] != item_speed_shoes then
                   -- Reset speed if we're switching from speed shoes.
-                  dx = normal_speed
-                  speed = normal_speed
+                  -- dx = normal_speed
+                  -- speed = normal_speed
+                  acceleration = normal_acceleration
+                  friction = normal_friction
                else
-                  dx = normal_speed + 1.6
-                  speed = dx
+                  -- dx = normal_speed + 1.4
+                  -- speed = dx
+                  acceleration += speed_boost
+                  friction = 0.95
                end
 
                if item[4] == item_warp then
@@ -703,6 +753,7 @@ function draw_menu()
    draw_keys({{64, 56}})
    draw_timer_at(104, 56)
    local at = flr(t() % 1 * 100)
+   local facing = direction == 1 and facing_right_spr or facing_left_spr
    if(at < 25 or (at > 50 and at < 75)) then
       spr(facing + 20, 8, 56)
    else
@@ -777,6 +828,7 @@ function draw_game()
       spr(current_item[3], 118, 0)
    end
 
+   local facing = direction == 1 and facing_right_spr or facing_left_spr
    if(gamestate == state_no_void) then
       spr(facing + 7, x, y)
    else

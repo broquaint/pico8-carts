@@ -5,6 +5,13 @@ __lua__
 -- by broquaint
 
 -- constants
+
+-- Brain won't map colours to numbers so get computer to do it
+black    = 0 navy     = 1 magenta  = 2 green    = 3
+brown    = 4 dim_grey = 5 silver   = 6 white    = 7
+red      = 8 orange   = 9 yellow   = 10 lime    = 11
+azure    = 12 violet   = 13 salmon = 14 coral   = 15
+
 drop_normal = 1
 drop_slow   = 2
 drop_fast   = 4
@@ -634,10 +641,33 @@ end
 
 function draw_void(running_time)
    -- Draw the void layer.
-   line(0, 126, 128, 126, 7)
-   line(0, 127, 128, 127, 7)
-   line(28, 126, 100, 126, 6)
-   line(32, 127, 96, 127, 6)
+   local outer_colour
+   local inner_colour
+   local time_left = time_limit - running_time
+   if gamestate == state_menu or time_left > 10 then
+      outer_colour = white
+      inner_colour = silver
+   elseif time_left > 8 then
+      outer_colour = silver
+      inner_colour = yellow
+   elseif time_left > 5 then
+      outer_colour = yellow
+      inner_colour = salmon
+   elseif time_left > 2 then
+      outer_colour = salmon
+      inner_colour = red
+   elseif time_left > 0 then
+      outer_colour = black
+      inner_colour = red
+   else
+      outer_colour = black
+      inner_colour = black
+   end
+
+   line(0, 126, 128, 126,  outer_colour)
+   line(0, 127, 128, 127,  outer_colour)
+   line(28, 126, 100, 126, inner_colour)
+   line(32, 127, 96, 127,  inner_colour)
 
    local offset  = time_limit - running_time
    local void_x1 = 64 - offset -- 32 + flr(running_time) + offset

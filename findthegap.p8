@@ -29,8 +29,6 @@ gapspr={2,5,6}
 
 warp_item_spr = 16
 item_warp = 'warp'
-skeleton_key_item_spr = 17
-item_skeleton_key = 'skele key'
 shoes_item_spr = 18
 item_speed_shoes = 'fast boots'
 
@@ -118,8 +116,7 @@ function reset_level_vars()
    timers_seen = 0
    timer_at = {}
    if(not bonus_level) then
-      -- If you have the skeleton key it's a 6s penalty each level.
-      local base_time = (current_item[4] == item_skeleton_key and 26 or 32) - flr(level / 10)
+      local base_time = 32 - flr(level / 10)
       local pressure  = level * 0.7
       if level > 10 then
          time_limit = base_time - min(pressure, lower_limit)
@@ -245,7 +242,7 @@ function set_keys()
       end
       local keys = {}
       if not bonus_level and level > 3 and randn(10) < level then
-         local key_count = current_item[4] == item_skeleton_key and 1 or #gapset[iy]
+         local key_count = #gapset[iy]
          for _ = 1, key_count do
             add(keys, find_free_item_tile(keys, key_gen))
          end
@@ -262,7 +259,6 @@ function set_items()
    if level > 3 and not bonus_level and level % 2 == 0 then
       local possible_items = shuffle({
          {8,   warp_item_spr, item_warp},
-         {112, skeleton_key_item_spr, item_skeleton_key},
          {64,  shoes_item_spr, item_speed_shoes}
       })
       for item in all(possible_items) do
@@ -529,7 +525,7 @@ function _update()
          start_jump()
       end
 
-      if not falling or current_item[4] == item_skeleton_key or bouncy_floor == floor then
+      if not falling or bouncy_floor == floor then
          if floor_locked then
             local keys = key_set[floor]
             for idx,key in pairs(keys) do

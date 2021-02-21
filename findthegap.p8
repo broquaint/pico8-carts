@@ -484,25 +484,26 @@ function _update()
    run_delays()
 
    if(gamestate == state_menu) then
-      if(btn(4)) then
+      if(btn(5)) then
          gamestate = state_running
          sfx(9)
-      else
-         return
       end
+      return
    end
 
    local running_time = t() - begin - extra_time
 
    if(gamestate == state_level_end) then
-      if(btn(4)) reset_level_vars()
+      -- Short grace period so X doesn't instantly proceed/retry
+      -- which can be jarring.
+      if(btn(5) and t() - lvldone > 0.5) reset_level_vars()
       -- Fall through the void and move towards the center.
       if(y < 150) then
          apply_gravity()
          if((x + 8) < 64 or x > 64) x += dx
       end
    elseif(gamestate == state_no_void) then
-      if(btn(4)) then
+      if(btn(5)) then
          reset_game_vars()
          reset_level_vars()
          sfx(9)
@@ -562,7 +563,7 @@ function _update()
 
       -- This should be after the falling check so a) you can't just spam
       -- jump to avoid slow gaps and b) so you can fall straight through gaps below.
-      if (not falling and btn(5) and y % 8 == 0) then
+      if not falling and (btnp(5) or btnp(2)) and y % 8 == 0 then
          start_jump()
       end
 
@@ -762,7 +763,7 @@ function draw_menu()
    if(dget(0) > 0) then
       print('high score: level ' .. dget(0), 20, 80, 7)
    end
-   print("press 🅾️ to start game", 20, 40, 7)
+   print("press ❎ to start game", 20, 40, 7)
    print("to move use ⬅️➡️", 20, 100, 7)
    print("and press ❎ to jump", 20, 110, 7)
    draw_void(0)
@@ -870,10 +871,10 @@ function draw_game()
       else
          msg = msg .. ', reached lvl ' .. level
       end
-      print('press 🅾️ to retry', 2, 120, 12)
+      print('press ❎ to retry', 2, 120, 12)
    else
       msg = 'entered void with ' .. nice_time((time_limit - (lvldone - begin)) + extra_time) .. 's left'
-      print('press 🅾️ to proceed', 2, 120, 12)
+      print('press ❎ to proceed', 2, 120, 12)
    end
 
 --   print(msg .. ': '.. lvltime .. 's [' .. x .. " x " .. y .. '] ', 0, 0, 12)

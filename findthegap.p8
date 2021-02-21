@@ -44,11 +44,11 @@ lower_limit = 13
 normal_gravity = 0.2
 gravity = normal_gravity -- Not constant, changes for slow falls etc
 jump_velocity = 1.6
-speed_boost = 0.01
-max_speed = 2.2
+speed_boost = 0.02
+max_speed = 3.5
 normal_friction = 0.8
 friction = normal_friction
-normal_acceleration = 0.25
+normal_acceleration = 0.5
 acceleration = normal_acceleration
 
 function _init()
@@ -69,14 +69,14 @@ end
 function reset_level_vars()
    gravity = normal_gravity
    x = 0
-   y = 8
+   y = 0
    dx = 0
    dy = 0
    jumping = false
-   falling = false
+   falling = true
    moving  = false
    direction = 1
-   jumped_from = x
+   jumped_from = 0
    floors_dropped = 0
 
    acceleration = current_item[4] == item_speed_shoes and normal_acceleration + speed_boost or normal_acceleration
@@ -140,6 +140,11 @@ function reset_level_vars()
    set_items()
    set_gaps()
    set_keys()
+end
+
+function has_speed_shoes(item)
+   if(item == nil) item = current_item
+   return item[4] == item_speed_shoes
 end
 
 function is_pos_in_set(pos_set, pos)
@@ -207,7 +212,7 @@ function set_gaps()
       end
 
       -- If the current item is speed shoes ensure no fast gaps.
-      if current_item[4] == item_speed_shoes then
+      if has_speed_shoes() then
          for gap in all(gaps) do
             if(gap[3] == 6) gap[3] = 5
          end
@@ -286,7 +291,7 @@ function progress_floor()
    floor_locked = #key_set[floor] > 0
 
    timer_max = min(flr(floor/5), 2)
-   if floor < 7 and level > 5 and randn(15) < level and timers_seen < timer_max and not bonus_level and current_item[4] != item_speed_shoes then
+   if floor < 7 and level > 5 and randn(15) < level and timers_seen < timer_max and not bonus_level and not has_speed_shoes() then
       timers_seen += 1
       local timer_gen = function () return {(randn(15) * 8), floor * 16 - 8} end
       timer_at = find_free_item_tile(key_set[floor], timer_gen)
@@ -297,36 +302,55 @@ function start_jump()
    jumping = true
    jumped_from = x
    dy -= jump_velocity
-   -- if(sticky_floor == floor) dx = speed * direction
    if(sticky_floor == floor) acceleration = normal_acceleration
    sfx(0)
+end
+
+function compute_gap_effect(gap)
+   local effect = fget(gap[3])
+   if(effect == drop_normal) then
+      dy = 1
+      acceleration = has_speed_shoes() and normal_acceleration + speed_boost or normal_acceleration
+   elseif(effect == drop_slow) then
+      slow_gap_fall()
+   elseif(effect == drop_fast) then
+      dy = 3.5
+      -- No boost with speed shoes.
+      acceleration += has_speed_shoes() and 0 or 0.07
+   end
+end
+
+function slow_gap_fall()
+   -- Not so slow if the gap is jumped into.
+   if floors_dropped == 1 and jumping then
+      gravity *= 0.3
+      dy *= 0.3
+   elseif floors_dropped > 1 then
+      dy += 1
+   else
+      y += 1 -- Indicate movement .. not ideal though.
+      gravity = 0.01
+      dy = 0.01
+      acceleration = has_speed_shoes() and normal_acceleration or normal_acceleration * 0.7
+   end
 end
 
 function apply_gravity()
    dy += gravity
    y  += dy
+
    local player_feet = y + 8
    local next_floor  = floor * 16
-   local should_stop = player_feet >= next_floor
-   if gamestate == state_level_end then return end
-   if dy >= 0 and (player_feet >= next_floor) then
-      local gap = above_gap()
-      local effect = gap and fget(gap[3])
-      if gap and not floor_locked then
-         -- Hack to handle jumping into a slow gap
-         -- Code duped from _update()!
-         progress_floor()
 
-         local has_speed_shoes = current_item[4] == item_speed_shoes
-         if effect == drop_slow and floors_dropped == 1 then
-            y += 1 -- Indicate movement .. not ideal though.
-            gravity = 0.01
-            dy = 0.01
-            -- dx = direction * (has_speed_shoes and speed or speed * 0.75)
-            acceleration = has_speed_shoes and normal_acceleration or acceleration * 0.75
-         else
-            dy += 1
-         end
+   if gamestate == state_level_end then return end
+
+   if dy >= 0 and (player_feet >= next_floor) then
+      local gap    = above_gap()
+      local effect = gap and fget(gap[3])
+
+      if gap and not floor_locked then
+         progress_floor()
+         compute_gap_effect(gap)
 
          if floors_dropped == 1 then
             sfx(sfx_drop_tbl[effect])
@@ -350,10 +374,10 @@ function apply_gravity()
 
             if sticky_floor == floor then
                -- dx = direction * (speed * 0.2)
-               acceleration *= 0.1
+               acceleration *= 0.05
             end
 
-            if floors_dropped > 1 and not has_speed_shoes then
+            if floors_dropped > 1 and not has_speed_shoes() then
                -- dx += floors_dropped / 2
                acceleration += (floors_dropped / 2) * 0.07
                info_flash('speed boost!', 1)
@@ -369,7 +393,7 @@ end
 function move_player_horizontal()
    local cx = x + dx
    local can_warp = current_item[4] == item_warp
-   if cx <= 0 then
+   if cx < 0 then
       if can_warp then
          x = 118
          sfx(14)
@@ -393,7 +417,7 @@ function move_player_horizontal()
    local accel = acceleration
 
    -- Speed shoes means bad air control
-   if jumping and current_item[4] == item_speed_shoes then
+   if jumping and has_speed_shoes() then
       accel *= 0.17
    end
 
@@ -449,43 +473,23 @@ function _update()
          return
       end
 
-      if btn(0) or btn(1) then
-         moving = true
+      local dir = btn(0) and 'left ' or 'right';
+      local msg = dir .. 'dx was ' .. dx .. ' @ ' .. x
+      move_player_horizontal()
+      -- if(t() % 0.25 == 0) printh(msg .. ', dx now ' .. dx .. ' @ ' .. x)
 
-         -- local msg = 'dx was ' .. dx .. ' @ ' .. x
-         move_player_horizontal()
-         -- if(t() % 0.25 == 0) printh(msg .. ', dx now ' .. dx .. ' @ ' .. x)
-      else
-         moving = false
-      end
+      moving = btn(0) or btn(1)
 
-      local has_ss = current_item[4] == item_speed_shoes
       if(not jumping and not falling and not floor_locked) then
          local gap = above_gap()
          if gap then
-            local effect = fget(gap[3])
-            if(effect == drop_normal) then
-               dy = 1
-               -- dx = speed
-               acceleration = has_ss and normal_acceleration + speed_boost or normal_acceleration
-            elseif(effect == drop_slow) then
-               y += 1 -- Indicate movement .. not ideal though.
-               gravity = 0.01
-               dy = 0.01
-               -- dx = direction * (current_item[4] == item_speed_shoes and speed or speed * 0.75)
-               acceleration = has_ss and normal_acceleration or normal_acceleration * 0.7
-            elseif(effect == drop_fast) then
-               dy = 4
-               -- No fast gaps with speed shoes.
-               -- dx = direction * (speed + 1)
-               acceleration += 0.07
-            end
+            compute_gap_effect(gap)
 
             -- printh("dx = " .. dx .. " speed = " .. speed)
 
             progress_floor()
 
-            sfx(sfx_drop_tbl[effect])
+            sfx(sfx_drop_tbl[fget(gap[3])])
          end
       end
 
@@ -519,7 +523,7 @@ function _update()
 
          for idx, item in pairs(item_set) do
             if y == item[2] and (x + 6) > item[1] and x < (item[1] + 6) then
-               if item[4] != item_speed_shoes then
+               if not has_speed_shoes(item) then
                   -- Reset speed if we're switching from speed shoes.
                   -- dx = normal_speed
                   -- speed = normal_speed

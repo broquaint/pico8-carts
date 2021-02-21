@@ -787,6 +787,11 @@ function draw_game()
       spr(current_item[3], 118, 0)
    end
 
+   if jumping and sticky_floor == floor and floors_dropped == 0 then
+      line(jumped_from,     floor * 16, x,     y + 8, 11)
+      line(jumped_from + 4, floor * 16, x + 4, y + 8, 11)
+   end
+
    local facing = direction == 1 and facing_right_spr or facing_left_spr
    if(gamestate == state_no_void) then
       spr(facing + 7, x, y)
@@ -807,11 +812,6 @@ function draw_game()
       else
          spr(facing, x, y)
       end
-   end
-
-   if(jumping and sticky_floor == floor) then
-      line(jumped_from,     floor * 16, x,     y + 8, 11)
-      line(jumped_from + 4, floor * 16, x + 4, y + 8, 11)
    end
 
    run_flashes()

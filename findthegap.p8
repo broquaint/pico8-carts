@@ -137,6 +137,7 @@ function reset_level_vars()
    set_items()
    set_gaps()
    set_keys()
+   set_launchers()
 end
 
 function has_speed_shoes(item)
@@ -146,7 +147,7 @@ end
 
 function is_pos_in_set(pos_set, pos)
    for p in all(pos_set) do
-      if(pos[1] == p[1] and pos[2] == pos[2]) return true
+      if(pos[1] == p[1]) return true
    end
    return false
 end
@@ -254,6 +255,44 @@ function set_keys()
    add(key_set, {})
 end
 
+function set_launchers()
+   local function find_free_floor_tile(launchers, iy)
+      local to_consider = copy_table(launchers)
+      for v in all(gap_set[iy]) do add(to_consider, v) end
+      -- if level < 15 then
+      for v in all(item_set[iy]) do add(to_consider, v) end
+      for v in all(key_set[iy]) do add(to_consider, v) end
+      -- end
+      -- printh('considering: ', to_consider)
+      return find_free_tile(
+         to_consider, function() return {((randn(14) + 1) * 8), iy * 16 - 8} end
+      )
+   end
+
+   launcher_set = {{}}
+
+   local seen = 0
+   for iy = 2,7 do
+      local launchers = {}
+      local lcount = level < 8 and 1 or (level < 18 or bonus_level) and 2 or 3
+      -- Add launcher 1 in 4 times if it's after level 8, it's a regular floor,
+      -- once generate up to 1 before level 8, 2 before level 18, 3 before level 28
+      -- then an aribtrary amount after that.
+      for _ = 1, lcount do
+         if randn(4) == 2 and level > 3
+            and (iy != sticky_floor and iy != bouncy_floor)
+            and ((level < 8 and seen < 1) and (level < 18 and seen < 2) or (level < 28 and seen < 3) or (level > 31)) then
+            add(launchers, find_free_floor_tile(launchers, iy))
+         end
+      end
+      seen += #launchers > 0 and 1 or 0
+      launcher_set[iy] = launchers
+   end
+
+   add(launcher_set, {})
+   -- printh('launchers: ' .. arr_to_str(launcher_set))
+end
+
 function set_items()
    item_set = {}
    if level > 3 and not bonus_level and level % 2 == 0 then
@@ -281,15 +320,20 @@ end
 function progress_floor()
    falling = true
    floor += 1
-   timer_at = {}
    floors_dropped += 1
 
    floor_locked = #key_set[floor] > 0
 
    timer_max = min(flr(floor/5), 2)
-   if floor < 7 and level > 5 and randn(15) < level and timers_seen < timer_max and not bonus_level and not has_speed_shoes() then
+   -- If before the last floor and after level 5 and there's either
+   -- a increasingly likely chance or a launcher below and a timer hasn't
+   -- been seen yet and it's not a bonus level and the current item
+   -- isn't speed shoes then generate a timer.
+   if floor < 7 and level > 5
+   and (randn(15) < level or #launcher_set[floor+1] > 0)
+   and timers_seen < timer_max and not bonus_level and not has_speed_shoes() then
       timers_seen += 1
-      local timer_gen = function () return {(randn(15) * 8), floor * 16 - 8} end
+      local timer_gen = function () return {(randn(15) * 8), floor * 16 - 8, floor} end
       timer_at = find_free_item_tile(key_set[floor], timer_gen)
    end
 end
@@ -519,6 +563,23 @@ function _update()
          end
       end
 
+      if not jumping and y == (floor * 16 - 8) then
+         for launcher in all(launcher_set[floor]) do
+            local lx = launcher[1]
+            local ly = launcher[2]
+            if (x + 4) > launcher[1] and x < (launcher[1] + 5) then
+               jumping = true
+               gravity *= 0.9
+               dy -= 2.5
+               floor -= 1
+               sfx(18)
+               flash(function() line(lx + 2, ly + 5, lx + 5, ly + 5, azure) end, 0.7)
+               flash(function() line(lx + 3, ly + 4, lx + 4, ly + 4, white) end, 0.5)
+
+               break
+            end
+         end
+      end
       -- This should be after the falling check so a) you can't just spam
       -- jump to avoid slow gaps and b) so you can fall straight through gaps below.
       if not falling and (btnp(5) or btnp(2)) and y % 8 == 0 then
@@ -540,7 +601,7 @@ function _update()
             if(#keys == 0) floor_locked = false
          end
 
-         if(#timer_at > 0 and (x + 6) > timer_at[1] and x < (timer_at[1] + 6)) then
+         if #timer_at > 0 and timer_at[3] == floor and (x + 6) > timer_at[1] and x < (timer_at[1] + 6) then
             timer_at = {}
             extra_time += 3
             sfx(7)
@@ -753,6 +814,10 @@ function draw_game()
             spr(gap[3], gap[1], liney)
          end
       end
+
+      for launcher in all(launcher_set[iy]) do
+         spr(12, launcher[1], launcher[2])
+      end
    end
 
    local running_time = t() - begin
@@ -787,7 +852,7 @@ function draw_game()
       spr(current_item[3], 118, 0)
    end
 
-   if jumping and sticky_floor == floor and floors_dropped == 0 then
+   if jumping and sticky_floor == floor and floors_dropped == 0 and (y+8) < floor * 16 then
       line(jumped_from,     floor * 16, x,     y + 8, 11)
       line(jumped_from + 4, floor * 16, x + 4, y + 8, 11)
    end
@@ -981,8 +1046,8 @@ __gfx__
 00077000aaaaaaaa111151110acacaa00aacaca011112111111131110aaa99900aa000000aa090900acacaa00aacaca0000000006777c7760677c76000000000
 00077000aaaaaaaa111111110aaaa9a00a9aaaa011111111111111110aa090900aaa9990000000000aaaaaa00aaaaaa00000000067ccc776067cc76000000000
 00700700a9eaae9a111111110aa99aa00aa99aa01111111111111111000000000aa0a0a0000000000aa99aa00aa99aa000000000677777760677776000000000
-00000000aaeeeeaa1111111100aaaa0000aaaa00111111111111111100000000000000000000000000aaaa0000aaaa0000000000677777760066660000000000
-000000001aaaaaa11111111104400440044004401111111111111111000000000000000000000000055005500550055000000000066666600000000000000000
+00000000aaeeeeaa1111111100aaaa0000aaaa00111111111111111100000000000000000000000000aaaa0000aaaa0000cccc00677777760066660000000000
+000000001aaaaaa1111111110440044004400440111111111111111100000000000000000000000005500550055005500dddddd0066666600000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 a000000a00000000000000000000000000000000000000000000000000aaaa0000aaaa0000000000000000000000000000000000000000000000000000000000
 ca0000ac0550000000000000000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
@@ -1207,6 +1272,7 @@ __sfx__
 090600001f7441f740217402173300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 010600002174421740247402473300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01040000125701156011560115501055010540105400f5400f5400e5400d5400d5300c5300c5400a5400953007520045100000000000000000000000000000000000000000000000000000000000000000000000
+0b0600000455407551025410254104551055530000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __music__
 00 0a0b4344
 

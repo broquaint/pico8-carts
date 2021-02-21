@@ -63,7 +63,7 @@ function reset_game_vars()
    level = 1
    current_item = {}
    dx = 0
-   dy = 0
+   dy = 6
 end
 
 function reset_level_vars()

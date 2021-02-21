@@ -408,78 +408,6 @@ function move_player_horizontal()
    if(abs(dx) > max_speed) dx = max_speed * direction
 end
 
-delays = {}
-function delay(f, n)
-   local started = t()
-   local co
-   co = cocreate(function()
-         while (t() - started) < n do
-            yield()
-         end
-
-         f()
-         for idx, v in pairs(delays) do
-            if v == co then
-               deli(delays, idx)
-               break
-            end
-         end
-   end)
-   add(delays, co)
-end
-
-flashes = {}
--- Momentary display
-function flash(f, n)
-   local started = t()
-   local on_level = level
-   local co
-   co = cocreate(function()
-         while (t() - started) < n do
-            if(gamestate == state_running and level == on_level) f()
-            yield()
-         end
-
-         for idx, v in pairs(flashes) do
-            if v == co then
-               deli(flashes, idx)
-               break
-            end
-         end
-   end)
-   add(flashes, co)
-end
-
--- Only run in _update because probably don't need to draw with a delay?
-function run_delays()
-   for co in all(delays) do
-      coresume(co)
-   end
-end
-
--- Only run in _draw because probably only need for rendering?
-function run_flashes()
-   for co in all(flashes) do
-      coresume(co)
-   end
-end
-
-info_flashing = false
-function info_flash(msg, flash_length)
-   if(flash_length == nil) flash_length = 3
-   if not info_flashing then
-      info_flashing = true
-      flash(
-         function()
-            local colour = ((t() * 10 % 10) < 5) and 11 or 3
-            print(msg, 72, 1, colour)
-         end,
-         flash_length
-      )
-      delay(function() info_flashing = false end, flash_length)
-   end
-end
-
 function _update()
    run_delays()
 
@@ -879,6 +807,80 @@ function draw_game()
 
 --   print(msg .. ': '.. lvltime .. 's [' .. x .. " x " .. y .. '] ', 0, 0, 12)
    print(msg, 2, 1, 12)
+end
+
+delays = {}
+function delay(f, n)
+   local started = t()
+   local co
+   co = cocreate(function()
+         while (t() - started) < n do
+            yield()
+         end
+
+         f()
+         for idx, v in pairs(delays) do
+            if v == co then
+               deli(delays, idx)
+               break
+            end
+         end
+   end)
+   add(delays, co)
+end
+
+flashes = {}
+-- Momentary display
+function flash(f, n)
+   local started = t()
+   local on_level = level
+   local co
+   co = cocreate(function()
+         while (t() - started) < n do
+            if(gamestate == state_running and level == on_level) f()
+            yield()
+         end
+
+         for idx, v in pairs(flashes) do
+            if v == co then
+               deli(flashes, idx)
+               break
+            end
+         end
+   end)
+   add(flashes, co)
+end
+
+-- Only run in _update because probably don't need to draw with a delay?
+function run_delays()
+   for co in all(delays) do
+      coresume(co)
+   end
+end
+
+-- Only run in _draw because probably only need for rendering?
+function run_flashes()
+   for co in all(flashes) do
+      coresume(co)
+   end
+end
+
+info_flashing = false
+function info_flash(msg, flash_length)
+   -- Not enough room for flashes on bonus levels ATM
+   if(bonus_level) return
+   if(flash_length == nil) flash_length = 3
+   if not info_flashing then
+      info_flashing = true
+      flash(
+         function()
+            local colour = ((t() * 10 % 10) < 5) and 11 or 3
+            print(msg, 72, 1, colour)
+         end,
+         flash_length
+      )
+      delay(function() info_flashing = false end, flash_length)
+   end
 end
 
 function nice_time(inms)

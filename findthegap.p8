@@ -316,7 +316,7 @@ function compute_gap_effect(gap)
    elseif(effect == drop_fast) then
       dy = 3.5
       -- No boost with speed shoes.
-      acceleration += has_speed_shoes() and 0 or 0.07
+      acceleration += has_speed_shoes() and 0 or 0.3
    end
 end
 
@@ -378,12 +378,20 @@ function apply_gravity()
 
             if sticky_floor == floor then
                -- dx = direction * (speed * 0.2)
-               acceleration *= 0.05
+               if has_speed_shoes() then
+                  acceleration *= 0.05
+               else
+                  acceleration *= 0.2
+               end
             end
 
             if floors_dropped > 1 and not has_speed_shoes() then
                -- dx += floors_dropped / 2
-               acceleration += (floors_dropped / 2) * 0.07
+               if has_speed_shoes() then
+                  acceleration += (floors_dropped / 2) * 0.07
+               else
+                  acceleration += 0.4
+               end
                info_flash('speed boost!', 1)
             end
 
@@ -395,42 +403,60 @@ end
 
 
 function move_player_horizontal()
-   local cx = x + dx
-   local can_warp = current_item[4] == item_warp
-   if cx < 0 then
-      if can_warp then
-         x = 118
-         sfx(14)
-      else
-         x = 0
+   function bound_movement(cx)
+      local can_warp = current_item[4] == item_warp
+      if cx < 0 then
+         if can_warp then
+            x = 120
+            sfx(14)
+         else
+            x = 0
+         end
+      elseif cx >= 120 then
+         if can_warp then
+            x = 0
+            sfx(13)
+         else
+            x = 120
+         end
       end
-   elseif cx >= 119 then
-      if can_warp then
-         x = 0
-         sfx(13)
-      else
-         x = 118
-      end
-   else
-      x += dx
-   end
-
-   dx *= friction
-   if(not moving) dx *= friction
-
-   local accel = acceleration
-
-   -- Speed shoes means bad air control
-   if jumping and has_speed_shoes() then
-      accel *= 0.17
    end
 
    if btn(0) then
-      dx = dx - accel
       direction = -1
    elseif btn(1) then
-      dx = dx + accel
       direction = 1
+   end
+
+   -- If speed shoes are possessed then compute movement based on momentum
+   if has_speed_shoes() then
+      x += dx
+      bound_movement(x + dx)
+
+      dx *= friction
+      if(not moving) dx *= friction
+
+      local accel = acceleration
+
+      -- Speed shoes means bad air control
+      -- if jumping then
+      --    accel *= 0.17
+      -- end
+
+      if btn(0) then
+         dx = dx - accel
+      elseif btn(1) then
+         dx = dx + accel
+      end
+   -- Otherwise movement maps directly to input.
+   else
+      local speed = min(max_speed, acceleration * 3.5)
+      if btn(0) then
+         x -= speed
+      elseif btn(1) then
+         x += speed
+      end
+      bound_movement(x)
    end
 
    if(abs(dx) > max_speed) dx = max_speed * direction

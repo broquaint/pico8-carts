@@ -28,8 +28,10 @@ facing_left_spr  = 3
 gapspr={2,5,6}
 
 warp_item_spr = 16
-item_warp = 'warp'
-shoes_item_spr = 18
+item_warp     = 'warp'
+grav_item_spr  = 17
+item_grav_belt = 'grav belt'
+shoes_item_spr   = 18
 item_speed_shoes = 'fast boots'
 
 state_level_end = 'end of level'
@@ -78,8 +80,9 @@ function reset_level_vars()
    direction = 1
    jumped_from = 0
    floors_dropped = 0
+   grav_fuel = 2
 
-   acceleration = current_item[4] == item_speed_shoes and normal_acceleration + speed_boost or normal_acceleration
+   acceleration = has_speed_shoes() and normal_acceleration + speed_boost or normal_acceleration
 
    bonus_level = level % 10 == 0
 
@@ -142,6 +145,16 @@ function reset_level_vars()
    set_bouncers()
 end
 
+function has_warp(item)
+   if(item == nil) item = current_item
+   return item[4] == item_warp
+end
+
+function has_grav_belt(item)
+   if(item == nil) item = current_item
+   return item[4] == item_grav_belt
+end
+
 function has_speed_shoes(item)
    if(item == nil) item = current_item
    return item[4] == item_speed_shoes
@@ -202,8 +215,8 @@ function set_gaps()
          end
       end
 
-      -- If the current item is warp always ensure 1 slow gap.
-      if current_item[4] == item_warp and iy != bouncy_floor and
+      -- If the current item or grav belt is warp always ensure 1 slow gap.
+      if (has_warp() or has_grav_belt()) and iy != bouncy_floor and
          every(gaps, function(g) return fget(g[3]) != drop_slow end) then
          -- Don't add another gap if there's already 3
          if(#gaps == 3) then
@@ -338,8 +351,9 @@ function set_items()
    item_set = {}
    if level > 3 and not bonus_level and level % 2 == 0 then
       local possible_items = shuffle({
-         {8,   warp_item_spr, item_warp},
-         {64,  shoes_item_spr, item_speed_shoes}
+         {8,   warp_item_spr,  item_warp},
+         {64,  shoes_item_spr, item_speed_shoes},
+         {112, grav_item_spr,  item_grav_belt}
       })
       for item in all(possible_items) do
          if current_item[4] != item[3] then
@@ -404,7 +418,7 @@ end
 
 function slow_gap_fall()
    -- Not so slow if the gap is jumped into.
-   if floors_dropped == 1 and jumping then
+   if has_grav_belt() or (floors_dropped == 1 and jumping) then
       gravity *= 0.3
       dy *= 0.3
    elseif floors_dropped > 1 then
@@ -443,6 +457,8 @@ function apply_gravity()
          else
             sfx(13 + floors_dropped)
          end
+
+         jumping = false
       else
          -- Handle the void floor so the player is placed on the "surface"
          y = next_floor - (floor == 8 and 10 or 8)
@@ -457,6 +473,7 @@ function apply_gravity()
             gravity = normal_gravity
             falling = false
             jumping = false
+            grav_fuel = 2
 
             if sticky_floor == floor then
                -- dx = direction * (speed * 0.2)
@@ -483,22 +500,28 @@ function apply_gravity()
             floors_dropped = 0
          end
       end
+   elseif has_grav_belt() and dy <= 0 then
+      if flr(player_feet / 16) < (floor - 1) then
+         if(floor != 1) then
+            floor -= 1
+            sfx(21)
+         end
+      end
    end
 end
 
 
 function move_player_horizontal()
    function bound_movement(cx)
-      local can_warp = current_item[4] == item_warp
       if cx < 0 then
-         if can_warp then
+         if has_warp() then
             x = 120
             sfx(14)
          else
             x = 0
          end
       elseif cx >= 120 then
-         if can_warp then
+         if has_warp() then
             x = 0
             sfx(13)
          else
@@ -616,7 +639,11 @@ function _update()
 
             progress_floor()
 
-            sfx(sfx_drop_tbl[fget(gap[3])])
+            if has_grav_belt() and fget(gap[3]) == drop_slow then
+               sfx(17)
+            else
+               sfx(sfx_drop_tbl[fget(gap[3])])
+            end
          end
       end
 
@@ -693,6 +720,15 @@ function _update()
          start_jump()
       end
 
+      if has_grav_belt() and grav_fuel > 0 and (btnp(5) or btnp(2)) then
+         if jumping and dy >= -0.25 then
+            -- Basically acts like a double jump
+            dy -= jump_velocity
+            grav_fuel -= 0.6
+            sfx(0)
+         end
+      end
+
       if not falling or bouncy_floor == floor then
          if floor_locked then
             local keys = key_set[floor]
@@ -733,7 +769,7 @@ function _update()
                   pal(brown, red)
                end
 
-               if item[4] == item_warp then
+               if has_warp(item) then
                   local start_fade = t()
                   flash(function()
                         local d = t() - start_fade
@@ -741,7 +777,7 @@ function _update()
                         line(0, 0, 0, 128, colour)
                         line(127, 1, 127, 128, colour)
                   end, 1)
-               elseif current_item[4] == item_warp then
+               elseif has_warp() then
                   local start_fade = t()
                   flash(function()
                         local d = t() - start_fade
@@ -759,7 +795,7 @@ function _update()
          end
       end
 
-      if (jumping or falling) then
+      if jumping or falling then
          apply_gravity()
       end
 
@@ -954,7 +990,7 @@ function draw_game()
 
    for iy in all({floor, floor + 1}) do
       local keys = key_set[iy] or {}
-      if iy == floor and (not falling or current_item[4] == item_skeleton_key or bouncy_floor == floor) then
+      if iy == floor and (not falling or bouncy_floor == floor) then
          draw_keys(keys)
       else
          for key in all(keys) do
@@ -972,7 +1008,7 @@ function draw_game()
       spr(item[3], item[1], item[2])
    end
 
-   if current_item[4] != item_warp then
+   if not has_warp() then
       line(0, 0, 0, 128, 7)
       line(127, 1, 127, 128, 7)
    end
@@ -1194,13 +1230,13 @@ __gfx__
 00000000aaeeeeaa1111111100aaaa0000aaaa00111111111111111100000000000000000000000000aaaa0000aaaa0000cccc0000cccc000066660000000000
 000000001aaaaaa1111111110440044004400440111111111111111100000000000000000000000005500550055005500dddddd0000dd0000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-a000000a00000000000000000000000000000000000000000000000000aaaa0000aaaa0000000000000000000000000000000000000000000000000000000000
-ca0000ac0550000000000000000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
-ca0000ac0575666008900890000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
-aa0000aa0550606008890889000000000000000000000000000000000aaaa9a00a9aaaa000000000000000000000000000000000000000000000000000000000
-9a0000a9000000000aaa0aaa000000000000000000000000000000000aa99aa00aa99aa000000000000000000000000000000000000000000000000000000000
-a000000a000000000000000000000000000000000000000000000000044aaa0000aaa44000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000004400440000000000000000000000000000000000000000000000000000000000000
+a000000a00c00000000000000000000000000000000000000000000000aaaa0000aaaa0000000000000000000000000000000000000000000000000000000000
+ca0000ac0ccc060000000000000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
+ca0000ac0070060008900890000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
+aa0000aa5565565508890889000000000000000000000000000000000aaaa9a00a9aaaa000000000000000000000000000000000000000000000000000000000
+9a0000a9006007000aaa0aaa000000000000000000000000000000000aa99aa00aa99aa000000000000000000000000000000000000000000000000000000000
+a000000a0060ccc00000000000000000000000000000000000000000044aaa0000aaa44000000000000000000000000000000000000000000000000000000000
+0000000000000c000000000000000000000000000000000000000000000004400440000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000077777777777777770000000000000000000000000000000001d666d10000000000000000012ddd21013bbb3100000000
 0000000000000000000000000000000056005600560056000000000000aaaa0000aaaa000000000011da6ad10000000000000000112ada21113aba3100000000
 000000000000000000000000000000000000000000000000000000000acacaa00aacaca000000000116595610000000000000000116292611163936100000000
@@ -1370,7 +1406,7 @@ __label__
 77777777777777777777777777777777655550000000000000000000000000000000000000000000000000000000555567777777777777777777777777777777
 
 __gff__
-0000010000020400000000000000000000000000000000000000000000000000010204000808000000000100000204000000010204000000000001000002040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000010000020400000000000000000000010000000000000000000000000000010204000808000000000100000204000000010204000000000001000002040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 2626260023262626260023000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -1420,6 +1456,7 @@ __sfx__
 0b0600000455407551025410254104551055530000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 55060000260341e03621050220502305523053290002a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 09060000220531f046210402204023034000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+490400001c1341c1311f1311f13121141211450000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __music__
 00 0a0b4344
 

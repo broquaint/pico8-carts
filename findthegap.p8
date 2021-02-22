@@ -81,7 +81,6 @@ function reset_level_vars()
 
    bonus_level = level % 10 == 0
 
-   gapset = {}
    floor = 1
    floor_unlocked = true
 
@@ -171,6 +170,8 @@ function find_free_item_tile(known, tile_gen)
 end
 
 function set_gaps()
+   gap_set = {}
+
    local function gap_gen()
       local x1 = randn(14) * 8
       local sprite
@@ -228,7 +229,7 @@ function set_gaps()
          end
       end
 
-      gapset[iy] = gaps
+      gap_set[iy] = gaps
    end
 end
 
@@ -243,7 +244,7 @@ function set_keys()
       end
       local keys = {}
       if not bonus_level and level > 3 and randn(10) < level then
-         local key_count = #gapset[iy]
+         local key_count = #gap_set[iy]
          for _ = 1, key_count do
             add(keys, find_free_item_tile(keys, key_gen))
          end
@@ -311,7 +312,7 @@ function set_items()
 end
 
 function above_gap()
-   for gap in all(gapset[floor] or {{-1,-1}}) do
+   for gap in all(gap_set[floor] or {{-1,-1}}) do
       if((x + 2) > gap[1] and (x + 4) < gap[2]) return gap
    end
    return false
@@ -800,7 +801,7 @@ function draw_game()
       elseif (iy == bouncy_floor) then
          line(0, liney, 128, liney, 12)
       end
-      for idx, gap in pairs(gapset[iy]) do
+      for idx, gap in pairs(gap_set[iy]) do
          -- An indication that the floor is locked.
          if(locked > 0) then
             -- Show "locked" status of gaps.

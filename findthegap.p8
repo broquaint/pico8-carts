@@ -736,14 +736,16 @@ function _update()
                if item[4] == item_warp then
                   local start_fade = t()
                   flash(function()
-                        local colour
-                        if t() - start_fade < 0.3 then
-                           colour = 6
-                        elseif t() - start_fade < 0.6 then
-                           colour = 13
-                        else
-                           colour = 5
-                        end
+                        local d = t() - start_fade
+                        local colour = d < 0.3 and silver or d < 0.6 and violet or dim_grey
+                        line(0, 0, 0, 128, colour)
+                        line(127, 1, 127, 128, colour)
+                  end, 1)
+               elseif current_item[4] == item_warp then
+                  local start_fade = t()
+                  flash(function()
+                        local d = t() - start_fade
+                        local colour = d < 0.3 and dim_grey or d < 0.6 and violet or silver
                         line(0, 0, 0, 128, colour)
                         line(127, 1, 127, 128, colour)
                   end, 1)

@@ -74,6 +74,7 @@ function reset_level_vars()
    falling = true -- Fall into the level
    moving  = false
    bouncing = false
+   wiping = false
    direction = 1
    jumped_from = 0
    floors_dropped = 0
@@ -559,23 +560,35 @@ function _update()
 
    local running_time = t() - begin - extra_time
 
-   if(gamestate == state_level_end) then
+   if gamestate == state_level_end then
       -- Short grace period so X doesn't instantly proceed/retry
       -- which can be jarring.
-      if(btn(5) and t() - lvldone > 0.5) reset_level_vars()
+      if btnp(5) and not wiping then
+         local wipe_start = t()
+         flash(function() wipe_screen(t() - wipe_start) end, 1)
+         -- Reset the level at the point should be full
+         delay(reset_level_vars, 0.5)
+         wiping = true
+      end
       -- Fall through the void and move towards the center.
       if(y < 150) then
          apply_gravity()
          if((x + 8) < 64 or x > 64) x += dx
       end
    elseif(gamestate == state_no_void) then
-      if(btn(5)) then
-         reset_game_vars()
-         reset_level_vars()
+      if btn(5) and not wiping then
+         local wipe_start = t()
+         flash(function() wipe_screen(t() - wipe_start) end, 1)
+         -- Reset the level at the point should be full
+         delay(function()
+               reset_game_vars()
+               reset_level_vars()
+         end, 0.5)
+         wiping = true
          sfx(9)
       end
    else
-      if(flr(running_time) > time_limit) then
+      if(running_time > time_limit) then
          printh("Ran out of time at " .. t() .. " started " .. begin .. " extra time " .. extra_time .. " - time limit was " .. time_limit)
          gamestate = state_no_void
          sfx(6)
@@ -767,6 +780,20 @@ function _update()
          end
       end
    end
+end
+
+function wipe_screen(tw)
+   local ry1 = tw < 0.5 and 0 or flr((tw - 0.5) * 256)
+   local ry2 = tw < 0.5 and flr(tw * 256) or 128
+   rectfill(0, ry1, 128, ry2, black)
+   rectfill(0, ry1 - 2, 128, ry2 - 2, dim_grey)
+   rectfill(0, ry1 - 3 , 128, ry2 - 3, silver)
+   rectfill(0, ry1 - 4, 128, ry2 - 4, white)
+   rectfill(0, ry1 - 5, 128, ry2 - 5, azure)
+   rectfill(0, ry1 - 6, 128, ry2 - 6, white)
+   rectfill(0, ry1 - 7, 128, ry2 - 7, silver)
+   rectfill(0, ry1 - 8, 128, ry2 - 8, dim_grey)
+   rectfill(0, ry1 - 9, 128, ry2 - 9, black)
 end
 
 function draw_keys(keys)
@@ -979,8 +1006,6 @@ function draw_game()
       end
    end
 
-   run_flashes()
-
    local msg = ''
    if(gamestate == state_running) then
       if(bonus_level) then
@@ -1002,25 +1027,28 @@ function draw_game()
 
 --   print(msg .. ': '.. lvltime .. 's [' .. x .. " x " .. y .. '] ', 0, 0, 12)
    print(msg, 2, 1, 12)
+
+   run_flashes()
 end
 
 delays = {}
 function delay(f, n)
    local started = t()
    local co
-   co = cocreate(function()
-         while (t() - started) < n do
-            yield()
+   co = function()
+         if (t() - started) < n then
+            return
          end
 
          f()
+
          for idx, v in pairs(delays) do
             if v == co then
                deli(delays, idx)
                break
             end
          end
-   end)
+   end
    add(delays, co)
 end
 
@@ -1030,10 +1058,10 @@ function flash(f, n)
    local started = t()
    local on_level = level
    local co
-   co = cocreate(function()
-         while (t() - started) < n do
-            if(gamestate == state_running and level == on_level) f()
-            yield()
+   co = function()
+         if (t() - started) < n then
+            if((gamestate == state_running or wiping) and level == on_level) f()
+            return
          end
 
          for idx, v in pairs(flashes) do
@@ -1042,21 +1070,28 @@ function flash(f, n)
                break
             end
          end
-   end)
+   end
    add(flashes, co)
+end
+
+function flash_then(f, g, n)
+   -- Run flash for specified period
+   flash(f, n)
+   -- Run delayed function on the subsequent frame (ish)
+   delay(g, n + 0.34, 'flash delay')
 end
 
 -- Only run in _update because probably don't need to draw with a delay?
 function run_delays()
    for co in all(delays) do
-      coresume(co)
+      co()
    end
 end
 
 -- Only run in _draw because probably only need for rendering?
 function run_flashes()
    for co in all(flashes) do
-      coresume(co)
+      co()
    end
 end
 
@@ -1067,14 +1102,14 @@ function info_flash(msg, flash_length)
    if(flash_length == nil) flash_length = 3
    if not info_flashing then
       info_flashing = true
-      flash(
+      flash_then(
          function()
             local colour = ((t() * 10 % 10) < 5) and 11 or 3
             print(msg, 72, 1, colour)
          end,
+         function() info_flashing = false end,
          flash_length
       )
-      delay(function() info_flashing = false end, flash_length)
    end
 end
 

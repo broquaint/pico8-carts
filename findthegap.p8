@@ -195,10 +195,13 @@ function set_gaps()
       for idx=1,gapcount do
          -- Jam the gap sprite onto the position.
          add(gaps, find_free_tile(gaps, gap_gen))
+         if iy == bouncy_floor then
+            gaps[#gaps][3] = gapspr[1]
+         end
       end
 
       -- If the current item is warp always ensure 1 slow gap.
-      if current_item[4] == item_warp and
+      if current_item[4] == item_warp and iy != bouncy_floor
          every(gaps, function(g) return fget(g[3]) != drop_slow end) then
          -- Don't add another gap if there's already 3
          if(#gaps == 3) then

@@ -434,9 +434,12 @@ function apply_gravity()
                if has_speed_shoes() then
                   acceleration += (floors_dropped / 2) * 0.07
                else
-                  acceleration += 0.4
+                  acceleration += 0.3
                end
                info_flash('speed boost!', 1)
+               flash(function() pal(brown, red) end, 0.5)
+               delay(function() flash(function() pal(brown, orange) end, 0.5) end, 0.5)
+               delay(function() pal(brown, brown) end, 1.1)
             end
 
             floors_dropped = 0
@@ -620,11 +623,14 @@ function _update()
                   -- speed = normal_speed
                   acceleration = normal_acceleration
                   friction = normal_friction
+                  pal(brown, brown)
                else
                   -- dx = normal_speed + 1.4
                   -- speed = dx
                   acceleration += speed_boost
                   friction = 0.95
+                  -- Luckily the only use of brown is in the shoes.
+                  pal(brown, red)
                end
 
                if item[4] == item_warp then

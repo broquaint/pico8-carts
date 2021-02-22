@@ -71,8 +71,9 @@ function reset_level_vars()
    dx = 0
    dy = 0
    jumping = false
-   falling = true
+   falling = true -- Fall into the level
    moving  = false
+   bouncing = false
    direction = 1
    jumped_from = 0
    floors_dropped = 0
@@ -137,6 +138,7 @@ function reset_level_vars()
    set_gaps()
    set_keys()
    set_launchers()
+   set_bouncers()
 end
 
 function has_speed_shoes(item)
@@ -268,7 +270,7 @@ function set_launchers()
       -- end
       -- printh('considering: ', to_consider)
       return find_free_tile(
-         to_consider, function() return {((randn(14) + 1) * 8), iy * 16 - 8} end
+         to_consider, function() return {((randn(13) + 1) * 8), iy * 16 - 8} end
       )
    end
 
@@ -294,6 +296,41 @@ function set_launchers()
 
    add(launcher_set, {})
    -- printh('launchers: ' .. arr_to_str(launcher_set))
+end
+
+function set_bouncers()
+   local function find_free_floor_tile(bouncers, iy)
+      local to_consider = copy_table(bouncers)
+      for v in all(gap_set[iy]) do add(to_consider, v) end
+      -- if level < 15 then
+      for v in all(item_set[iy]) do add(to_consider, v) end
+      for v in all(key_set[iy]) do add(to_consider, v) end
+      for v in all(launcher_set[iy]) do add(to_consider, v) end
+      -- end
+      -- printh('considering: ', to_consider)
+      return find_free_tile(
+         to_consider, function() return {((randn(14) + 1) * 8), iy * 16 - 8} end
+      )
+   end
+
+   bouncer_set = {{}}
+
+   local seen = 0
+   for iy = 2,7 do
+      local bouncers = {}
+      local bcount = level < 6 and 1 or (level < 16 or bonus_level) and 2 or 3
+      for _ = 1, bcount do
+         if randn(4) == 2 and level > 6
+            and (iy != sticky_floor and iy != bouncy_floor)
+            and ((level < 8 and seen < 1) and (level < 18 and seen < 2) or (level < 28 and seen < 3) or (level > 31)) then
+            add(bouncers, find_free_floor_tile(bouncers, iy))
+         end
+      end
+      seen += #bouncers > 0 and 1 or 0
+      bouncer_set[iy] = bouncers
+   end
+
+   add(bouncer_set, {})
 end
 
 function set_items()
@@ -337,6 +374,7 @@ function progress_floor()
    and timers_seen < timer_max and not bonus_level and not has_speed_shoes() then
       timers_seen += 1
       local timer_gen = function () return {(randn(15) * 8), floor * 16 - 8, floor} end
+      -- TODO handle bouncers
       timer_at = find_free_item_tile(key_set[floor], timer_gen)
    end
 end
@@ -586,9 +624,59 @@ function _update()
             end
          end
       end
+
+      if y >= (floor * 16 - 8) and y < (floor * 16 - 4) then
+         for bouncer in all(bouncer_set[floor]) do
+            local bx1 = bouncer[1] + 2
+            local bx2 = bx1 + 3
+            local px1 = flr(x + 1)
+            local px2 = flr(px1 + 5)
+
+            if not bouncing
+               and (
+                     (direction ==  1 and px2 >= bx1 and px2 < bx2)
+                  or (direction == -1 and px1 <= bx2 and px1 > bx1)
+               )
+            then
+               if has_speed_shoes() then
+                  dx = -dx
+                  bouncing = true
+                  -- Avoid getting stuck etc
+                  delay(function() bouncing = false end, 0.2)
+               else
+                  -- Shonky emulation of being pushed back
+                  local accel_was = acceleration
+                  acceleration = -(acceleration + 0.8)
+                  delay(function()
+                        if bouncing then
+                           acceleration = abs(accel_was)
+                           bouncing = false
+                        end
+                  end, 0.2)
+                  bouncing = true
+               end
+
+               local by = bouncer[2]
+               flash(
+                  function()
+                     line(bx1 - 1, by + 5, bx1 - 1, by + 6, azure)
+                     line(bx2 + 1, by + 5, bx2 + 1, by + 6, azure)
+                  end, 0.7
+               )
+               flash(function()
+                     line(bx1 - 2, by + 5, bx1 - 2, by + 6, white)
+                     line(bx2 + 2, by + 5, bx2 + 2, by + 6, white)
+               end, 0.5)
+               sfx(20)
+
+               break
+            end
+         end
+      end
+
       -- This should be after the falling check so a) you can't just spam
       -- jump to avoid slow gaps and b) so you can fall straight through gaps below.
-      if not falling and (btnp(5) or btnp(2)) and y % 8 == 0 then
+      if not falling and not jumping and (btnp(5) or btnp(2)) and y % 8 == 0 then
          start_jump()
       end
 
@@ -827,6 +915,9 @@ function draw_game()
       for launcher in all(launcher_set[iy]) do
          spr(12, launcher[1], launcher[2])
       end
+      for bouncer in all(bouncer_set[iy]) do
+         spr(13, bouncer[1], bouncer[2])
+      end
    end
 
    local running_time = t() - begin
@@ -1023,6 +1114,14 @@ function every(t, f)
    return true
 end
 
+function debug(...)
+   local res = ''
+   for v in all({...}) do
+      res = res .. (type(v) == 'table' and arr_to_str(v) or tostr(v))
+   end
+   printh(res)
+end
+
 -- Not supporting non-array tables as not using them.
 function arr_to_str(a)
    local res = '{'
@@ -1049,14 +1148,14 @@ function shuffle(a)
 end
 
 __gfx__
-000000001aaaaaa101d666d10000000000000000012ddd21013bbb31000000000000000000000000000000000000000000000000066666600000000000000000
-00000000aaeeaeea11d161d100aaaa0000aaaa001121d1211131b13100000000000000000aa0000000aaaa0000aaaa00000000006777c7760066660000000000
-00700700aefaefaa111515110acacaa00aacaca011121211111313110aa00000000000000aaaaaa00aaaaaa00aaaaaa0000000006777c7760677c76000000000
-00077000aaaaaaaa111151110acacaa00aacaca011112111111131110aaa99900aa000000aa090900acacaa00aacaca0000000006777c7760677c76000000000
-00077000aaaaaaaa111111110aaaa9a00a9aaaa011111111111111110aa090900aaa9990000000000aaaaaa00aaaaaa00000000067ccc776067cc76000000000
-00700700a9eaae9a111111110aa99aa00aa99aa01111111111111111000000000aa0a0a0000000000aa99aa00aa99aa000000000677777760677776000000000
-00000000aaeeeeaa1111111100aaaa0000aaaa00111111111111111100000000000000000000000000aaaa0000aaaa0000cccc00677777760066660000000000
-000000001aaaaaa1111111110440044004400440111111111111111100000000000000000000000005500550055005500dddddd0066666600000000000000000
+000000001aaaaaa101d666d10000000000000000012ddd21013bbb31000000000000000000000000000000000000000000000000000000000000000000000000
+00000000aaeeaeea11d161d100aaaa0000aaaa001121d1211131b13100000000000000000aa0000000aaaa0000aaaa0000000000000000000066660000000000
+00700700aefaefaa111515110acacaa00aacaca011121211111313110aa00000000000000aaaaaa00aaaaaa00aaaaaa000000000000000000677c76000000000
+00077000aaaaaaaa111151110acacaa00aacaca011112111111131110aaa99900aa000000aa090900acacaa00aacaca000000000000000000677c76000000000
+00077000aaaaaaaa111111110aaaa9a00a9aaaa011111111111111110aa090900aaa9990000000000aaaaaa00aaaaaa00000000000000000067cc76000000000
+00700700a9eaae9a111111110aa99aa00aa99aa01111111111111111000000000aa0a0a0000000000aa99aa00aa99aa00000000000cccc000677776000000000
+00000000aaeeeeaa1111111100aaaa0000aaaa00111111111111111100000000000000000000000000aaaa0000aaaa0000cccc0000cccc000066660000000000
+000000001aaaaaa1111111110440044004400440111111111111111100000000000000000000000005500550055005500dddddd0000dd0000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 a000000a00000000000000000000000000000000000000000000000000aaaa0000aaaa0000000000000000000000000000000000000000000000000000000000
 ca0000ac0550000000000000000000000000000000000000000000000acacaa00aacaca000000000000000000000000000000000000000000000000000000000
@@ -1282,6 +1381,8 @@ __sfx__
 010600002174421740247402473300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01040000125701156011560115501055010540105400f5400f5400e5400d5400d5300c5300c5400a5400953007520045100000000000000000000000000000000000000000000000000000000000000000000000
 0b0600000455407551025410254104551055530000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+55060000260341e03621050220502305523053290002a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+09060000220531f046210402204023034000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __music__
 00 0a0b4344
 

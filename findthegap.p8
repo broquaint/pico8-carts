@@ -115,15 +115,15 @@ function reset_level_vars()
    timers_seen = 0
    timer_at = {}
    if(not bonus_level) then
-      local base_time = 32 - flr(level / 10)
-      local pressure  = level * 0.7
+      local base_time = 35 - flr(level / 10)
+      local pressure  = level * 0.5
       if level > 10 then
          time_limit = base_time - min(pressure, lower_limit)
       else
          time_limit = base_time - level
       end
    else
-      time_limit = max(11 - (level/10), 6)
+      time_limit = max(15 - (level/10), 9)
    end
    extra_time = 0
 
@@ -185,12 +185,11 @@ function set_gaps()
       return { x1, x1 + 8, sprite }
    end
    for iy=1,7 do
-      local gapcount
-      if(not bonus_level) then
-         gapcount = randn(2)
-      else
-         gapcount = randn(1)
-      end
+      local gapcount = randn(not bonus_level and 2 or 1)
+
+      -- Ensure sticky floors always have 2 gaps.
+      if(iy == sticky_floor and gapcount < 2) gapcount += 1
+
       local gaps = {}
       for idx=1,gapcount do
          -- Jam the gap sprite onto the position.
@@ -201,7 +200,7 @@ function set_gaps()
       end
 
       -- If the current item is warp always ensure 1 slow gap.
-      if current_item[4] == item_warp and iy != bouncy_floor
+      if current_item[4] == item_warp and iy != bouncy_floor and
          every(gaps, function(g) return fget(g[3]) != drop_slow end) then
          -- Don't add another gap if there's already 3
          if(#gaps == 3) then
@@ -538,7 +537,7 @@ function _update()
          sfx(9)
       end
    else
-      if(flr(running_time) >= time_limit) then
+      if(flr(running_time) > time_limit) then
          printh("Ran out of time at " .. t() .. " started " .. begin .. " extra time " .. extra_time .. " - time limit was " .. time_limit)
          gamestate = state_no_void
          sfx(6)

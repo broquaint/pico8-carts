@@ -10,7 +10,7 @@ __lua__
 black    = 0 navy     = 1 magenta  = 2 green    = 3
 brown    = 4 dim_grey = 5 silver   = 6 white    = 7
 red      = 8 orange   = 9 yellow   = 10 lime    = 11
-azure    = 12 violet   = 13 salmon = 14 coral   = 15
+azure    = 12 violet  = 13 salmon  = 14 coral   = 15
 
 left  = -1
 right = 1
@@ -719,9 +719,21 @@ function _update()
       if has_grav_belt() and grav_fuel > 0 and btnp(5) then
          if jumping and dy >= -0.25 then
             -- Basically acts like a double jump
-            dy -= jump_velocity
-            grav_fuel -= 0.6
+            dy -= jump_velocity + 0.2
+            grav_fuel -= 0.7
             sfx(0)
+            local at_x = x
+            local at_y = y
+            flash(function()
+                  line(at_x+1, at_y+9,  at_x+5, at_y+9,  lime)
+                  line(at_x+2, at_y+10, at_x+4, at_y+10, green)
+            end, 0.2)
+            delay(function()
+                  flash(function()
+                        line(at_x+1, at_y+9,  at_x+5, at_y+9,  green)
+                        line(at_x+2, at_y+10, at_x+4, at_y+10, dim_grey)
+                  end, 0.1)
+            end, 0.2)
          end
       end
 

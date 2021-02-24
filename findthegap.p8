@@ -4,6 +4,12 @@ __lua__
 -- find the gap
 -- by broquaint
 
+-- todo - move x when touching a bouncer to stop repeated triggering
+-- todo - end game state in lvl 99? Maybe just 44 i.e 22 x 2?
+-- todo - game mode which has no keys
+-- todo - daily challenge mode
+-- todo - items only last 3 levels, guaranteed power up every 4th level
+
 -- constants
 
 -- Brain won't map colours to numbers so get computer to do it
@@ -11,6 +17,9 @@ black    = 0 navy     = 1 magenta  = 2 green    = 3
 brown    = 4 dim_grey = 5 silver   = 6 white    = 7
 red      = 8 orange   = 9 yellow   = 10 lime    = 11
 azure    = 12 violet   = 13 salmon = 14 coral   = 15
+
+left  = -1
+right = 1
 
 drop_normal = 1
 drop_slow   = 2
@@ -60,7 +69,7 @@ function _init()
 end
 
 function reset_game_vars()
-   level = 1
+   level = 4
    current_item = {}
    dx = 0
    dy = 6
@@ -510,61 +519,53 @@ function apply_gravity()
    end
 end
 
-
-function move_player_horizontal()
-   function bound_movement(cx)
-      if cx < 0 then
-         if has_warp() then
-            x = 120
-            sfx(14)
-         else
-            x = 0
-         end
-      elseif cx >= 120 then
-         if has_warp() then
-            x = 0
-            sfx(13)
-         else
-            x = 120
-         end
+function bound_movement(cx)
+   if cx < 0 then
+      if has_warp() then
+         return 120, 14
+      else
+         return 0
       end
+   elseif cx >= 120 then
+      if has_warp() then
+         return 0, 13
+      else
+         return 120
+      end
+   else
+      return cx
    end
+end
 
-   if btn(0) then
-      direction = -1
-   elseif btn(1) then
-      direction = 1
+function move_player_horizontal(direction_moved)
+   if direction_moved == left or direction_moved == right then
+      direction = direction_moved
+   elseif not has_speed_shoes() then
+      return
    end
 
    -- If speed shoes are possessed then compute movement based on momentum
    if has_speed_shoes() then
-      x += dx
-      bound_movement(x + dx)
+      x = bound_movement(x + dx)
 
       dx *= friction
       if(not moving) dx *= friction
 
-      local accel = acceleration
-
-      -- Speed shoes means bad air control
-      -- if jumping then
-      --    accel *= 0.17
-      -- end
-
-      if btn(0) then
-         dx = dx - accel
-      elseif btn(1) then
-         dx = dx + accel
+      if direction_moved == left then
+         dx = dx - acceleration
+      elseif direction_moved == right then
+         dx = dx + acceleration
       end
    -- Otherwise movement maps directly to input.
    else
       local speed = min(max_speed, acceleration * 3.5)
-      if btn(0) then
-         x -= speed
-      elseif btn(1) then
-         x += speed
+      local warp_sfx
+      if direction == left then
+         x, warp_sfx = bound_movement(x - speed)
+      elseif direction == right then
+         x, warp_sfx = bound_movement(x + speed)
       end
-      bound_movement(x)
+      if(warp_sfx != nil) sfx(warp_sfx)
    end
 
    if(abs(dx) > max_speed) dx = max_speed * direction
@@ -599,7 +600,7 @@ function _update()
          if((x + 8) < 64 or x > 64) x += dx
       end
    elseif(gamestate == state_no_void) then
-      if btn(5) and not wiping then
+      if btn(5) and not wiping and t() - lvldone > 0.5 then
          local wipe_start = t()
          flash(function() wipe_screen(t() - wipe_start) end, 1)
          -- Reset the level at the point should be full
@@ -625,7 +626,7 @@ function _update()
 
       local dir = btn(0) and 'left ' or 'right';
       local msg = dir .. 'dx was ' .. dx .. ' @ ' .. x
-      move_player_horizontal()
+      move_player_horizontal(btn(0) and left or btn(1) and right or nil)
       -- if(t() % 0.25 == 0) printh(msg .. ', dx now ' .. dx .. ' @ ' .. x)
 
       moving = btn(0) or btn(1)
@@ -674,8 +675,8 @@ function _update()
 
             if not bouncing
                and (
-                     (direction ==  1 and px2 >= bx1 and px2 < bx2)
-                  or (direction == -1 and px1 <= bx2 and px1 > bx1)
+                     (direction == right and px2 >= bx1 and px2 < bx2)
+                  or (direction == left  and px1 <= bx2 and px1 > bx1)
                )
             then
                if has_speed_shoes() then
@@ -687,6 +688,7 @@ function _update()
                   -- Shonky emulation of being pushed back
                   local accel_was = acceleration
                   acceleration = -(acceleration + 0.8)
+                  move_player_horizontal(direction)
                   delay(function()
                         if bouncing then
                            acceleration = abs(accel_was)
@@ -716,11 +718,11 @@ function _update()
 
       -- This should be after the falling check so a) you can't just spam
       -- jump to avoid slow gaps and b) so you can fall straight through gaps below.
-      if not falling and not jumping and (btnp(5) or btnp(2)) and y % 8 == 0 then
+      if not falling and not jumping and btnp(5) and y % 8 == 0 then
          start_jump()
       end
 
-      if has_grav_belt() and grav_fuel > 0 and (btnp(5) or btnp(2)) then
+      if has_grav_belt() and grav_fuel > 0 and btnp(5) then
          if jumping and dy >= -0.25 then
             -- Basically acts like a double jump
             dy -= jump_velocity

@@ -594,7 +594,7 @@ function _update()
          if((x + 8) < 64 or x > 64) x += dx
       end
    elseif(gamestate == state_no_void) then
-      if btn(5) and not wiping and t() - lvldone > 0.5 then
+      if btn(5) and not wiping and t() - lvldone > 1.5 then
          local wipe_start = t()
          flash(function() wipe_screen(t() - wipe_start) end, 1)
          -- Reset the level at the point should be full
@@ -609,6 +609,7 @@ function _update()
       if(running_time > time_limit) then
          printh("Ran out of time at " .. t() .. " started " .. begin .. " extra time " .. extra_time .. " - time limit was " .. time_limit)
          gamestate = state_no_void
+         lvldone = t()
          sfx(6)
          local hiscore = dget(0)
          if(hiscore < level) then

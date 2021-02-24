@@ -10,7 +10,7 @@ maybe more. Now seemed like a good a time as any to play about with
 
 # Carts
 
-* `findthegap.p8` — Find The Gap, is an attempt at a game about "Going
+* `voidseeker.p8` — Void Seeker is an attempt at a game about "Going
   into the Void", but really it's a basic exploration of how to make
   PICO-8 go.
 

@@ -7,8 +7,50 @@ TWOPI = PI * 2
 
 DEBUG = true
 
-cos1 = cos function cos(angle) return cos1(angle / TWOPI) end
-sin1 = sin function sin(angle) return -sin1(angle / TWOPI) end
+-- cos1 = cos function cos(angle) return cos1(angle / TWOPI) end
+-- sin1 = sin function sin(angle) return -sin1(angle / TWOPI) end
+
+function _update()
+   if btn(2) then
+      angle += 1
+      if(angle == 361) angle = 0
+   end
+   if btn(3) then
+      angle -= 1
+      if(angle == -1) angle = 360
+   end
+end
+
+angle_step=1/360
+function _draw()
+   cls()
+
+   line(64, 64, 96, 64, 7)
+   local x = 64 + (32 * cos(angle*angle_step))
+   local y = 64 + (32 * sin(angle*angle_step))
+   line(64, 64, x, y, 3)
+
+   rectfill(0, 0, 128, 8, 1)
+   print(
+      dumper('∧ ', angle, ' [', nice_pos(angle*angle_step), '], x: ', nice_pos(x), ', y: ', nice_pos(y)),
+      2, 2, 7
+   )
+end
+
+function _init()
+   angle = 0
+end
+
+function nice_pos(inms)
+   local sec = flr(inms)
+   local ms  = flr(inms * 100 % 100)
+   if(ms == 0) then
+      ms = '00'
+   elseif(ms < 10) then
+      ms = '0' .. ms
+   end
+   return sec .. '.' .. ms
+end
 
 missiles = {}
 
@@ -41,7 +83,7 @@ function update_missile(m)
    end
 end
 
-function _update()
+function _update_missiles()
    if btnp(5) then
       launch_missile()
       debug('launched ', missiles[#missiles], ' at ', flr(t() * 10 % 10))
@@ -73,7 +115,7 @@ function draw_missile(m)
    spr(2, m.x, m.y)
 end
 
-function _draw()
+function _draw_missiles()
    if not can_go() then
       return
    else
@@ -130,14 +172,18 @@ function _draw_clock_dealie()
 end
 
 
-function debug(...)
-   if(not DEBUG) return
-
+function dumper(...)
    local res = ''
    for v in all({...}) do
       res = res .. (type(v) == 'table' and arr_to_str(v) or tostr(v))
    end
-   printh(res)
+   return res
+end
+
+function debug(...)
+   if(not DEBUG) return
+
+   printh(dumper(...))
 end
 
 -- Not supporting non-array tables as not using them.

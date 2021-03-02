@@ -25,6 +25,9 @@ g_car_line    = g_racing_line - 6
 r_step   = 1 / 360
 r_length = 32
 
+spr_tree  = { 0, 32, 8, 16 }
+spr_shrub = { 8, 32, 16, 8 }
+
 function _init()
    car = {
       x = 16,
@@ -37,18 +40,18 @@ function _init()
 
    scene = {
       -- Trees
-      { spr = { 0, 32, 8, 16 }, at = { 64, 85 } },
-      { spr = { 0, 32, 8, 16 }, at = { 160, 85 } },
-      { spr = { 0, 32, 8, 16 }, at = { 220, 85 } },
+      { spr = tree_spr, at = { 64, 85 } },
+      { spr = tree_spr, at = { 160, 85 } },
+      { spr = tree_spr, at = { 220, 85 } },
       -- Shrub
-      { spr = { 8, 32, 16, 8 }, at = { 32, 95 } },
-      { spr = { 8, 32, 16, 8 }, at = { 96, 95 } },
-      { spr = { 8, 32, 16, 8 }, at = { 130, 95 } },
+      { spr = spr_shrub, at = { 32, 95 } },
+      { spr = spr_shrub, at = { 96, 95 } },
+      { spr = spr_shrub, at = { 130, 95 } },
    }
 
    ramps = {
       { angle = 20, at = { 100, g_racing_line } },
-      { angle = 35, at = { 220, g_racing_line } },
+      { angle = 35, at = { 240, g_racing_line } },
    }
 end
 
@@ -126,15 +129,22 @@ function on_ramp()
    return false
 end
 
-function nice_pos(inms)
-   local sec = flr(inms)
-   local ms  = flr(inms * 100 % 100)
-   if(ms == 0) then
-      ms = '00'
-   elseif(ms < 10) then
-      ms = '0' .. ms
+function populate_future_scene()
+   local last_obj = scene[#scene]
+   if last_obj.at[1] < 120 then
+      local new_x   = 150 + randx(50)
+      local new_obj = randx(2) == 1
+         and { spr = spr_tree,  at = { new_x, 85 } }
+         or  { spr = spr_shrub, at = { new_x, 95 } }
+      add(scene, new_obj)
    end
-   return sec .. '.' .. ms
+end
+
+function populate_future_ramps()
+   local last_ramp = ramps[#ramps]
+   if last_ramp.at[1] < 220 then
+      add(ramps, { angle = randx(45) + 10, at = { 460, g_racing_line } })
+   end
 end
 
 function update_scene()
@@ -142,9 +152,13 @@ function update_scene()
       obj.at[1] += -car.speed
    end
 
+   populate_future_scene()
+
    for r in all(ramps) do
       r.at[1] += -car.speed
    end
+
+   populate_future_ramps()
 end
 
 function _update()
@@ -228,6 +242,22 @@ function copy_table(tbl)
       end
    end
    return ret
+end
+
+-- Random index.
+function randx(n)
+   return flr(rnd(n)) + 1
+end
+
+function nice_pos(inms)
+   local sec = flr(inms)
+   local ms  = flr(inms * 100 % 100)
+   if(ms == 0) then
+      ms = '00'
+   elseif(ms < 10) then
+      ms = '0' .. ms
+   end
+   return sec .. '.' .. ms
 end
 
 __gfx__

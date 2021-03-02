@@ -20,6 +20,7 @@ g_top_speed = 3
 g_edge_rhs  = 64
 g_edge_lhs  = 16
 g_racing_line = 118
+g_car_line    = g_racing_line - 6
 
 r_step   = 1 / 360
 r_length = 32
@@ -27,9 +28,11 @@ r_length = 32
 function _init()
    car = {
       x = 16,
-      y = g_racing_line - 6,
+      y = g_car_line,
       speed = 0,
       accel = 0.6,
+      dy = 0,
+      jumping = false
    }
 
    scene = {
@@ -50,7 +53,9 @@ function _init()
 end
 
 function update_car()
-      if btn(b_right) then
+   local accelerating = btn(b_right) or btn(b_left)
+
+   if btn(b_right) then
       car.speed += car.accel
    end
 
@@ -59,7 +64,7 @@ function update_car()
    end
 
    car.speed *= g_friction
-   if(not btnp(b_right) and not btnp(b_left)) then
+   if not accelerating then
       car.speed *= g_friction
    end
 
@@ -67,8 +72,57 @@ function update_car()
 
    local next_pos = car.x + car.speed
    if next_pos > g_edge_lhs and next_pos < g_edge_rhs then
+      -- TODO throttle movement when in the air
       car.x += car.speed
    end
+
+   local r = on_ramp()
+   if r and not car.jumping then
+      local len   = car.x - r.at[1]
+      local new_y = len * sin(r.angle * r_step)
+      car.y = g_car_line - 2 + new_y
+      if btn(b_right) then
+         -- TODO Apply cap
+         car.dy = car.dy - 0.005 * r.angle
+      end
+   else
+      apply_gravity()
+   end
+end
+
+function apply_gravity()
+   car.dy += 0.08 -- gravity
+   if(car.dy > 0) car.dy *= 1.01
+   car.y  += car.dy
+
+   if car.y > g_car_line then
+      car.y = g_car_line
+      car.dy = 0
+      car.jumping = false
+   else
+      car.jumping = true
+      -- debug('car.y = ', car.y, ', car.dy = ', car.dy)
+   end
+end
+
+function on_ramp()
+   for r in all(ramps) do
+      if car.x > r.at[1] and car.x < (r.at[1] + r_length) then
+         return r
+      end
+   end
+   return false
+end
+
+function nice_pos(inms)
+   local sec = flr(inms)
+   local ms  = flr(inms * 100 % 100)
+   if(ms == 0) then
+      ms = '00'
+   elseif(ms < 10) then
+      ms = '0' .. ms
+   end
+   return sec .. '.' .. ms
 end
 
 function update_scene()

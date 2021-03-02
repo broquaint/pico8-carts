@@ -32,7 +32,7 @@ function _draw()
 
    rectfill(0, 0, 128, 8, 1)
    print(
-      dumper('∧ ', angle, ' [', nice_pos(angle*angle_step), '], x: ', nice_pos(x), ', y: ', nice_pos(y)),
+      dumper('∧ ', angle, ' [', nice_pos(angle*angle_step), '], x ', nice_pos(x), ', y ', nice_pos(y)),
       2, 2, 7
    )
 end

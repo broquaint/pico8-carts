@@ -68,7 +68,9 @@ function update_car()
       car.speed *= g_friction
    end
 
-   if(abs(car.speed) > g_top_speed) car.speed = sgn(car.speed) * g_top_speed
+   if(abs(car.speed) > g_top_speed) then
+      car.speed = sgn(car.speed) * g_top_speed
+   end
 
    local next_pos = car.x + car.speed
    if next_pos > g_edge_lhs and next_pos < g_edge_rhs then
@@ -84,10 +86,20 @@ function update_car()
       if btn(b_right) then
          -- TODO Apply cap
          car.dy = car.dy - 0.005 * r.angle
+      elseif btn(b_left) then
+         car.dy += 0.1
+      end
+      if not accelerating then
+         respect_incline(r)
       end
    else
       apply_gravity()
    end
+end
+
+function respect_incline(r)
+   car.speed -= 0.1
+   car.dy += 0.2
 end
 
 function apply_gravity()

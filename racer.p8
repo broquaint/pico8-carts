@@ -19,20 +19,33 @@ g_friction  = 0.9
 g_top_speed = 3
 g_edge_rhs  = 64
 g_edge_lhs  = 16
+g_racing_line = 118
+
+r_step   = 1 / 360
+r_length = 32
 
 function _init()
    car = {
       x = 16,
-      y = 110,
+      y = g_racing_line - 6,
       speed = 0,
       accel = 0.6,
    }
 
    scene = {
-      -- Tree
+      -- Trees
       { spr = { 0, 32, 8, 16 }, at = { 64, 85 } },
+      { spr = { 0, 32, 8, 16 }, at = { 160, 85 } },
+      { spr = { 0, 32, 8, 16 }, at = { 220, 85 } },
       -- Shrub
-      { spr = { 8, 32, 16, 8 }, at = { 64, 85 } },
+      { spr = { 8, 32, 16, 8 }, at = { 32, 95 } },
+      { spr = { 8, 32, 16, 8 }, at = { 96, 95 } },
+      { spr = { 8, 32, 16, 8 }, at = { 130, 95 } },
+   }
+
+   ramps = {
+      { angle = 20, at = { 100, g_racing_line } },
+      { angle = 35, at = { 220, g_racing_line } },
    }
 end
 
@@ -62,6 +75,10 @@ function update_scene()
    for obj in all(scene) do
       obj.at[1] += -car.speed
    end
+
+   for r in all(ramps) do
+      r.at[1] += -car.speed
+   end
 end
 
 function _update()
@@ -75,6 +92,19 @@ function draw_scene()
       add(s, obj.at[1])
       add(s, obj.at[2])
       sspr(unpack(s))
+   end
+
+   for r in all(ramps) do
+      local rx = r.at[1]
+      local ry = r.at[2]
+      local x  = r.at[1] + (r_length * cos(r.angle * r_step))
+      local y  = r.at[2] + (r_length * sin(r.angle * r_step))
+      -- Slope
+      line(rx, ry, x, y, yellow)
+      -- Ground
+      line(rx, ry, x, ry, yellow)
+      -- Support
+      line(x, y, x, g_racing_line, yellow)
    end
 end
 

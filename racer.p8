@@ -37,6 +37,7 @@ function _init()
       jumping = false,
       past = {},
       len = 0,
+      boosted_at = false,
    }
 
    scene = {
@@ -52,7 +53,11 @@ function _init()
 
    ramps = {
       { angle = 30, length = 45, at = { 100, g_racing_line } },
-      { angle = 50, length = 40, at = { 240, g_racing_line } },
+      { angle = 50, length = 40, at = { 255, g_racing_line } },
+   }
+
+   boosters = {
+      { length = 16, boost = 1.5, at = { 50, g_racing_line } }
    }
 end
 
@@ -61,7 +66,7 @@ function track_car()
       deli(car.past, 1)
    end
 
-   add(car.past, {x = car.x, y = car.y + 8})
+   -- add(car.past, {x = car.x, y = car.y + 8})
 end
 
 function respect_incline(r)
@@ -74,6 +79,7 @@ function apply_gravity()
    if(car.dy > 0) car.dy *= 1.01
    car.y  += car.dy
 
+   -- TODO Implement a bounce!
    if car.y > g_car_line then
       car.y = g_car_line
       car.dy = 0
@@ -94,30 +100,52 @@ function on_ramp()
    return false
 end
 
+function on_booster()
+   for b in all(boosters) do
+      if (car.x+4) > b.at[1] and (car.x+4) < (b.at[1] + b.length)
+      and car.y == g_car_line then
+         return b
+      end
+   end
+   return false
+end
+
 function update_car()
    local accelerating = btn(b_right) or btn(b_left)
 
    if btn(b_right) then
-      car.speed += car.accel
+      if (car.speed + car.accel) < g_top_speed then
+         car.speed += car.accel
+      end
    end
 
    if btn(b_left) then
-      car.speed -= car.accel
-   end
-
-   -- TODO Increase friction on ramp relative to angle
-   car.speed *= g_friction
-   if not accelerating then
-      car.speed *= g_friction
+      -- TODO Speed going backward should be lower
+      if abs(car.speed - car.accel) < g_top_speed then
+         car.speed -= car.accel
+      end
    end
 
    local r = on_ramp()
-   if r then
-      car.speed *= g_friction * 0.95 - (r.angle/1000)
+   if not car.boosted_at or t() - car.boosted_at > 0.5 then
+      -- TODO Make this more gradual, probably need to move away from linear speed.
+      car.speed *= g_friction
+      if not accelerating then
+         car.speed *= g_friction
+      end
+
+      if r then
+         -- TODO Improve friction relative to ramp.
+         car.speed *= g_friction * 0.95 - (r.angle/1000)
+      end
+
+      car.boosted_at = false
    end
 
-   if(abs(car.speed) > g_top_speed) then
-      car.speed = sgn(car.speed) * g_top_speed
+   local b = on_booster()
+   if b and not car.boosted then
+      car.speed += b.boost
+      car.boosted_at = t()
    end
 
    track_car()
@@ -126,8 +154,11 @@ function update_car()
    if next_pos > g_edge_lhs and next_pos < g_edge_rhs then
       -- TODO throttle movement when in the air
       car.x += car.speed
+   elseif next_pos > g_edge_rhs then
+      car.x = g_edge_rhs
    end
 
+   -- TODO Handle landing on a ramp!
    if r and not car.jumping then
       -- These are offsets relative to where the car is on the ramp.
       local car_x = (car.x+4) - r.at[1]
@@ -174,6 +205,13 @@ function populate_future_ramps()
              length = randx(40) + 20,
              at = { 460, g_racing_line }
       })
+      if randx(2) == 1 then
+         add(boosters, {
+                length = randx(30) + 10,
+                boost = 1 + rnd(),
+                at = { 400, g_racing_line }
+         })
+      end
    end
 end
 
@@ -189,6 +227,11 @@ function update_scene()
    end
 
    populate_future_ramps()
+
+
+   for b in all(boosters) do
+      b.at[1] += -car.speed
+   end
 end
 
 function _update()
@@ -230,6 +273,16 @@ function draw_scene()
             line(rx, ry, x, ly, col)
             slope -= 1
          end
+      end
+   end
+
+   for b in all(boosters) do
+      if b.at[1] > -b.length and b.at[1] < 128 then
+         local bx0 = b.at[1]
+         local bx1 = bx0 + b.length
+         line(bx0, g_racing_line, bx1, g_racing_line, yellow)
+         line(bx0, g_racing_line + 1, bx1, g_racing_line + 1, orange)
+         line(bx0, g_racing_line + 2, bx1, g_racing_line + 2, red)
       end
    end
 end

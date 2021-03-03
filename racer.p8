@@ -16,14 +16,13 @@ b_down  = ⬇️ b_up    = ヌて●
 b_x     = ❎  b_z     = 🅾️
 
 g_friction  = 0.9
-g_top_speed = 3
+gg_top_speed = 3
 g_edge_rhs  = 64
 g_edge_lhs  = 16
 g_racing_line = 118
 g_car_line    = g_racing_line - 6
 
-r_step   = 1 / 360
-r_length = 32
+r_step = 1 / 360
 
 spr_tree  = { 0, 32, 8, 16 }
 spr_shrub = { 8, 32, 16, 8 }
@@ -35,7 +34,9 @@ function _init()
       speed = 0,
       accel = 0.6,
       dy = 0,
-      jumping = false
+      jumping = false,
+      past = {},
+      len = 0,
    }
 
    scene = {
@@ -50,54 +51,17 @@ function _init()
    }
 
    ramps = {
-      { angle = 20, at = { 100, g_racing_line } },
-      { angle = 35, at = { 240, g_racing_line } },
+      { angle = 50, length = 45, at = { 100, g_racing_line } },
+      { angle = 35, length = 40, at = { 240, g_racing_line } },
    }
 end
 
-function update_car()
-   local accelerating = btn(b_right) or btn(b_left)
-
-   if btn(b_right) then
-      car.speed += car.accel
+function track_car()
+   while #car.past > 50 do
+      deli(car.past, 1)
    end
 
-   if btn(b_left) then
-      car.speed -= car.accel
-   end
-
-   car.speed *= g_friction
-   if not accelerating then
-      car.speed *= g_friction
-   end
-
-   if(abs(car.speed) > g_top_speed) then
-      car.speed = sgn(car.speed) * g_top_speed
-   end
-
-   local next_pos = car.x + car.speed
-   if next_pos > g_edge_lhs and next_pos < g_edge_rhs then
-      -- TODO throttle movement when in the air
-      car.x += car.speed
-   end
-
-   local r = on_ramp()
-   if r and not car.jumping then
-      local len   = car.x - r.at[1]
-      local new_y = len * sin(r.angle * r_step)
-      car.y = g_car_line - 2 + new_y
-      if btn(b_right) then
-         -- TODO Apply cap
-         car.dy = car.dy - 0.005 * r.angle
-      elseif btn(b_left) then
-         car.dy += 0.1
-      end
-      if not accelerating then
-         respect_incline(r)
-      end
-   else
-      apply_gravity()
-   end
+   add(car.past, {x = car.x, y = car.y + 8})
 end
 
 function respect_incline(r)
@@ -122,11 +86,73 @@ end
 
 function on_ramp()
    for r in all(ramps) do
-      if car.x > r.at[1] and car.x < (r.at[1] + r_length) then
+      local rx1 = ramp_trig(r)
+      if (car.x+4) > r.at[1] and (car.x+4) < rx1 then
          return r
       end
    end
    return false
+end
+
+function update_car()
+   local accelerating = btn(b_right) or btn(b_left)
+
+   if btn(b_right) then
+      car.speed += car.accel
+   end
+
+   if btn(b_left) then
+      car.speed -= car.accel
+   end
+
+   -- TODO Increase friction on ramp relative to angle
+   car.speed *= g_friction
+   if not accelerating then
+      car.speed *= g_friction
+   end
+
+   local r = on_ramp()
+   if r then
+      car.speed *= g_friction * 0.9
+   end
+
+   if(abs(car.speed) > g_top_speed) then
+      car.speed = sgn(car.speed) * g_top_speed
+   end
+
+   track_car()
+
+   local next_pos = car.x + car.speed
+   if next_pos > g_edge_lhs and next_pos < g_edge_rhs then
+      -- TODO throttle movement when in the air
+      car.x += car.speed
+   end
+
+   if r and not car.jumping then
+      -- These are offsets relative to where the car is on the ramp.
+      local car_x = (car.x+4) - r.at[1]
+      local car_y = max(1, g_car_line - car.y)
+      -- Rough calculation of the current position along the hypoteneuse.
+      -- It's rough because car_y is basically a reasonable guess.
+      local len   = sqrt((car_x*car_x)+(car_y*car_y))
+      local new_y = len * sin(r.angle * r_step)
+      car.y = min(g_car_line, g_car_line + new_y)
+      -- debug('car ', flr(car.x+4), ' x ', flr(car.y), ' car_x ', car_x, ' x ', car_y, ' car len ', flr(len), ' r.len ', r.length, ' x0/y0 ', r.at, ' -> x1/y1 ', {ramp_trig(r)})
+      car.len = len
+
+      if btn(b_right) then
+         local new_dy = car.dy - 0.005 * r.angle
+         car.dy = abs(new_dy) > 1.5 and -1.5 or new_dy
+      elseif btn(b_left) then
+         car.dy += 0.1
+      end
+
+      if not accelerating then
+          respect_incline(r)
+      end
+   else
+      apply_gravity()
+   end
 end
 
 function populate_future_scene()
@@ -143,7 +169,11 @@ end
 function populate_future_ramps()
    local last_ramp = ramps[#ramps]
    if last_ramp.at[1] < 220 then
-      add(ramps, { angle = randx(45) + 10, at = { 460, g_racing_line } })
+      add(ramps, {
+             angle = randx(45) + 10,
+             length = randx(40) + 20,
+             at = { 460, g_racing_line }
+      })
    end
 end
 
@@ -162,49 +192,81 @@ function update_scene()
 end
 
 function _update()
-   update_car()
    update_scene()
+   update_car()
+end
+
+function ramp_trig(r)
+   local x  = r.at[1] + (r.length * cos(r.angle * r_step))
+   local y  = r.at[2] + (r.length * sin(r.angle * r_step))
+   return x, y
 end
 
 function draw_scene()
    for obj in all(scene) do
-      local s = copy_table(obj.spr)
-      add(s, obj.at[1])
-      add(s, obj.at[2])
-      sspr(unpack(s))
+      if obj.at[1] > -16 and obj.at[1] < 128 then
+         local s = copy_table(obj.spr)
+         add(s, obj.at[1])
+         add(s, obj.at[2])
+         sspr(unpack(s))
+      end
    end
 
    for r in all(ramps) do
-      local rx = r.at[1]
-      local ry = r.at[2]
-      local x  = r.at[1] + (r_length * cos(r.angle * r_step))
-      local y  = r.at[2] + (r_length * sin(r.angle * r_step))
-      -- Slope
-      line(rx, ry, x, y, yellow)
-      -- Ground
-      line(rx, ry, x, ry, yellow)
-      -- Support
-      line(x, y, x, g_racing_line, yellow)
+      if r.at[1] > -r.length and r.at[1] < 128 then
+         local rx = r.at[1]
+         local ry = r.at[2]
+         local x, y = ramp_trig(r)
+         -- Slope
+         line(rx, ry, x, y, yellow)
+         -- Ground
+         line(rx, ry, x, ry, yellow)
+         -- Support
+         line(x, y, x, g_racing_line, yellow)
+      end
    end
+end
+
+function draw_car_debug()
+   if(not DEBUG_GFX) return
+
+   for pos in all(car.past) do
+      pset(pos.x, pos.y, white)
+   end
+
+   local r = on_ramp()
+   if r then
+      line(r.at[1], r.at[2], (car.x+4), car.y+8, lime)
+      line(r.at[1], r.at[2], r.at[1]+car.len, r.at[2], azure)
+   end
+
 end
 
 function _draw()
    cls(silver)
 
-   rectfill(0, 100, 128, 128, 1)
+   rectfill(0, 100, 128, 128, navy)
 
    draw_scene()
 
+   draw_car_debug()
    spr(1, car.x, car.y)
 end
 
 -- ## Util functions ## --
-DEBUG = false
+DEBUG_GFX = false
+DEBUG = true
 
 function dumper(...)
    local res = ''
    for v in all({...}) do
-      res = res .. (type(v) == 'table' and arr_to_str(v) or tostr(v))
+      if type(v) == 'table' then
+         res = res .. tbl_to_str(v)
+      elseif type(v) == 'number' then
+         res = res .. ( v % 1 == 0 and v or nice_pos(v) )
+      else
+         res = res .. tostr(v)
+      end
    end
    return res
 end
@@ -215,19 +277,11 @@ function debug(...)
    printh(dumper(...))
 end
 
--- Not supporting non-array tables as not using them.
-function arr_to_str(a)
+function tbl_to_str(a)
    local res = '{'
    for k, v in pairs(a) do
-      if type(k) != 'number' then
-         res = res .. k .. ' => '
-      end
-      if(type(v) == 'table') then
-         res = res .. arr_to_str(v)
-      else
-         res = res .. tostr(v)
-      end
-      res = res .. ", "
+      local lhs = type(k) != 'number' and k .. ' => ' or ''
+      res = res .. lhs .. dumper(v) .. ', '
    end
    return sub(res, 0, #res - 2) .. "}"
 end

@@ -16,7 +16,7 @@ b_down  = ⬇️ b_up    = ヌて●
 b_x     = ❎  b_z     = 🅾️
 
 g_friction  = 0.9
-gg_top_speed = 3
+g_top_speed = 3
 g_edge_rhs  = 64
 g_edge_lhs  = 16
 g_racing_line = 118
@@ -51,8 +51,8 @@ function _init()
    }
 
    ramps = {
-      { angle = 50, length = 45, at = { 100, g_racing_line } },
-      { angle = 35, length = 40, at = { 240, g_racing_line } },
+      { angle = 30, length = 45, at = { 100, g_racing_line } },
+      { angle = 50, length = 40, at = { 240, g_racing_line } },
    }
 end
 
@@ -113,7 +113,7 @@ function update_car()
 
    local r = on_ramp()
    if r then
-      car.speed *= g_friction * 0.9
+      car.speed *= g_friction * 0.95 - (r.angle/1000)
    end
 
    if(abs(car.speed) > g_top_speed) then
@@ -141,8 +141,8 @@ function update_car()
       car.len = len
 
       if btn(b_right) then
-         local new_dy = car.dy - 0.005 * r.angle
-         car.dy = abs(new_dy) > 1.5 and -1.5 or new_dy
+         local new_dy = car.dy - (0.008 * r.angle)
+         car.dy = abs(new_dy) > 1.7 and -1.7 or new_dy
       elseif btn(b_left) then
          car.dy += 0.1
       end
@@ -196,9 +196,10 @@ function _update()
    update_car()
 end
 
-function ramp_trig(r)
-   local x  = r.at[1] + (r.length * cos(r.angle * r_step))
-   local y  = r.at[2] + (r.length * sin(r.angle * r_step))
+function ramp_trig(r, angle)
+   angle = angle == nil and r.angle or angle
+   local x  = r.at[1] + (r.length * cos(angle * r_step))
+   local y  = r.at[2] + (r.length * sin(angle * r_step))
    return x, y
 end
 
@@ -219,10 +220,16 @@ function draw_scene()
          local x, y = ramp_trig(r)
          -- Slope
          line(rx, ry, x, y, yellow)
-         -- Ground
-         line(rx, ry, x, ry, yellow)
-         -- Support
-         line(x, y, x, g_racing_line, yellow)
+
+         local slope = r.angle
+         -- Fill the ramp with solid colour.
+         while slope >= 0 do
+            local lx, ly = ramp_trig(r, slope)
+            local d   = r.angle - slope
+            local col = (d < 5) and yellow or (d < 20) and orange or red
+            line(rx, ry, x, ly, col)
+            slope -= 1
+         end
       end
    end
 end

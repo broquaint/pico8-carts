@@ -207,7 +207,7 @@ function draw_scene()
    for obj in all(scene) do
       if obj.at[1] > -16 and obj.at[1] < 128 then
          local s = copy_table(obj.spr)
-         add(s, obj.at[1])
+         add(s, obj.at[1] * 1.15)
          add(s, obj.at[2])
          sspr(unpack(s))
       end
@@ -252,7 +252,8 @@ end
 function _draw()
    cls(silver)
 
-   rectfill(0, 100, 128, 128, navy)
+   rectfill(0, 100, 128, 105, violet)
+   rectfill(0, 105, 128, 128, navy)
 
    draw_scene()
 

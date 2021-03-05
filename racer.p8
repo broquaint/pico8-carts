@@ -15,10 +15,13 @@ b_left  = ⬅️ b_right = ➡️
 b_down  = ⬇️ b_up    = ヌて●
 b_x     = ❎  b_z     = 🅾️
 
+g_dt        = 1/30
 g_friction  = 0.9
 g_top_speed = 3
+
 g_edge_rhs  = 64
 g_edge_lhs  = 16
+
 g_racing_line = 118
 g_car_line    = g_racing_line - 6
 
@@ -75,9 +78,8 @@ function respect_incline(r)
 end
 
 function apply_gravity()
-   car.dy += 0.08 -- gravity
-   if(car.dy > 0) car.dy *= 1.01
-   car.y  += car.dy
+   car.dy += 35 * g_dt
+   car.y += car.dy * g_dt
 
    -- TODO Implement a bounce!
    if car.y > g_car_line then
@@ -172,10 +174,11 @@ function update_car()
       car.len = len
 
       if btn(b_right) then
-         local new_dy = car.dy - (0.008 * r.angle)
-         car.dy = abs(new_dy) > 1.7 and -1.7 or new_dy
-      elseif btn(b_left) then
-         car.dy += 0.1
+         local new_dy = car.dy - (0.03 * r.angle)
+         if(car.boosted_at) new_dy *= 3
+         car.dy = abs(new_dy) > 32 and -32 or new_dy
+      else
+         car.dy += 1
       end
 
       if not accelerating then

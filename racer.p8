@@ -15,9 +15,10 @@ b_left  = ⬅️ b_right = ➡️
 b_down  = ⬇️ b_up    = ヌて●
 b_x     = ❎  b_z     = 🅾️
 
-g_dt        = 1/30
-g_friction  = 0.9
-g_top_speed = 3
+g_dt           = 1/30
+g_friction     = 0.9
+g_air_friction = 0.98
+g_top_speed    = 3
 
 g_edge_rhs  = 64
 g_edge_lhs  = 16
@@ -129,11 +130,16 @@ function update_car()
    end
 
    local r = on_ramp()
+
    if not car.boosted_at or t() - car.boosted_at > 0.5 then
       -- TODO Make this more gradual, probably need to move away from linear speed.
-      car.speed *= g_friction
-      if not accelerating then
+      if not car.jumping then
          car.speed *= g_friction
+         if not accelerating  then
+            car.speed *= g_friction
+         end
+      else
+         car.speed *= g_air_friction
       end
 
       if r then

@@ -33,6 +33,7 @@ spr_tree   = { 0,  32, 8,  16 }
 spr_shrub  = { 8,  32, 16, 8  }
 spr_player = { 8,  0,  8,  8  }
 spr_boost  = { 16, 0,  8,  8  }
+spr_flag   = { 24, 32, 16, 16 }
 
 function _init()
    car = {
@@ -49,7 +50,15 @@ function _init()
       boost_meter = 0
    }
 
+   level = {
+      has_wrapped = false
+   }
+
    scene = {
+      -- This needs to be first as it's the measure of when to wrap.
+      make_obj({ 0, 88 }, { spr = spr_flag }, 0)
+   }
+   foreach({
       -- Trees
       make_bg_spr(spr_tree, { 64, 85 }),
       make_bg_spr(spr_tree, { 160, 85 }),
@@ -58,26 +67,35 @@ function _init()
       make_bg_spr(spr_shrub, { 32, 95 }),
       make_bg_spr(spr_shrub, { 96, 95 }),
       make_bg_spr(spr_shrub, { 130, 95 }),
-   }
+   }, function(obj) add(scene, obj) end)
 
    ramps = {
-      make_ramp({ angle = 20, length = 45 }, { 100, g_racing_line }),
+      make_ramp({ x = 100, angle = 20, length = 45 }),
 --      make_ramp({ angle = 50, length = 40 }, { 285, g_racing_line }),
    }
 
    boosters = {
-      { length = 16, boost = 1.6, at = { 50, g_racing_line } }
+      make_booster({ x = 50, boost = 1.6, length = 16 })
    }
 
    platforms = {
-   --   { at = { 230, g_racing_line - 25 }, length = 50 }
+   --   make_obj({ 230, g_racing_line - 25 }, { length = 50 })
    }
 end
 
-function make_obj(pos, attr) return merge({ at = pos, orig_at = copy_table(pos) }, attr) end
+function wrap_point() return scene[1].at[1] end
+
+function make_obj(pos, attr, wrap_at)
+   if(wrap_at == nil) wrap_at = wrap_point()
+   return merge(
+      { at = pos, orig_at = copy_table(pos), offset = wrap_at },
+      attr
+   )
+end
 
 function make_bg_spr(spr, at) return make_obj(at, { spr = spr }) end
-function make_ramp(attr, at) return make_obj(at, attr) end
+function make_ramp(attr, at) return make_obj({ attr.x, g_racing_line }, attr) end
+function make_booster(attr, at) return make_obj({ attr.x, g_racing_line }, attr) end
 
 function track_car()
    if(not DEBUG_GFX) return
@@ -165,7 +183,7 @@ function update_car()
       end
    end
 
-   debug('was going ', sw, ' now going ', car.speed, ' with boost ', car.boost_meter, ' boost amt ', car.boost_was, ' last boost at ', car.boosted_at)
+   -- debug('was going ', sw, ' now going ', car.speed, ' with boost ', car.boost_meter, ' boost amt ', car.boost_was, ' last boost at ', car.boosted_at)
 
    local r = on_ramp()
 
@@ -196,7 +214,7 @@ function update_car()
    end
 
    local b = on_booster()
-   if b and not still_boosting() and car.speed < g_top_boost then
+   if b and car.speed < g_top_boost then
       -- TODO implement a max speed ... but going insanely fast is fun.
       car.speed += sgn(car.speed) * b.boost
       car.boosted_at  = t()
@@ -244,7 +262,19 @@ function update_car()
    end
 end
 
+function should_wrap_level()
+   return wrap_point() < -1000
+end
+
+-- Short hack to stop generating at wrap point so scenery doesn't disappear on wrap.
+-- Ideally it would be a totally smooth transition.
+function will_wrap_level()
+   return wrap_point() < -871
+end
+
 function populate_future_scene()
+   if(will_wrap_level() or level.has_wrapped) return
+
    local last_obj = scene[#scene]
    if last_obj.at[1] < 120 then
       local new_x   = 150 + randx(50)
@@ -252,23 +282,22 @@ function populate_future_scene()
          and make_bg_spr(spr_tree, { new_x, 85 })
          or  make_bg_spr(spr_shrub, { new_x, 95 })
       add(scene, new_obj)
+      debug('added scenery ', scene[#scene])
    end
 end
 
 function populate_future_ramps()
+   if(will_wrap_level() or level.has_wrapped) return
+
    local last_ramp = ramps[#ramps]
    if last_ramp.at[1] < 220 then
-      add(ramps, {
-             angle = randx(25) + 10,
-             length = randx(20) + 30,
-             at = { 760, g_racing_line }
-      })
+      add(ramps, make_ramp(
+             { x = 760, angle = randx(25) + 10, length = randx(20) + 30 }
+      ))
 --      if randx(2) > 1 then
-         add(boosters, {
-                length = randx(30) + 10,
-                boost = 1.2 + rnd(),
-                at = { 700, g_racing_line }
-         })
+      add(boosters, make_booster(
+             { x = 700, boost = 1.2 + rnd(), length = randx(30) + 10 }
+      ))
 --      end
    end
 end
@@ -300,8 +329,23 @@ function update_scene()
    end
 end
 
+function reset_scene()
+   local function reset_x(obj) obj.at[1] = obj.orig_at[1] + -obj.offset + 128 end
+
+   foreach(scene,     reset_x)
+   foreach(ramps,     reset_x)
+   foreach(boosters,  reset_x)
+   foreach(platforms, reset_x)
+end
+
 function _update()
-   update_scene()
+   if should_wrap_level() then
+      reset_scene()
+      level.has_wrapped = true
+   else
+      update_scene()
+   end
+
    update_car()
 end
 
@@ -312,7 +356,7 @@ function ramp_trig(r, angle)
    return x, y
 end
 
-function render_sspr(sxywh, x, y, flip_x, flip_y)
+function render_sprite(sxywh, x, y, flip_x, flip_y)
    local s = copy_table(sxywh)
    add(s, x)
    add(s, y)
@@ -320,15 +364,24 @@ function render_sspr(sxywh, x, y, flip_x, flip_y)
    add(s, sxywh[4])
    if(flip_x != nil) add(s, flip_x)
    if(flip_y != nil) add(s, flip_y)
-   sspr(unpack(s))
+   sspr(unpack(s)) -- Could be done with spr, too lazy to change.
 end
 
 function draw_scene()
    for obj in all(scene) do
       if obj.at[1] > -16 and obj.at[1] < 128 then
-         render_sspr(obj.spr, obj.at[1], obj.at[2])
+         -- Flag fiddliness, prolly worth splitting it out.
+         if obj.spr == spr_flag then
+            palt(0, false)
+            palt(1, true)
+         else
+            palt()
+         end
+         render_sprite(obj.spr, obj.at[1], obj.at[2])
       end
    end
+
+   palt()
 
    for r in all(ramps) do
       if r.at[1] > -r.length and r.at[1] < 128 then
@@ -378,6 +431,8 @@ function draw_ewe_ai()
    else
       print('boost', 94, 3, salmon)
    end
+
+   print(dumper('@ ', flr(car.x), 'x', flr(car.y), ' - ', flr(wrap_point())), 2, 2, azure)
 end
 
 function draw_car_debug()
@@ -400,10 +455,10 @@ function draw_car()
    local flip = car.dir == dir_left
    if still_boosting() then
       local bx = flip and car.x + 8 or car.x - 8
-      render_sspr(spr_boost, bx, car.y, flip)
+      render_sprite(spr_boost, bx, car.y, flip)
    end
 
-   render_sspr(spr_player, car.x, car.y, flip)
+   render_sprite(spr_player, car.x, car.y, flip)
 end
 
 function _draw()
@@ -519,19 +574,19 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00033300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-33333333000003333330000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-33333333000033333733000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-33333333000033733333300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-33333333000333333333300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-33333330000373337373000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-03333333000333733333000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-03344433000044455440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00444400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00444400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00444400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00444400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00444400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-04444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-04444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-44444444000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00033300000000000000000011555511111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+33333333000003333330000011555511111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+33333333000033333733000011155770077007710000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+33333333000033733333300011155770077007710000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+33333333000333333333300011155007700770010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+33333330000373337373000011155007700770010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+03333333000333733333000011155770077007710000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+03344433000044455440000011155770077007710000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00444400000000000000000011155111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00444400000000000000000011155111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00444400000000000000000011155111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00444400000000000000000011155131111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00444400000000000000000013155131111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+04444440000000000000000013155331111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+04444440000000000000000011353311111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+44444444000000000000000011333311111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

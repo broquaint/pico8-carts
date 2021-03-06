@@ -19,6 +19,7 @@ g_dt           = 1/30
 g_friction     = 0.9
 g_air_friction = 0.98
 g_top_speed    = 3
+g_top_boost    = 10
 
 g_edge_rhs  = 64
 g_edge_lhs  = 16
@@ -42,6 +43,7 @@ function _init()
       past = {},
       len = 0,
       boosted_at = false,
+      boost_meter = 0
    }
 
    scene = {
@@ -56,12 +58,14 @@ function _init()
    }
 
    ramps = {
-      make_ramp({ angle = 30, length = 45 }, { 100, g_racing_line }),
-      make_ramp({ angle = 50, length = 40 }, { 255, g_racing_line }),
+      make_ramp({ angle = 20, length = 45 }, { 100, g_racing_line }),
+--      make_ramp({ angle = 50, length = 40 }, { 285, g_racing_line }),
    }
 
    boosters = {
-      { length = 16, boost = 1.5, at = { 50, g_racing_line } }
+      { length = 16, boost = 1.6, at = { 50, g_racing_line } }
+   }
+
    }
 end
 
@@ -71,7 +75,7 @@ function make_bg_spr(spr, at) return make_obj(at, { spr = spr }) end
 function make_ramp(attr, at) return make_obj(at, attr) end
 
 function track_car()
-   if(not DEBUG) return
+   if(not DEBUG_GFX) return
 
    while #car.past > 50 do
       deli(car.past, 1)
@@ -121,9 +125,16 @@ function on_booster()
    return false
 end
 
+function still_boosting()
+   local boost_active = car.boosted_at and t() - car.boosted_at < 0.5
+   local boost_power  = car.boost_meter > 0
+   return boost_active or boost_power
+end
+
 function update_car()
    local accelerating = btn(b_right) or btn(b_left)
 
+   local sw = car.speed
    if btn(b_right) then
       if (car.speed + car.accel) < g_top_speed then
          car.speed += car.accel
@@ -131,18 +142,21 @@ function update_car()
    end
 
    if btn(b_left) then
-      if abs(car.speed - car.accel) < g_top_speed then
-         if car.jumping and car.speed > 0 then
-            car.speed -= car.accel/3
-         else
-            car.speed -= car.accel
-         end
+      if not car.jumping and abs(car.speed - car.accel) < g_top_speed then
+         car.speed -= car.accel
+      end
+      -- Allow slowing down back to normal speed
+      -- TODO handle going left!
+      if car.jumping and car.speed > g_top_speed then
+         car.speed -= car.accel/3
       end
    end
 
+   debug('was going ', sw, ' now going ', car.speed, ' with boost ', car.boost_meter, ' boost amt ', car.boost_was, ' last boost at ', car.boosted_at)
+
    local r = on_ramp()
 
-   if not car.boosted_at or t() - car.boosted_at > 0.5 then
+   if not still_boosting() then
       -- TODO Make this more gradual, probably need to move away from linear speed.
       if not car.jumping then
          car.speed *= g_friction
@@ -161,11 +175,20 @@ function update_car()
       car.boosted_at = false
    end
 
+   -- Reduce boost if on the ground or in the air and "breaking"
+   if still_boosting() and (not car.jumping and t() - car.boosted_at > 0.3) or btn(b_left) then
+      if car.boost_meter > 0 then
+         car.boost_meter -= 1
+      end
+   end
+
    local b = on_booster()
-   if b and not car.boosted then
+   if b and not still_boosting() and car.speed < g_top_boost then
       -- TODO implement a max speed ... but going insanely fast is fun.
       car.speed += sgn(car.speed) * b.boost
-      car.boosted_at = t()
+      car.boosted_at  = t()
+      car.boost_meter = 32
+      car.boost_was   = b.boost
    end
 
    track_car()
@@ -223,17 +246,17 @@ function populate_future_ramps()
    local last_ramp = ramps[#ramps]
    if last_ramp.at[1] < 220 then
       add(ramps, {
-             angle = randx(45) + 10,
-             length = randx(40) + 20,
-             at = { 460, g_racing_line }
+             angle = randx(25) + 10,
+             length = randx(20) + 30,
+             at = { 760, g_racing_line }
       })
-      if randx(2) == 1 then
+--      if randx(2) > 1 then
          add(boosters, {
                 length = randx(30) + 10,
-                boost = 1 + rnd(),
-                at = { 400, g_racing_line }
+                boost = 1.2 + rnd(),
+                at = { 700, g_racing_line }
          })
-      end
+--      end
    end
 end
 
@@ -311,6 +334,15 @@ function draw_scene()
          line(bx0, g_racing_line + 2, bx1, g_racing_line + 2, red)
       end
    end
+
+function draw_ewe_ai()
+   rectfill(92, 2, 124, 8, white)
+   if car.boost_meter > 0 then
+      rectfill(92, 2, 92 + car.boost_meter, 8, orange)
+      print('boost', 94, 3, yellow)
+   else
+      print('boost', 94, 3, salmon)
+   end
 end
 
 function draw_car_debug()
@@ -325,11 +357,20 @@ function draw_car_debug()
       line(r.at[1], r.at[2], (car.x+4), car.y+8, lime)
       line(r.at[1], r.at[2], r.at[1]+car.len, r.at[2], azure)
    end
+end
 
+function draw_car()
+   if still_boosting() then
+      spr(2, car.x - 8, car.y)
+   end
+
+   spr(1, car.x, car.y)
 end
 
 function _draw()
    cls(silver)
+
+   draw_ewe_ai()
 
    rectfill(0, horizon_offset(100), 128, 105, violet)
    rectfill(0, 105, 128, 128, navy)
@@ -337,7 +378,8 @@ function _draw()
    draw_scene()
 
    draw_car_debug()
-   spr(1, car.x, car.y)
+
+   draw_car()
 end
 
 -- ## Util functions ## --
@@ -410,11 +452,11 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00700700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000009aa0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000099999900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700955995590000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000055005500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000009aa00000000a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000099999900007999000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+007007009559955900aa889a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000055005500007999000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

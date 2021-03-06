@@ -69,6 +69,8 @@ function _init()
       { length = 16, boost = 1.6, at = { 50, g_racing_line } }
    }
 
+   platforms = {
+   --   { at = { 230, g_racing_line - 25 }, length = 50 }
    }
 end
 
@@ -292,6 +294,10 @@ function update_scene()
    for b in all(boosters) do
       b.at[1] += -car.speed
    end
+
+   for p in all(platforms) do
+      p.at[1] += -car.speed
+   end
 end
 
 function _update()
@@ -353,6 +359,16 @@ function draw_scene()
          line(bx0, g_racing_line + 2, bx1, g_racing_line + 2, red)
       end
    end
+
+
+   for p in all(platforms) do
+      if p.at[1] > -p.length and p.at[1] < 128 then
+         local px = p.at[1]
+         local py = p.at[2]
+         rectfill(px, py, px + p.length, py - 2, orange)
+      end
+   end
+end
 
 function draw_ewe_ai()
    rectfill(92, 2, 124, 8, white)

@@ -46,24 +46,29 @@ function _init()
 
    scene = {
       -- Trees
-      { spr = tree_spr, at = { 64, 85 } },
-      { spr = tree_spr, at = { 160, 85 } },
-      { spr = tree_spr, at = { 220, 85 } },
+      make_bg_spr(tree_spr, { 64, 85 }),
+      make_bg_spr(tree_spr, { 160, 85 }),
+      make_bg_spr(tree_spr, { 220, 85 }),
       -- Shrub
-      { spr = spr_shrub, at = { 32, 95 } },
-      { spr = spr_shrub, at = { 96, 95 } },
-      { spr = spr_shrub, at = { 130, 95 } },
+      make_bg_spr(spr_shrub, { 32, 95 }),
+      make_bg_spr(spr_shrub, { 96, 95 }),
+      make_bg_spr(spr_shrub, { 130, 95 }),
    }
 
    ramps = {
-      { angle = 30, length = 45, at = { 100, g_racing_line } },
-      { angle = 50, length = 40, at = { 255, g_racing_line } },
+      make_ramp({ angle = 30, length = 45 }, { 100, g_racing_line }),
+      make_ramp({ angle = 50, length = 40 }, { 255, g_racing_line }),
    }
 
    boosters = {
       { length = 16, boost = 1.5, at = { 50, g_racing_line } }
    }
 end
+
+function make_obj(pos, attr) return merge({ at = pos, orig_at = copy_table(pos) }, attr) end
+
+function make_bg_spr(spr, at) return make_obj(at, { spr = spr }) end
+function make_ramp(attr, at) return make_obj(at, attr) end
 
 function track_car()
    while #car.past > 50 do
@@ -200,8 +205,8 @@ function populate_future_scene()
    if last_obj.at[1] < 120 then
       local new_x   = 150 + randx(50)
       local new_obj = randx(2) == 1
-         and { spr = spr_tree,  at = { new_x, 85 } }
-         or  { spr = spr_shrub, at = { new_x, 95 } }
+         and make_bg_spr(spr_tree, { new_x, 85 })
+         or  make_bg_spr(spr_shrub, { new_x, 95 })
       add(scene, new_obj)
    end
 end
@@ -224,9 +229,14 @@ function populate_future_ramps()
    end
 end
 
+function horizon_offset(y)
+   return y - (0.1 * (g_car_line - car.y))
+end
+
 function update_scene()
    for obj in all(scene) do
       obj.at[1] += -car.speed
+      obj.at[2] = horizon_offset(obj.orig_at[2])
    end
 
    populate_future_scene()
@@ -236,7 +246,6 @@ function update_scene()
    end
 
    populate_future_ramps()
-
 
    for b in all(boosters) do
       b.at[1] += -car.speed
@@ -314,7 +323,7 @@ end
 function _draw()
    cls(silver)
 
-   rectfill(0, 100, 128, 105, violet)
+   rectfill(0, horizon_offset(100), 128, 105, violet)
    rectfill(0, 105, 128, 128, navy)
 
    draw_scene()
@@ -366,6 +375,11 @@ function copy_table(tbl)
       end
    end
    return ret
+end
+
+function merge(t1,t2)
+   for k,v in pairs(t2) do t1[k] = v end
+   return t1
 end
 
 -- Random index.

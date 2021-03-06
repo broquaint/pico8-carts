@@ -8,6 +8,8 @@ brown    = 4 dim_grey = 5 silver   = 6 white    = 7
 red      = 8 orange   = 9 yellow   = 10 lime    = 11
 azure    = 12 violet  = 13 salmon  = 14 coral   = 15
 
+screen_width = 128
+
 dir_left  = -1
 dir_right = 1
 
@@ -51,36 +53,18 @@ function _init()
    }
 
    level = {
-      has_wrapped = false
+      length = 1000
    }
 
-   scene = {
-      -- This needs to be first as it's the measure of when to wrap.
-      make_obj({ 0, 88 }, { spr = spr_flag }, 0)
-   }
-   foreach({
-      -- Trees
-      make_bg_spr(spr_tree, { 64, 85 }),
-      make_bg_spr(spr_tree, { 160, 85 }),
-      make_bg_spr(spr_tree, { 220, 85 }),
-      -- Shrub
-      make_bg_spr(spr_shrub, { 32, 95 }),
-      make_bg_spr(spr_shrub, { 96, 95 }),
-      make_bg_spr(spr_shrub, { 130, 95 }),
-   }, function(obj) add(scene, obj) end)
+   -- This needs to be first as it's the measure of when to wrap.
+   scene = { make_obj({ 0, 88 }, { spr = spr_flag }, 0) }
 
-   ramps = {
-      make_ramp({ x = 100, angle = 20, length = 45 }),
---      make_ramp({ angle = 50, length = 40 }, { 285, g_racing_line }),
-   }
+   ramps = {}
+   boosters = {}
+   platforms = {}
 
-   boosters = {
-      make_booster({ x = 50, boost = 1.6, length = 16 })
-   }
-
-   platforms = {
-   --   make_obj({ 230, g_racing_line - 25 }, { length = 50 })
-   }
+   populate_scenery()
+   populate_geometry()
 end
 
 function wrap_point() return scene[1].at[1] end
@@ -88,7 +72,7 @@ function wrap_point() return scene[1].at[1] end
 function make_obj(pos, attr, wrap_at)
    if(wrap_at == nil) wrap_at = wrap_point()
    return merge(
-      { at = pos, orig_at = copy_table(pos), offset = wrap_at },
+      { at = pos, orig_at = copy_table(pos) },
       attr
    )
 end
@@ -96,6 +80,46 @@ end
 function make_bg_spr(spr, at) return make_obj(at, { spr = spr }) end
 function make_ramp(attr, at) return make_obj({ attr.x, g_racing_line }, attr) end
 function make_booster(attr, at) return make_obj({ attr.x, g_racing_line }, attr) end
+
+function populate_scenery()
+   local x = 15
+   local last_point = level.length - screen_width
+
+   while x < last_point do
+      local new_x   = x + randx(50)
+      local new_obj = randx(2) == 1
+         and make_bg_spr(spr_tree,  { new_x, 85 })
+         or  make_bg_spr(spr_shrub, { new_x, 95 })
+
+      add(scene, new_obj)
+
+      x += 60 -- Seems about right?
+--      debug('added scenery ', scene[#scene])
+   end
+end
+
+function populate_geometry()
+   local x = 30
+   local last_point = level.length - screen_width
+
+   while x < last_point do
+      local new_x = x + randx(30)
+
+      add(boosters, make_booster(
+             { x = new_x, boost = 1.2 + rnd(), length = randx(30) + 10 }
+      ))
+
+      add(ramps, make_ramp(
+             { x = new_x + 50, angle = randx(25) + 10, length = randx(20) + 30 }
+      ))
+
+      x += 300
+   end
+end
+
+----------------------
+-- UPDATE functions --
+----------------------
 
 function track_car()
    if(not DEBUG_GFX) return
@@ -263,43 +287,8 @@ function update_car()
 end
 
 function should_wrap_level()
-   return wrap_point() < -1000
-end
-
--- Short hack to stop generating at wrap point so scenery doesn't disappear on wrap.
--- Ideally it would be a totally smooth transition.
-function will_wrap_level()
-   return wrap_point() < -871
-end
-
-function populate_future_scene()
-   if(will_wrap_level() or level.has_wrapped) return
-
-   local last_obj = scene[#scene]
-   if last_obj.at[1] < 120 then
-      local new_x   = 150 + randx(50)
-      local new_obj = randx(2) == 1
-         and make_bg_spr(spr_tree, { new_x, 85 })
-         or  make_bg_spr(spr_shrub, { new_x, 95 })
-      add(scene, new_obj)
-      debug('added scenery ', scene[#scene])
-   end
-end
-
-function populate_future_ramps()
-   if(will_wrap_level() or level.has_wrapped) return
-
-   local last_ramp = ramps[#ramps]
-   if last_ramp.at[1] < 220 then
-      add(ramps, make_ramp(
-             { x = 760, angle = randx(25) + 10, length = randx(20) + 30 }
-      ))
---      if randx(2) > 1 then
-      add(boosters, make_booster(
-             { x = 700, boost = 1.2 + rnd(), length = randx(30) + 10 }
-      ))
---      end
-   end
+   local wp = wrap_point()
+   return wp < -level.length or wp > 129
 end
 
 function horizon_offset(y)
@@ -312,13 +301,9 @@ function update_scene()
       obj.at[2] = horizon_offset(obj.orig_at[2])
    end
 
-   populate_future_scene()
-
    for r in all(ramps) do
       r.at[1] += -car.speed
    end
-
-   populate_future_ramps()
 
    for b in all(boosters) do
       b.at[1] += -car.speed
@@ -329,9 +314,7 @@ function update_scene()
    end
 end
 
-function reset_scene()
-   local function reset_x(obj) obj.at[1] = obj.orig_at[1] + -obj.offset + 128 end
-
+function reset_scene(reset_x)
    foreach(scene,     reset_x)
    foreach(ramps,     reset_x)
    foreach(boosters,  reset_x)
@@ -339,15 +322,20 @@ function reset_scene()
 end
 
 function _update()
+   local function reset_x_right(obj) obj.at[1] = obj.orig_at[1] + screen_width end
+   local function reset_x_left(obj)  obj.at[1] = -((level.length - screen_width) - obj.orig_at[1]) end
    if should_wrap_level() then
-      reset_scene()
-      level.has_wrapped = true
+      reset_scene((wrap_point() < 0) and reset_x_right or reset_x_left)
    else
       update_scene()
    end
 
    update_car()
 end
+
+----------------------
+-- DRAW functions --
+----------------------
 
 function ramp_trig(r, angle)
    angle = angle == nil and r.angle or angle
@@ -475,7 +463,10 @@ function _draw()
    draw_car()
 end
 
--- ## Util functions ## --
+----------------------
+-- UTILITY functions --
+----------------------
+
 DEBUG_GFX = false
 DEBUG = true
 

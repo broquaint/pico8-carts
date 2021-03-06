@@ -36,7 +36,7 @@ function _init()
       x = 16,
       y = g_car_line,
       speed = 0,
-      accel = 0.6,
+      accel = 0.4,
       dy = 0,
       jumping = false,
       past = {},
@@ -71,11 +71,13 @@ function make_bg_spr(spr, at) return make_obj(at, { spr = spr }) end
 function make_ramp(attr, at) return make_obj(at, attr) end
 
 function track_car()
+   if(not DEBUG) return
+
    while #car.past > 50 do
       deli(car.past, 1)
    end
 
-   -- add(car.past, {x = car.x, y = car.y + 8})
+   add(car.past, {x = car.x, y = car.y + 8})
 end
 
 function respect_incline(r)
@@ -84,6 +86,7 @@ function respect_incline(r)
 end
 
 function apply_gravity()
+   -- The number used here feels about right, is arbitrary.
    car.dy += 35 * g_dt
    car.y += car.dy * g_dt
 
@@ -128,9 +131,12 @@ function update_car()
    end
 
    if btn(b_left) then
-      -- TODO Speed going backward should be lower
       if abs(car.speed - car.accel) < g_top_speed then
-         car.speed -= car.accel
+         if car.jumping and car.speed > 0 then
+            car.speed -= car.accel/3
+         else
+            car.speed -= car.accel
+         end
       end
    end
 
@@ -157,7 +163,8 @@ function update_car()
 
    local b = on_booster()
    if b and not car.boosted then
-      car.speed += b.boost
+      -- TODO implement a max speed ... but going insanely fast is fun.
+      car.speed += sgn(car.speed) * b.boost
       car.boosted_at = t()
    end
 
@@ -188,8 +195,9 @@ function update_car()
          local new_dy = car.dy - (0.03 * r.angle)
          if(car.boosted_at) new_dy *= 3
          car.dy = abs(new_dy) > 32 and -32 or new_dy
-      else
-         car.dy += 1
+      elseif btn(b_left) then
+         car.speed -= car.accel
+         car.dy += 10
       end
 
       if not accelerating then

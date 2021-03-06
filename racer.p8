@@ -29,13 +29,16 @@ g_car_line    = g_racing_line - 6
 
 r_step = 1 / 360
 
-spr_tree  = { 0, 32, 8, 16 }
-spr_shrub = { 8, 32, 16, 8 }
+spr_tree   = { 0,  32, 8,  16 }
+spr_shrub  = { 8,  32, 16, 8  }
+spr_player = { 8,  0,  8,  8  }
+spr_boost  = { 16, 0,  8,  8  }
 
 function _init()
    car = {
       x = 16,
       y = g_car_line,
+      dir = dir_right,
       speed = 0,
       accel = 0.4,
       dy = 0,
@@ -48,9 +51,9 @@ function _init()
 
    scene = {
       -- Trees
-      make_bg_spr(tree_spr, { 64, 85 }),
-      make_bg_spr(tree_spr, { 160, 85 }),
-      make_bg_spr(tree_spr, { 220, 85 }),
+      make_bg_spr(spr_tree, { 64, 85 }),
+      make_bg_spr(spr_tree, { 160, 85 }),
+      make_bg_spr(spr_tree, { 220, 85 }),
       -- Shrub
       make_bg_spr(spr_shrub, { 32, 95 }),
       make_bg_spr(spr_shrub, { 96, 95 }),
@@ -136,12 +139,20 @@ function update_car()
 
    local sw = car.speed
    if btn(b_right) then
+      if car.dir != dir_right and car.speed >= 0 then
+         car.dir = dir_right
+      end
+
       if (car.speed + car.accel) < g_top_speed then
          car.speed += car.accel
       end
    end
 
    if btn(b_left) then
+      if car.dir != dir_left and car.speed < 0 then
+         car.dir = dir_left
+      end
+
       if not car.jumping and abs(car.speed - car.accel) < g_top_speed then
          car.speed -= car.accel
       end
@@ -295,13 +306,21 @@ function ramp_trig(r, angle)
    return x, y
 end
 
+function render_sspr(sxywh, x, y, flip_x, flip_y)
+   local s = copy_table(sxywh)
+   add(s, x)
+   add(s, y)
+   add(s, sxywh[3])
+   add(s, sxywh[4])
+   if(flip_x != nil) add(s, flip_x)
+   if(flip_y != nil) add(s, flip_y)
+   sspr(unpack(s))
+end
+
 function draw_scene()
    for obj in all(scene) do
       if obj.at[1] > -16 and obj.at[1] < 128 then
-         local s = copy_table(obj.spr)
-         add(s, obj.at[1] * 1.15)
-         add(s, obj.at[2])
-         sspr(unpack(s))
+         render_sspr(obj.spr, obj.at[1], obj.at[2])
       end
    end
 
@@ -360,11 +379,15 @@ function draw_car_debug()
 end
 
 function draw_car()
+   draw_car_debug()
+
+   local flip = car.dir == dir_left
    if still_boosting() then
-      spr(2, car.x - 8, car.y)
+      local bx = flip and car.x + 8 or car.x - 8
+      render_sspr(spr_boost, bx, car.y, flip)
    end
 
-   spr(1, car.x, car.y)
+   render_sspr(spr_player, car.x, car.y, flip)
 end
 
 function _draw()
@@ -372,12 +395,11 @@ function _draw()
 
    draw_ewe_ai()
 
+   -- Background layer.
    rectfill(0, horizon_offset(100), 128, 105, violet)
    rectfill(0, 105, 128, 128, navy)
 
    draw_scene()
-
-   draw_car_debug()
 
    draw_car()
 end

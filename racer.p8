@@ -37,7 +37,7 @@ spr_player = { 8,  0,  8,  8  }
 spr_boost  = { 16, 0,  8,  8  }
 spr_flag   = { 24, 32, 16, 16 }
 
-spr_villa_savoye = { 48, 46, 32, 18 }
+spr_villa_savoye = { 48, 46, 31, 18 }
 spr_villa_palladio = { 80, 40, 32, 23 }
 
 function _init()
@@ -55,13 +55,17 @@ function _init()
       boost_meter = 0
    }
 
+   local trans_spr = (
+      {{spr_villa_savoye, { 900, 87 }}, {spr_villa_palladio, { 900, 81 }}}
+   )[randx(2)]
+
    level = {
       length = 1000,
-      transition_spr = spr_villa_palladio,
+      transition_spr = trans_spr[1],
    }
 
    -- This needs to be first as it's the measure of when to wrap.
-   scene = { make_obj({ 0, 88 }, { spr = spr_flag }, 0) }
+   scene = { make_obj({ 0, 88 }, { spr = spr_flag, width = spr_flag[3] }, 0) }
 
    ramps = {}
    boosters = {}
@@ -70,7 +74,7 @@ function _init()
    populate_scenery()
    populate_geometry()
 
-   add(scene, make_bg_spr(level.transition_spr, { 900, 84 }))
+   add(scene, make_bg_spr(level.transition_spr, trans_spr[2]))
 end
 
 function wrap_point() return scene[1].at[1] end
@@ -83,7 +87,9 @@ function make_obj(pos, attr, wrap_at)
    )
 end
 
-function make_bg_spr(spr, at) return make_obj(at, { spr = spr }) end
+function make_bg_spr(spr, at)
+   return make_obj(at, { spr = spr, width = spr[3] })
+end
 function make_ramp(attr, at) return make_obj({ attr.x, g_racing_line }, attr) end
 function make_booster(attr, at) return make_obj({ attr.x, g_racing_line }, attr) end
 
@@ -112,11 +118,11 @@ function populate_geometry()
       local new_x = x + randx(30)
 
       add(boosters, make_booster(
-             { x = new_x, boost = 1.2 + rnd(), length = randx(30) + 10 }
+             { x = new_x, boost = 1.2 + rnd(), width = randx(30) + 10 }
       ))
 
       add(ramps, make_ramp(
-             { x = new_x + 50, angle = randx(25) + 10, length = randx(20) + 30 }
+             { x = new_x + 50, angle = randx(25) + 10, width = randx(20) + 30 }
       ))
 
       x += 300
@@ -160,7 +166,7 @@ end
 
 function on_ramp()
    for r in all(ramps) do
-      local rx1 = ramp_trig(r)
+      local rx1 = ramp_trig(r.at[1], r.at[2], r.width, r.angle)
       if (car.x+4) > r.at[1] and (car.x+4) < rx1 then
          return r
       end
@@ -170,7 +176,7 @@ end
 
 function on_booster()
    for b in all(boosters) do
-      if (car.x+4) > b.at[1] and (car.x+4) < (b.at[1] + b.length)
+      if (car.x+4) > b.at[1] and (car.x+4) < (b.at[1] + b.width)
       and car.y == g_car_line then
          return b
       end
@@ -256,10 +262,12 @@ function update_car()
 
    local next_pos = car.x + car.speed
    if next_pos > g_edge_lhs and next_pos < g_edge_rhs then
-      -- TODO throttle movement when in the air
       car.x += car.speed
+      -- TODO Don't update what ought to be a constant!
+      g_edge_lhs += 1
    elseif next_pos > g_edge_rhs then
       car.x = g_edge_rhs
+      g_edge_lhs = g_edge_rhs
    end
 
    -- TODO Handle landing on a ramp!
@@ -272,7 +280,7 @@ function update_car()
       local len   = sqrt((car_x*car_x)+(car_y*car_y))
       local new_y = len * sin(r.angle * r_step)
       car.y = min(g_car_line, g_car_line + new_y)
-      -- debug('car ', flr(car.x+4), ' x ', flr(car.y), ' car_x ', car_x, ' x ', car_y, ' car len ', flr(len), ' r.len ', r.length, ' x0/y0 ', r.at, ' -> x1/y1 ', {ramp_trig(r)})
+      -- debug('car ', flr(car.x+4), ' x ', flr(car.y), ' car_x ', car_x, ' x ', car_y, ' car len ', flr(len), ' r.len ', r.width, ' x0/y0 ', r.at, ' -> x1/y1 ', {ramp_trig(r)})
       car.len = len
 
       if btn(b_right) then
@@ -302,52 +310,43 @@ function horizon_offset(y)
 end
 
 function update_scene()
-   for obj in all(scene) do
-      obj.at[1] += -car.speed
-      obj.at[2] = horizon_offset(obj.orig_at[2])
+   local function update_pos(obj)
+      local x = obj.at[1] + -car.speed
+      if x < 0 and x > -64 then
+         obj.at[1] = x
+      else
+         obj.at[1] = x % level.length
+      end
+      -- Only move bg sprites but not flag or transition.
+      if obj.spr and obj.spr != scene[#scene].spr and obj.spr != scene[1].spr then
+         obj.at[2] = horizon_offset(obj.orig_at[2])
+      end
    end
 
-   for r in all(ramps) do
-      r.at[1] += -car.speed
-   end
-
-   for b in all(boosters) do
-      b.at[1] += -car.speed
-   end
-
-   for p in all(platforms) do
-      p.at[1] += -car.speed
-   end
-end
-
-function reset_scene(reset_x)
-   foreach(scene,     reset_x)
-   foreach(ramps,     reset_x)
-   foreach(boosters,  reset_x)
-   foreach(platforms, reset_x)
+   foreach(scene, update_pos)
+   foreach(ramps, update_pos)
+   foreach(boosters, update_pos)
+   foreach(platforms, update_pos)
 end
 
 function _update()
-   local function reset_x_right(obj) obj.at[1] = obj.orig_at[1] + screen_width end
-   local function reset_x_left(obj)  obj.at[1] = -((level.length - screen_width) - obj.orig_at[1]) end
-   if should_wrap_level() then
-      reset_scene((wrap_point() < 0) and reset_x_right or reset_x_left)
-   else
-      update_scene()
-   end
+   update_scene()
 
    update_car()
+
+   if btn(b_z) then
+      DEBUG = not DEBUG
+   end
 end
 
 ----------------------
 -- DRAW functions --
 ----------------------
 
-function ramp_trig(r, angle)
-   angle = angle == nil and r.angle or angle
-   local x  = r.at[1] + (r.length * cos(angle * r_step))
-   local y  = r.at[2] + (r.length * sin(angle * r_step))
-   return x, y
+function ramp_trig(x, y, width, angle)
+   local rx = x + (width * cos(angle * r_step))
+   local ry = y + (width * sin(angle * r_step))
+   return rx, ry
 end
 
 function render_sprite(sxywh, x, y, flip_x, flip_y)
@@ -361,9 +360,25 @@ function render_sprite(sxywh, x, y, flip_x, flip_y)
    sspr(unpack(s)) -- Could be done with spr, too lazy to change.
 end
 
+-- Handle drawing in objects that are about to "wrap in" from the LHS.
+function wrapped_x(obj)
+   local x = obj.at[1]
+   if (x + obj.width) > level.length then
+      return -obj.width - (1000 - (x + obj.width))
+   else
+      return x
+   end
+end
+
+-- Only bother rendering objects that will be on screen.
+function should_draw(x, w)
+   return x > -w and x < 128
+end
+
 function draw_scene()
    for obj in all(scene) do
-      if obj.at[1] > -16 and obj.at[1] < 128 then
+      local x = wrapped_x(obj)
+      if should_draw(x, obj.width) then
          -- Flag fiddliness, prolly worth splitting it out.
          if obj.spr == spr_flag then
             palt(0, false)
@@ -371,24 +386,26 @@ function draw_scene()
          else
             palt()
          end
-         render_sprite(obj.spr, obj.at[1], obj.at[2])
+
+         render_sprite(obj.spr, x, obj.at[2])
       end
    end
 
    palt()
 
    for r in all(ramps) do
-      if r.at[1] > -r.length and r.at[1] < 128 then
-         local rx = r.at[1]
+      local rx = wrapped_x(r)
+
+      if should_draw(rx, r.width) then
          local ry = r.at[2]
-         local x, y = ramp_trig(r)
+         local x, y = ramp_trig(rx, ry, r.width, r.angle)
          -- Slope
          line(rx, ry, x, y, yellow)
 
          local slope = r.angle
          -- Fill the ramp with solid colour.
          while slope >= 0 do
-            local lx, ly = ramp_trig(r, slope)
+            local lx, ly = ramp_trig(rx, ry, r.width, slope)
             local d   = r.angle - slope
             local col = (d < 5) and yellow or (d < 20) and orange or red
             line(rx, ry, x, ly, col)
@@ -398,9 +415,9 @@ function draw_scene()
    end
 
    for b in all(boosters) do
-      if b.at[1] > -b.length and b.at[1] < 128 then
-         local bx0 = b.at[1]
-         local bx1 = bx0 + b.length
+      local bx0 = wrapped_x(b)
+      if should_draw(bx0, b.width) then
+         local bx1 = bx0 + b.width
          line(bx0, g_racing_line, bx1, g_racing_line, yellow)
          line(bx0, g_racing_line + 1, bx1, g_racing_line + 1, orange)
          line(bx0, g_racing_line + 2, bx1, g_racing_line + 2, red)
@@ -409,10 +426,10 @@ function draw_scene()
 
 
    for p in all(platforms) do
-      if p.at[1] > -p.length and p.at[1] < 128 then
+      if p.at[1] > -p.width and p.at[1] < 128 then
          local px = p.at[1]
          local py = p.at[2]
-         rectfill(px, py, px + p.length, py - 2, orange)
+         rectfill(px, py, px + p.width, py - 2, orange)
       end
    end
 end
@@ -474,7 +491,7 @@ end
 ----------------------
 
 DEBUG_GFX = false
-DEBUG = true
+DEBUG = false
 
 function dumper(...)
    local res = ''

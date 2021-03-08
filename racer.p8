@@ -121,9 +121,17 @@ function populate_geometry()
              { x = new_x, boost = 1 + rnd()/2, width = randx(30) + 10 }
       ))
 
-      add(ramps, make_ramp(
-             { x = new_x + 50, angle = randx(25) + 10, width = randx(20) + 30 }
-      ))
+      local l = make_ramp(
+         { x = new_x + 50, angle = randx(25) + 10, width = randx(20) + 30 }
+      )
+      -- Width is length of the ramp hypoteneuse ... maybe wrong ._.
+      local rx = l.at[1] + (l.width * cos(l.angle*r_step))
+      local r = make_ramp(
+         { x = rx, angle = 180 - l.angle, width = l.width }
+      )
+
+      add(ramps, l)
+      add(ramps, r)
 
       x += 300
    end
@@ -380,6 +388,44 @@ function should_draw(x, w)
    return x > -w and x < 128
 end
 
+function draw_ramp(r, rx)
+   local ry = r.at[2]
+   local x, y
+   local rw = abs(r.width * cos(r.angle * r_step))
+   -- Slope going up from the left
+   if r.angle < 90 then
+      x, y = ramp_trig(rx, ry, r.width, r.angle)
+      line(rx, ry, x, y, yellow)
+   else
+      rx += rw
+      -- Other edge going up from the right
+      x, y = ramp_trig(rx, ry, r.width, r.angle)
+      -- Need offset to draw&= correctly while maintaining consistent x coordinate
+      line(rx, ry, x, y, lime)
+   end
+
+   local slope = r.angle
+   -- Fill the ramp with solid colour.
+   if r.angle < 90 then
+      while slope >= 0 do
+         local lx, ly = ramp_trig(rx, ry, r.width, slope)
+         local d   = r.angle - slope
+         local col = (d < 5) and yellow or (d < 20) and orange or red
+         line(rx, ry, x, ly, col)
+         -- line(x, ly, opx, ry, col)
+         slope -= 1
+      end
+   else
+      while slope < 182 do
+         local lx, ly = ramp_trig(rx, ry, r.width, slope)
+         local d   = slope - r.angle
+         local col = (d < 5) and lime or (d < 20) and green or azure
+         line(rx, ry, x, ly, col)
+         slope += 1
+      end
+   end
+end
+
 function draw_scene()
    for obj in all(scene) do
       local x = wrapped_x(obj)
@@ -402,20 +448,7 @@ function draw_scene()
       local rx = wrapped_x(r)
 
       if should_draw(rx, r.width) then
-         local ry = r.at[2]
-         local x, y = ramp_trig(rx, ry, r.width, r.angle)
-         -- Slope
-         line(rx, ry, x, y, yellow)
-
-         local slope = r.angle
-         -- Fill the ramp with solid colour.
-         while slope >= 0 do
-            local lx, ly = ramp_trig(rx, ry, r.width, slope)
-            local d   = r.angle - slope
-            local col = (d < 5) and yellow or (d < 20) and orange or red
-            line(rx, ry, x, ly, col)
-            slope -= 1
-         end
+         draw_ramp(r, rx)
       end
    end
 

@@ -118,7 +118,7 @@ function populate_geometry()
       local new_x = x + randx(30)
 
       add(boosters, make_booster(
-             { x = new_x, boost = 1.2 + rnd(), width = randx(30) + 10 }
+             { x = new_x, boost = 1 + rnd()/2, width = randx(30) + 10 }
       ))
 
       add(ramps, make_ramp(
@@ -243,9 +243,14 @@ function update_car()
    end
 
    -- Reduce boost if on the ground or in the air and "breaking"
-   if still_boosting() and (not car.jumping and t() - car.boosted_at > 0.3) or btn(b_left) then
+   local break_button = car.dir == dir_right and b_left or b_right
+   if still_boosting() and (not car.jumping and t() - car.boosted_at > 0.3) or btn(break_button) then
       if car.boost_meter > 0 then
-         car.boost_meter -= 1
+         if btn(break_button) then
+            car.boost_meter *= (car.boost_meter > 1) and 0.9 or 0
+         else
+            car.boost_meter -= 1
+         end
       end
    end
 

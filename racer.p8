@@ -22,6 +22,8 @@ g_friction     = 0.9
 g_air_friction = 0.98
 g_top_speed    = 3
 g_top_boost    = 10
+-- The speed at which a jump starts to build up on a ramp.
+g_jump_speed   = 5
 
 g_edge_rhs  = 64
 g_edge_lhs  = 16
@@ -65,7 +67,8 @@ function _init()
    }
 
    -- This needs to be first as it's the measure of when to wrap.
-   scene = { make_obj({ 0, 88 }, { spr = spr_flag, width = spr_flag[3] }, 0) }
+   -- scene = { make_obj({ 0, 88 }, { spr = spr_flag, width = spr_flag[3] }) }
+   scene = { make_bg_spr(spr_flag, { 0, 88 }) }
 
    ramps = {}
    boosters = {}
@@ -77,10 +80,7 @@ function _init()
    add(scene, make_bg_spr(level.transition_spr, trans_spr[2]))
 end
 
-function wrap_point() return scene[1].at[1] end
-
-function make_obj(pos, attr, wrap_at)
-   if(wrap_at == nil) wrap_at = wrap_point()
+function make_obj(pos, attr)
    return merge(
       { at = pos, orig_at = copy_table(pos) },
       attr
@@ -358,12 +358,6 @@ function handle_ramp(r)
       respect_incline(r)
    end
 end
-
-function should_wrap_level()
-   local wp = wrap_point()
-   return wp < -level.length or wp > 129
-end
-
 function horizon_offset(y)
    return y - (0.1 * (g_car_line - car.y))
 end
@@ -528,7 +522,7 @@ function draw_ewe_ai()
    end
 
    local dbg = DEBUG and '🐱' or '@'
-   print(dumper(dbg, ' ', flr(car.x), 'x', flr(car.y), ' - ', flr(wrap_point())), 2, 2, azure)
+   print(dumper(dbg, ' ', flr(car.x), 'x', flr(car.y), ' -> ', car.speed), 2, 2, azure)
 end
 
 function draw_car_debug()

@@ -172,11 +172,21 @@ function apply_gravity()
    end
 end
 
-function on_ramp()
+function on_ramp(car_x)
+   car_x += 4
    for r in all(ramps) do
-      local rx1 = ramp_trig(r.at[1], r.at[2], r.width, r.angle)
-      if (car.x+4) > r.at[1] and (car.x+4) < rx1 then
-         return r
+      local rw  = abs(r.width * cos(r.angle * r_step))
+      local rx0 = r.angle < 90 and r.at[1] or r.at[1] + rw
+      if r.angle < 90 then
+         local rx1 = ramp_trig(rx0, r.at[2], r.width, r.angle)
+         if car_x > rx0 and car_x < rx1 then
+            return r
+         end
+      else
+         local rx1 = ramp_trig(rx0, r.at[2], r.width, r.angle)
+         if car_x > rx1 and car_x < rx0 then
+            return r
+         end
       end
    end
    return false
@@ -229,7 +239,7 @@ function update_car()
 
    -- debug('was going ', sw, ' now going ', car.speed, ' with boost ', car.boost_meter, ' boost amt ', car.boost_was, ' last boost at ', car.boosted_at)
 
-   local r = on_ramp()
+   local r = on_ramp(car.x)
 
    if not still_boosting() then
       -- TODO Make this more gradual, probably need to move away from linear speed.
@@ -285,15 +295,23 @@ function update_car()
 
    -- TODO Handle landing on a ramp!
    if r and not car.jumping then
+      handle_ramp(r)
+   else
+      apply_gravity()
+   end
+end
+
+function handle_ramp(r)
+   if r.angle < 90 then
       -- These are offsets relative to where the car is on the ramp.
       local car_x = (car.x+4) - r.at[1]
-      local car_y = max(1, g_car_line - car.y)
+      local car_y = max(car.speed, g_car_line - car.y)
       -- Rough calculation of the current position along the hypoteneuse.
-      -- It's rough because car_y is basically a reasonable guess.
+      -- It's rough because car_y is just a reasonable guess.
       local len   = sqrt((car_x*car_x)+(car_y*car_y))
       local new_y = len * sin(r.angle * r_step)
       car.y = min(g_car_line, g_car_line + new_y)
-      -- debug('car ', flr(car.x+4), ' x ', flr(car.y), ' car_x ', car_x, ' x ', car_y, ' car len ', flr(len), ' r.len ', r.width, ' x0/y0 ', r.at, ' -> x1/y1 ', {ramp_trig(r)})
+
       car.len = len
 
       if btn(b_right) then
@@ -304,12 +322,40 @@ function update_car()
          car.speed -= car.accel
          car.dy += 10
       end
-
-      if not accelerating then
-          respect_incline(r)
-      end
+      -- debug('-> on l2r ramp ', r, ', car ', car)
    else
-      apply_gravity()
+      local rw  = abs(r.width * cos(r.angle * r_step))
+      -- These are offsets relative to where the car is on the ramp.
+      local car_x = (r.at[1]+rw) - (car.x-4)
+      local car_y = max(car.speed, g_car_line - car.y)
+      -- Rough calculation of the current position along the hypoteneuse.
+      -- It's rough because car_y is just a reasonable guess.
+      local len   = sqrt((car_x*car_x)+(car_y*car_y))
+      local new_y = len * sin(r.angle * r_step)
+
+      car.y = min(g_car_line, g_car_line + new_y)
+
+      car.len = len
+
+      if btn(b_left) then
+         local new_dy = car.dy - (0.03 * r.angle)
+         if(car.boosted_at) new_dy *= 3
+         car.dy = abs(new_dy) > 32 and -32 or new_dy
+      elseif btn(b_right) then
+         car.speed += car.accel
+         car.dy += 10
+      end
+      -- debug('<- on r2l ramp ', r, ', car ', car)
+   end
+
+   -- Initiate jump if on the next frame car is not on this ramp and
+   -- has a negative vertical inertia.
+   if r != on_ramp(car.x + car.speed) and car.dy < 0 then
+      car.jumping = true
+   end
+
+   if not accelerating then
+      respect_incline(r)
    end
 end
 
@@ -347,7 +393,7 @@ function _update()
 
    update_car()
 
-   if btn(b_z) then
+   if btnp(b_z) then
       DEBUG = not DEBUG
    end
 end
@@ -481,7 +527,8 @@ function draw_ewe_ai()
       print('boost', 94, 3, salmon)
    end
 
-   print(dumper('@ ', flr(car.x), 'x', flr(car.y), ' - ', flr(wrap_point())), 2, 2, azure)
+   local dbg = DEBUG and '🐱' or '@'
+   print(dumper(dbg, ' ', flr(car.x), 'x', flr(car.y), ' - ', flr(wrap_point())), 2, 2, azure)
 end
 
 function draw_car_debug()
@@ -491,7 +538,7 @@ function draw_car_debug()
       pset(pos.x, pos.y, white)
    end
 
-   local r = on_ramp()
+   local r = on_ramp(car.x)
    if r then
       line(r.at[1], r.at[2], (car.x+4), car.y+8, lime)
       line(r.at[1], r.at[2], r.at[1]+car.len, r.at[2], azure)

@@ -88,7 +88,13 @@ end
 function make_bg_spr(spr, at)
    return make_obj(at, { spr = spr, width = spr[3] })
 end
-function make_ramp(attr, at) return make_obj({ attr.x, g_racing_line }, attr) end
+
+function make_ramp(attr)
+   -- With ramps the length of the hypoteneuse determines how wide the ramp is.
+   local w = abs(attr.hypot * cos(attr.angle * r_step))
+   return make_obj({ attr.x, g_racing_line }, merge(attr, { width = w }))
+end
+
 function make_booster(attr, at) return make_obj({ attr.x, g_racing_line }, attr) end
 
 function populate_scenery()
@@ -120,12 +126,10 @@ function populate_geometry()
       ))
 
       local l = make_ramp(
-         { x = new_x + 50, angle = randx(25) + 10, width = randx(20) + 30 }
+         { x = new_x + 50, angle = randx(25) + 10, hypot = randx(20) + 30 }
       )
-      -- Width is length of the ramp hypoteneuse ... maybe wrong ._.
-      local rx = l.at[1] + (l.width * cos(l.angle*r_step))
       local r = make_ramp(
-         { x = rx, angle = 180 - l.angle, width = l.width }
+         { x = l.at[1] + l.width, angle = 180 - l.angle, hypot = l.hypot }
       )
 
       add(ramps, l)
@@ -177,15 +181,14 @@ end
 function on_ramp(car_x)
    car_x += 4
    for r in all(ramps) do
-      local rw  = abs(r.width * cos(r.angle * r_step))
-      local rx0 = r.angle < 90 and r.at[1] or r.at[1] + rw
+      local rx0 = r.angle < 90 and r.at[1] or r.at[1] + r.width
       if r.angle < 90 then
-         local rx1 = ramp_trig(rx0, r.at[2], r.width, r.angle)
+         local rx1 = ramp_trig(rx0, r.at[2], r.hypot, r.angle)
          if car_x > rx0 and car_x < rx1 then
             return r
          end
       else
-         local rx1 = ramp_trig(rx0, r.at[2], r.width, r.angle)
+         local rx1 = ramp_trig(rx0, r.at[2], r.hypot, r.angle)
          if car_x > rx1 and car_x < rx0 then
             return r
          end
@@ -233,9 +236,8 @@ function handle_ramp(r)
       end
       debug('-> on l2r ramp ', r, ', car ', car)
    else
-      local rw  = abs(r.width * cos(r.angle * r_step))
       -- These are offsets relative to where the car is on the ramp.
-      local car_x = (r.at[1]+rw) - car.x
+      local car_x = (r.at[1]+r.width) - car.x
       local car_y = max(car.speed, g_car_line - car.y)
       -- Rough calculation of the current position along the hypoteneuse.
       -- It's rough because car_y is just a reasonable guess.
@@ -399,9 +401,9 @@ end
 -- DRAW functions --
 ----------------------
 
-function ramp_trig(x, y, width, angle)
-   local rx = x + (width * cos(angle * r_step))
-   local ry = y + (width * sin(angle * r_step))
+function ramp_trig(x, y, hypot, angle)
+   local rx = x + (hypot * cos(angle * r_step))
+   local ry = y + (hypot * sin(angle * r_step))
    return rx, ry
 end
 
@@ -434,15 +436,15 @@ end
 function draw_ramp(r, rx)
    local ry = r.at[2]
    local x, y
-   local rw = abs(r.width * cos(r.angle * r_step))
+
    -- Slope going up from the left
    if r.angle < 90 then
-      x, y = ramp_trig(rx, ry, r.width, r.angle)
+      x, y = ramp_trig(rx, ry, r.hypot, r.angle)
       line(rx, ry, x, y, yellow)
    else
-      rx += rw
+      rx += r.width
       -- Other edge going up from the right
-      x, y = ramp_trig(rx, ry, r.width, r.angle)
+      x, y = ramp_trig(rx, ry, r.hypot, r.angle)
       -- Need offset to draw&= correctly while maintaining consistent x coordinate
       line(rx, ry, x, y, lime)
    end
@@ -451,7 +453,7 @@ function draw_ramp(r, rx)
    -- Fill the ramp with solid colour.
    if r.angle < 90 then
       while slope >= 0 do
-         local lx, ly = ramp_trig(rx, ry, r.width, slope)
+         local lx, ly = ramp_trig(rx, ry, r.hypot, slope)
          local d   = r.angle - slope
          local col = (d < 5) and yellow or (d < 20) and orange or red
          line(rx, ry, x, ly, col)
@@ -460,7 +462,7 @@ function draw_ramp(r, rx)
       end
    else
       while slope < 182 do
-         local lx, ly = ramp_trig(rx, ry, r.width, slope)
+         local lx, ly = ramp_trig(rx, ry, r.hypot, slope)
          local d   = slope - r.angle
          local col = (d < 5) and lime or (d < 20) and green or azure
          line(rx, ry, x, ly, col)

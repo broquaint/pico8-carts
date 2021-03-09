@@ -57,12 +57,14 @@ function _init()
       boost_meter = 0
    }
 
+   local lvl_len = 1500
+   local trans_pos = lvl_len - (lvl_len / 5)
    local trans_spr = (
-      {{spr_villa_savoye, { 900, 87 }}, {spr_villa_palladio, { 900, 81 }}}
+      {{spr_villa_savoye, { trans_pos, 87 }}, {spr_villa_palladio, { trans_pos, 81 }}}
    )[randx(2)]
 
    level = {
-      length = 1000,
+      length = lvl_len,
       transition_spr = trans_spr[1],
    }
 
@@ -422,7 +424,7 @@ end
 function wrapped_x(obj)
    local x = obj.at[1]
    if (x + obj.width) > level.length then
-      return -obj.width - (1000 - (x + obj.width))
+      return -obj.width - (level.length - (x + obj.width))
    else
       return x
    end

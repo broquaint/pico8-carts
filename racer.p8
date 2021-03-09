@@ -152,7 +152,11 @@ function track_car()
 end
 
 function respect_incline(r)
-   car.speed -= 0.1
+   if r.angle < 90 then
+      car.speed -= 0.1
+   else
+      car.speed += 0.1
+   end
    car.dy += 0.2
 end
 
@@ -206,6 +210,64 @@ function still_boosting()
    local boost_active = car.boosted_at and t() - car.boosted_at < 0.5
    local boost_power  = car.boost_meter > 0
    return boost_active or boost_power
+end
+
+function handle_ramp(r)
+   if r.angle < 90 then
+      -- These are offsets relative to where the car is on the ramp.
+      local car_x = (car.x+4) - r.at[1]
+      local car_y = max(car.speed, g_car_line - car.y)
+      -- Rough calculation of the current position along the hypoteneuse.
+      -- It's rough because car_y is just a reasonable guess.
+      local len   = sqrt((car_x*car_x)+(car_y*car_y))
+      local new_y = len * sin(r.angle * r_step)
+      car.y = min(g_car_line, g_car_line + new_y)
+
+      car.len = len
+
+      if car.speed > g_jump_speed then
+         local new_dy = car.dy - (0.03 * r.angle)
+         if(car.boosted_at) new_dy *= 3
+         car.dy = abs(new_dy) > 32 and -32 or new_dy
+      elseif btn(b_left) then
+         car.speed -= car.accel
+         car.dy += 10
+      end
+      debug('-> on l2r ramp ', r, ', car ', car)
+   else
+      local rw  = abs(r.width * cos(r.angle * r_step))
+      -- These are offsets relative to where the car is on the ramp.
+      local car_x = (r.at[1]+rw) - car.x
+      local car_y = max(car.speed, g_car_line - car.y)
+      -- Rough calculation of the current position along the hypoteneuse.
+      -- It's rough because car_y is just a reasonable guess.
+      local len   = sqrt((car_x*car_x)+(car_y*car_y))
+      local new_y = len * sin(r.angle * r_step)
+
+      car.y = min(g_car_line, g_car_line + new_y)
+
+      car.len = len
+
+      if abs(car.speed) > g_jump_speed then
+         local new_dy = car.dy - (0.03 * r.angle)
+         if(car.boosted_at) new_dy *= 3
+         car.dy = abs(new_dy) > 32 and -32 or new_dy
+      elseif btn(b_right) then
+         car.speed += car.accel
+         car.dy += 10
+      end
+      debug('<- on r2l ramp ', r, ', car ', car)
+   end
+
+   -- Initiate jump if on the next frame car is not on this ramp and
+   -- has a negative vertical inertia.
+   if r != on_ramp(car.x + car.speed) and car.dy < 0 then
+      car.jumping = true
+   end
+
+   if not accelerating then
+      respect_incline(r)
+   end
 end
 
 function update_car()
@@ -301,63 +363,6 @@ function update_car()
    end
 end
 
-function handle_ramp(r)
-   if r.angle < 90 then
-      -- These are offsets relative to where the car is on the ramp.
-      local car_x = (car.x+4) - r.at[1]
-      local car_y = max(car.speed, g_car_line - car.y)
-      -- Rough calculation of the current position along the hypoteneuse.
-      -- It's rough because car_y is just a reasonable guess.
-      local len   = sqrt((car_x*car_x)+(car_y*car_y))
-      local new_y = len * sin(r.angle * r_step)
-      car.y = min(g_car_line, g_car_line + new_y)
-
-      car.len = len
-
-      if btn(b_right) then
-         local new_dy = car.dy - (0.03 * r.angle)
-         if(car.boosted_at) new_dy *= 3
-         car.dy = abs(new_dy) > 32 and -32 or new_dy
-      elseif btn(b_left) then
-         car.speed -= car.accel
-         car.dy += 10
-      end
-      -- debug('-> on l2r ramp ', r, ', car ', car)
-   else
-      local rw  = abs(r.width * cos(r.angle * r_step))
-      -- These are offsets relative to where the car is on the ramp.
-      local car_x = (r.at[1]+rw) - (car.x-4)
-      local car_y = max(car.speed, g_car_line - car.y)
-      -- Rough calculation of the current position along the hypoteneuse.
-      -- It's rough because car_y is just a reasonable guess.
-      local len   = sqrt((car_x*car_x)+(car_y*car_y))
-      local new_y = len * sin(r.angle * r_step)
-
-      car.y = min(g_car_line, g_car_line + new_y)
-
-      car.len = len
-
-      if btn(b_left) then
-         local new_dy = car.dy - (0.03 * r.angle)
-         if(car.boosted_at) new_dy *= 3
-         car.dy = abs(new_dy) > 32 and -32 or new_dy
-      elseif btn(b_right) then
-         car.speed += car.accel
-         car.dy += 10
-      end
-      -- debug('<- on r2l ramp ', r, ', car ', car)
-   end
-
-   -- Initiate jump if on the next frame car is not on this ramp and
-   -- has a negative vertical inertia.
-   if r != on_ramp(car.x + car.speed) and car.dy < 0 then
-      car.jumping = true
-   end
-
-   if not accelerating then
-      respect_incline(r)
-   end
-end
 function horizon_offset(y)
    return y - (0.1 * (g_car_line - car.y))
 end

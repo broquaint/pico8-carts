@@ -86,7 +86,7 @@ end
 
 function make_obj(pos, attr)
    return merge(
-      { at = pos, orig_at = copy_table(pos) },
+      { x = pos[1], y = pos[2], orig_x = pos[1], orig_y = pos[2] },
       attr
    )
 end
@@ -135,7 +135,7 @@ function populate_geometry()
          { x = new_x + 50, angle = randx(25) + 10, hypot = randx(20) + 30 }
       )
       local r = make_ramp(
-         { x = l.at[1] + l.width, angle = 180 - l.angle, hypot = l.hypot }
+         { x = l.x + l.width, angle = 180 - l.angle, hypot = l.hypot }
       )
 
       add(ramps, l)
@@ -149,7 +149,7 @@ end
 function find_free_pos(known, pos_gen)
    function is_pos_in_set(pos_set, pos)
       for p in all(pos_set) do
-         if(pos == p.at[1]) return true
+         if(pos == p.x) return true
          end
       return false
    end
@@ -170,7 +170,7 @@ function generate_deliveries()
    for i = 1,flr(level.length/400) do
       local col   = del(colours, colours[randx(#colours)])
       local del_x = find_free_pos(
-         deliveries, function() return ramps[randx(#ramps)].at[1] + 150 end
+         deliveries, function() return ramps[randx(#ramps)].x + 150 end
       )
       deliveries[delivery_id] = make_obj({del_x, g_racing_line-25}, {colour=col, width=5, id=delivery_id})
       -- The IDs happen to align with where the index in , it could diverge.
@@ -221,14 +221,14 @@ end
 function on_ramp(car_x)
    car_x += 4
    for r in all(ramps) do
-      local rx0 = r.angle < 90 and r.at[1] or r.at[1] + r.width
+      local rx0 = r.angle < 90 and r.x or r.x + r.width
       if r.angle < 90 then
-         local rx1 = ramp_trig(rx0, r.at[2], r.hypot, r.angle)
+         local rx1 = ramp_trig(rx0, r.y, r.hypot, r.angle)
          if car_x > rx0 and car_x < rx1 then
             return r
          end
       else
-         local rx1 = ramp_trig(rx0, r.at[2], r.hypot, r.angle)
+         local rx1 = ramp_trig(rx0, r.y, r.hypot, r.angle)
          if car_x > rx1 and car_x < rx0 then
             return r
          end
@@ -239,7 +239,7 @@ end
 
 function on_booster()
    for b in all(boosters) do
-      if (car.x+4) > b.at[1] and (car.x+4) < (b.at[1] + b.width)
+      if (car.x+4) > b.x and (car.x+4) < (b.x + b.width)
       and car.y == g_car_line then
          return b
       end
@@ -256,7 +256,7 @@ end
 function handle_ramp(r)
    if r.angle < 90 then
       -- These are offsets relative to where the car is on the ramp.
-      local car_x = (car.x+4) - r.at[1]
+      local car_x = (car.x+4) - r.x
       local car_y = max(car.speed, g_car_line - car.y)
       -- Rough calculation of the current position along the hypoteneuse.
       -- It's rough because car_y is just a reasonable guess.
@@ -277,7 +277,7 @@ function handle_ramp(r)
       debug('-> on l2r ramp ', r, ', car ', car)
    else
       -- These are offsets relative to where the car is on the ramp.
-      local car_x = (r.at[1]+r.width) - car.x
+      local car_x = (r.x+r.width) - car.x
       local car_y = max(car.speed, g_car_line - car.y)
       -- Rough calculation of the current position along the hypoteneuse.
       -- It's rough because car_y is just a reasonable guess.
@@ -409,15 +409,15 @@ end
 
 function update_scene()
    local function update_pos(obj)
-      local x = obj.at[1] + -car.speed
+      local x = obj.x + -car.speed
       if x < 0 and x > -64 then
-         obj.at[1] = x
+         obj.x = x
       else
-         obj.at[1] = x % level.length
+         obj.x = x % level.length
       end
       -- Only move bg sprites but not flag or transition.
       if obj.spr and obj.spr != scene[#scene].spr and obj.spr != scene[1].spr then
-         obj.at[2] = horizon_offset(obj.orig_at[2])
+         obj.y = horizon_offset(obj.orig_y)
       end
    end
 
@@ -433,7 +433,7 @@ function handle_deliveries()
    local cx1 = car.x+8
    for idx, cd in pairs(car.deliveries) do
       local del_loc = level.deliveries[cd.id]
-      local dx0 = del_loc.at[1]
+      local dx0 = del_loc.x
       local dx1 = dx0+del_loc.width
       if (cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0) then
          car.delivered = deli(car.deliveries, idx)
@@ -476,7 +476,7 @@ end
 
 -- Handle drawing in objects that are about to "wrap in" from the LHS.
 function wrapped_x(obj)
-   local x = obj.at[1]
+   local x = obj.x
    if (x + obj.width) > level.length then
       return -obj.width - (level.length - (x + obj.width))
    else
@@ -490,7 +490,7 @@ function should_draw(x, w)
 end
 
 function draw_ramp(r, rx)
-   local ry = r.at[2]
+   local ry = r.y
    local x, y
 
    -- Slope going up from the left
@@ -539,7 +539,7 @@ function draw_scene()
             palt()
          end
 
-         render_sprite(obj.spr, x, obj.at[2])
+         render_sprite(obj.spr, x, obj.y)
       end
    end
 
@@ -565,17 +565,17 @@ function draw_scene()
 
 
    for p in all(platforms) do
-      if p.at[1] > -p.width and p.at[1] < 128 then
-         local px = p.at[1]
-         local py = p.at[2]
+      if p.x > -p.width and p.x < 128 then
+         local px = p.x
+         local py = p.y
          rectfill(px, py, px + p.width, py - 2, orange)
       end
    end
 
    for d in all(level.deliveries) do
       -- Placeholders (?) for eventual sprites
-      circ(wrapped_x(d), d.at[2], d.width, d.colour)
-      circfill(wrapped_x(d), d.at[2], d.width - 3, white)
+      circ(wrapped_x(d), d.y, d.width, d.colour)
+      circfill(wrapped_x(d), d.y, d.width - 3, white)
    end
 end
 
@@ -607,8 +607,8 @@ function draw_car_debug()
 
    local r = on_ramp(car.x)
    if r then
-      line(r.at[1], r.at[2], (car.x+4), car.y+8, lime)
-      line(r.at[1], r.at[2], r.at[1]+car.len, r.at[2], azure)
+      line(r.x, r.y, (car.x+4), car.y+8, lime)
+      line(r.x, r.y, r.x+car.len, r.y, azure)
    end
 end
 

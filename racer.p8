@@ -54,11 +54,12 @@ function _init()
       past = {},
       len = 0,
       boosted_at = false,
-      boost_meter = 0
+      boost_meter = 0,
+      delivered = {}
    }
 
    local lvl_len = 1500
-   local trans_pos = lvl_len - (lvl_len / 5)
+   local trans_pos = lvl_len / 2
    local trans_spr = (
       {{spr_villa_savoye, { trans_pos, 87 }}, {spr_villa_palladio, { trans_pos, 81 }}}
    )[randx(2)]
@@ -76,6 +77,9 @@ function _init()
 
    populate_scenery()
    populate_geometry()
+
+   level.deliveries = generate_deliveries()
+   car.deliveries = {level.deliveries[randx(#level.deliveries)]}
 
    add(scene, make_bg_spr(level.transition_spr, trans_spr[2]))
 end
@@ -139,6 +143,40 @@ function populate_geometry()
 
       x += 300
    end
+end
+
+
+function find_free_pos(known, pos_gen)
+   function is_pos_in_set(pos_set, pos)
+      for p in all(pos_set) do
+         if(pos == p.at[1]) return true
+         end
+      return false
+   end
+
+   local new_pos = pos_gen()
+   -- Enter loop if the new tile position is already present to generate a new position.
+   while(is_pos_in_set(known, new_pos)) do
+      new_pos = pos_gen()
+   end
+   return new_pos
+end
+
+delivery_id = 1
+function generate_deliveries()
+   local deliveries = {}
+   local colours    = { salmon, azure, lime, yellow, orange, red, coral }
+   -- TODO The number of deliveries needs to be more dynamic.
+   for i = 1,flr(level.length/400) do
+      local col   = del(colours, colours[randx(#colours)])
+      local del_x = find_free_pos(
+         deliveries, function() return ramps[randx(#ramps)].at[1] + 150 end
+      )
+      deliveries[delivery_id] = make_obj({del_x, g_racing_line-25}, {colour=col, width=5, id=delivery_id})
+      -- The IDs happen to align with where the index in , it could diverge.
+      delivery_id += 1
+   end
+   return deliveries
 end
 
 ----------------------
@@ -387,12 +425,28 @@ function update_scene()
    foreach(ramps, update_pos)
    foreach(boosters, update_pos)
    foreach(platforms, update_pos)
+   foreach(level.deliveries, update_pos)
+end
+
+function handle_deliveries()
+   local cx0 = car.x
+   local cx1 = car.x+8
+   for idx, cd in pairs(car.deliveries) do
+      local del_loc = level.deliveries[cd.id]
+      local dx0 = del_loc.at[1]
+      local dx1 = dx0+del_loc.width
+      if (cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0) then
+         car.delivered = deli(car.deliveries, idx)
+      end
+   end
 end
 
 function _update()
    update_scene()
 
    update_car()
+
+   handle_deliveries()
 
    if btnp(b_z) then
       DEBUG = not DEBUG
@@ -447,7 +501,7 @@ function draw_ramp(r, rx)
       rx += r.width
       -- Other edge going up from the right
       x, y = ramp_trig(rx, ry, r.hypot, r.angle)
-      -- Need offset to draw&= correctly while maintaining consistent x coordinate
+      -- Need offset to draw correctly while maintaining consistent x coordinate
       line(rx, ry, x, y, lime)
    end
 
@@ -517,6 +571,12 @@ function draw_scene()
          rectfill(px, py, px + p.width, py - 2, orange)
       end
    end
+
+   for d in all(level.deliveries) do
+      -- Placeholders (?) for eventual sprites
+      circ(wrapped_x(d), d.at[2], d.width, d.colour)
+      circfill(wrapped_x(d), d.at[2], d.width - 3, white)
+   end
 end
 
 function draw_ewe_ai()
@@ -526,6 +586,12 @@ function draw_ewe_ai()
       print('boost', 94, 3, yellow)
    else
       print('boost', 94, 3, salmon)
+   end
+
+   rectfill(92, 10, 124, 16, white)
+   local del_x = 96
+   for d in all(car.deliveries) do
+      circ(del_x, 13, 2, d.colour)
    end
 
    local dbg = DEBUG and '🐱' or '@'

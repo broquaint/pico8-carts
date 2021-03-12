@@ -42,6 +42,9 @@ function merge(t1,t2) for k,v in pairs(t2) do t1[k] = v end return t1 end
 
 function _init()
    printh('made an object: ' .. dumper(make_obj({33,66}, { foo = 'bar', now = t() })))
+   local foo = {'abc','def','ghi'}
+   local bar = deli(foo,2)
+   printh('deleted ' .. bar .. ' from ' .. dumper(foo))
 end
 
 function dumper(...)

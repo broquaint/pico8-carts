@@ -82,11 +82,15 @@ function _init()
       accel = 0.4,
       dy = 0,
       jumping = false,
-      past = {},
-      len = 0,
       boosted_at = false,
       boost_meter = 0,
       delivered = {}
+   }
+
+   -- Track debug info separately so dumping data is sane.
+   dbg = {
+      past = {},
+      at_hypot = 0,
    }
 
    local lvl_len = 1500
@@ -217,11 +221,11 @@ end
 function track_car()
    if(not DEBUG_GFX) return
 
-   while #car.past > 50 do
-      deli(car.past, 1)
+   while #dbg.past > 50 do
+      deli(dbg.past, 1)
    end
 
-   add(car.past, {x = car.x, y = car.y + 8})
+   add(dbg.past, {x = car.x, y = car.y + 8})
 end
 
 function respect_incline(r)
@@ -300,7 +304,7 @@ function handle_ramp(r)
       car.y = min(g_car_line, g_car_line + new_y)
 
       -- Used for graphical debugging.
-      car.at_hypot = len
+      dbg.at_hypot = len
 
       -- Only apply jump increase if going up the ramp!
       if car.speed > g_jump_speed and car.dir == dir_right then
@@ -324,7 +328,7 @@ function handle_ramp(r)
       car.y = min(g_car_line, g_car_line + new_y)
 
       -- Used for graphical debugging.
-      car.at_hypot = len
+      dbg.at_hypot = len
 
       if abs(car.speed) > g_jump_speed and car.dir == dir_left then
          local new_dy = car.dy - (0.03 * r.angle)
@@ -648,14 +652,14 @@ end
 function draw_car_debug()
    if(not DEBUG_GFX) return
 
-   for pos in all(car.past) do
+   for pos in all(dbg.past) do
       pset(pos.x, pos.y, white)
    end
 
    local r = on_ramp(car.x)
    if r then
       line(r.x, r.y, (car.x+4), car.y+8, lime)
-      line(r.x, r.y, r.x+car.at_hypot, r.y, azure)
+      line(r.x, r.y, r.x+dbg.at_hypot, r.y, azure)
    end
 
    local car_at = car.x + 4

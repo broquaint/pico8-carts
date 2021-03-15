@@ -108,11 +108,6 @@ function _init()
    populate_scenery()
    populate_geometry()
 
-   -- loc_map = {}
-   -- for loc in all(locations) do
-   --    loc_map[loc.name] = loc
-   -- end
-
    level.deliveries = generate_deliveries()
    car.deliveries = {level.deliveries[randx(#level.deliveries)]}
 end
@@ -161,7 +156,7 @@ function populate_geometry()
       local new_x = x + randx(30)
 
       add(boosters, make_booster(
-             { x = new_x, boost = 1 + rnd()/2, width = randx(30) + 10 }
+             { x = new_x, boost = 1.1, width = randx(30) + 10 }
       ))
 
       local l = make_ramp(
@@ -173,6 +168,12 @@ function populate_geometry()
 
       add(ramps, l)
       add(ramps, r)
+
+      add(boosters, make_booster(
+             { x = r.x+r.width+10, boost = 1.1, width = randx(30) + 10 }
+      ))
+
+      add(platforms, make_obj({r.x + 100, g_racing_line - 25}, {width = 60}))
 
       x += 300
    end
@@ -282,6 +283,25 @@ function on_booster()
    return false
 end
 
+function on_platform()
+   local car_x = car.x + 4
+   local car_y = car.y + 8
+   for p in all(platforms) do
+      if car_x > p.x and car_x < (p.x + p.width) then
+         -- Landing
+         if car.dy > 0 -- falling down
+            and (car_y < p.y and (car_y + car.dy * g_dt) > p.y) -- will be "on" it in the next frame
+         then
+            return p
+         -- Landed
+         elseif car.dy == 0 and not car.jumping then
+            return p
+         end
+      end
+   end
+   return false
+end
+
 function still_boosting()
    local boost_active = car.boosted_at and t() - car.boosted_at < 0.5
    local boost_power  = car.boost_meter > 0
@@ -344,6 +364,15 @@ function handle_ramp(r)
    if not(btn(b_right) or btn(b_left)) then
       respect_incline(r)
    end
+end
+
+function handle_platform(p)
+   debug('landed on platform ', p)
+   debug('car was at ', car)
+   car.on_platform = p
+   car.y = p.y - 8
+   car.dy = 0
+   car.jumping = false
 end
 
 function update_car()
@@ -416,7 +445,7 @@ function update_car()
    local b = on_booster()
    if b and abs(car.speed) < g_top_boost then
       -- TODO implement a max speed ... but going insanely fast is fun.
-      car.speed += sgn(car.speed) * b.boost
+      car.speed *= b.boost
       car.boosted_at  = t()
       car.boost_meter = 32
       car.boost_was   = b.boost
@@ -434,6 +463,7 @@ function update_car()
       g_edge_lhs = g_edge_rhs
    end
 
+   local p = on_platform()
    -- Recalculate ramp now the car's position has been recalculated
    r = on_ramp(car.x)
 
@@ -446,7 +476,10 @@ function update_car()
       if next_ramp and r != next_ramp and car.dy < 0 then
          car.jumping = true
       end
-   else
+   elseif p and car.jumping then
+      handle_platform(p)
+   elseif not p then
+      car.on_platform = false
       apply_gravity()
    end
 end
@@ -594,6 +627,13 @@ function draw_scene()
 
    palt()
 
+   for d in all(level.deliveries) do
+      local del_x = wrapped_x(d)
+      if should_draw(del_x, d.width) then
+         render_sprite(d.location.spr, del_x, d.y)
+      end
+   end
+
    for r in all(ramps) do
       local rx = wrapped_x(r)
 
@@ -614,17 +654,11 @@ function draw_scene()
 
 
    for p in all(platforms) do
-      if p.x > -p.width and p.x < 128 then
+      local px0 = wrapped_x(p)
+      if should_draw(px0, p.width) then
          local px = p.x
          local py = p.y
-         rectfill(px, py, px + p.width, py - 2, orange)
-      end
-   end
-
-   for d in all(level.deliveries) do
-      local del_x = wrapped_x(d)
-      if should_draw(del_x, d.width) then
-         render_sprite(d.location.spr, del_x, d.y)
+         rectfill(px0, py, px0 + p.width, py - 2, white)
       end
    end
 end

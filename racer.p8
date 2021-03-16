@@ -396,13 +396,8 @@ function update_car()
          car.dy = 0
       end
 
-      if not car.jumping and abs(car.speed - car.accel) < g_top_speed then
+      if abs(car.speed - car.accel) < g_top_speed then
          car.speed -= car.accel
-      end
-      -- Allow slowing down back to normal speed
-      -- TODO handle going left!
-      if car.jumping and car.speed > g_top_speed then
-         car.speed -= car.accel/3
       end
    end
 

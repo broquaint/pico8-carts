@@ -101,16 +101,16 @@ function _init()
 
    scene = { make_bg_spr(spr_flag, { 0, 88 }) }
 
+   level.sections = make_sections()
+   level.deliveries = generate_deliveries()
+
    ramps = {}
    boosters = {}
    platforms = {}
 
-   level.sections = make_sections()
-   
    populate_scenery()
    populate_geometry()
 
-   level.deliveries = generate_deliveries()
    car.deliveries = {level.deliveries[randx(#level.deliveries)]}
 end
 
@@ -131,7 +131,7 @@ function make_ramp(attr)
    return make_obj({ attr.x, g_racing_line }, merge(attr, { width = w }))
 end
 
-function make_booster(attr, at) return make_obj({ attr.x, g_racing_line }, attr) end
+function make_booster(attr) return make_obj({ attr.x, g_racing_line }, attr) end
 
 function make_sections()
    local sections = {}
@@ -184,11 +184,12 @@ function populate_geometry()
                 { x = r.x+r.width+10, boost = 1.1, width = randx(30) + 10 }
          ))
 
-         add(platforms, make_obj({r.x + 100, g_racing_line - 25}, {width = 80}))
+         if not any(level.deliveries, function(d) return d.section.id == s.id + 1 end) then
+            add(platforms, make_obj({r.x + 100, g_racing_line - 25}, {width = 80}))
+         end
       end
    end
 end
-
 
 function find_free_pos(known, sec_gen)
    function is_sec_in_set(sec_set, sec)
@@ -208,15 +209,19 @@ end
 
 delivery_id = 1
 function generate_deliveries()
+   function rand_section()
+      local idx = randx(#level.sections)
+      -- Only use odd indexes so the locations don't align with ramps.
+      return level.sections[idx % 2 == 0 and idx - 1 or idx]
+   end
+
    local deliveries = {}
    -- local colours    = { salmon, azure, lime, yellow, orange, red, coral }
    local locs = copy_table(locations)
    -- TODO The number of deliveries needs to be more dynamic.
    for i = 1,flr(level.length/400) do
       local loc   = del(locs, locs[randx(#locs)])
-      local sec = find_free_pos(
-         deliveries, function() return level.sections[randx(#level.sections)] end
-      )
+      local sec = find_free_pos(deliveries, rand_section)
       -- TODO Same logic as bg sprites, maybe attempt to avoid overlap?
       local del_x = sec.x + randx(90) + 30
       deliveries[delivery_id] = make_obj({del_x, loc.y_pos}, {location=loc, width=loc.spr[3], id=delivery_id,section=sec})
@@ -812,6 +817,16 @@ end
 function merge(t1, t2)
    for k,v in pairs(t2) do t1[k] = v end
    return t1
+end
+
+-- Test if a value is present in a table.
+function any(t, f)
+   for v in all(t) do
+      if f(v) then
+         return true
+      end
+   end
+   return false
 end
 
 -- Random index.

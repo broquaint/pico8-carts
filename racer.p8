@@ -105,6 +105,8 @@ function _init()
    boosters = {}
    platforms = {}
 
+   level.sections = make_sections()
+   
    populate_scenery()
    populate_geometry()
 
@@ -131,69 +133,77 @@ end
 
 function make_booster(attr, at) return make_obj({ attr.x, g_racing_line }, attr) end
 
-function populate_scenery()
-   local x = 15
-   local last_point = level.length - screen_width
+function make_sections()
+   local sections = {}
+   local colours = {azure, violet, salmon, coral, orange, yellow, lime}
 
-   while x < last_point do
-      local new_x   = x + randx(50)
+   local sec_x = 0
+   local sec_size = level.length / 10
+   for sec = 1, flr(level.length / sec_size) do
+      local col = colours[sec == #colours and #colours or sec % #colours]
+      add(sections, make_obj({sec_x, 64}, {width=sec_size,colour=col,id=sec}))
+      sec_x += sec_size
+   end
+
+   return sections
+end
+
+function populate_scenery()
+   for s in all(level.sections) do
+      local new_x   = s.x + randx(90) + 30 -- Avoid bg sprites on the edges
       local new_obj = randx(2) == 1
          and make_bg_spr(spr_tree,  { new_x, 85 })
          or  make_bg_spr(spr_shrub, { new_x, 95 })
 
+      -- TODO Maybe have more than one bg sprite per section?
       add(scene, new_obj)
-
-      x += 60 -- Seems about right?
---      debug('added scenery ', scene[#scene])
    end
 end
 
 function populate_geometry()
-   local x = 30
-   local last_point = level.length - screen_width
+   for s in all(slice(level.sections, 1, #level.sections - 1)) do
+      -- Only create ramps every other section
+      if s.id % 2 == 0 then
+         local new_x = s.x + randx(30)
 
-   while x < last_point do
-      local new_x = x + randx(30)
+         add(boosters, make_booster(
+                { x = new_x, boost = 1.1, width = randx(30) + 10 }
+         ))
 
-      add(boosters, make_booster(
-             { x = new_x, boost = 1.1, width = randx(30) + 10 }
-      ))
+         local l = make_ramp(
+            { x = new_x + 50, angle = randx(25) + 10, hypot = randx(20) + 30 }
+         )
+         local r = make_ramp(
+            { x = l.x + l.width, angle = 180 - l.angle, hypot = l.hypot }
+         )
 
-      local l = make_ramp(
-         { x = new_x + 50, angle = randx(25) + 10, hypot = randx(20) + 30 }
-      )
-      local r = make_ramp(
-         { x = l.x + l.width, angle = 180 - l.angle, hypot = l.hypot }
-      )
+         add(ramps, l)
+         add(ramps, r)
 
-      add(ramps, l)
-      add(ramps, r)
+         add(boosters, make_booster(
+                { x = r.x+r.width+10, boost = 1.1, width = randx(30) + 10 }
+         ))
 
-      add(boosters, make_booster(
-             { x = r.x+r.width+10, boost = 1.1, width = randx(30) + 10 }
-      ))
-
-      add(platforms, make_obj({r.x + 100, g_racing_line - 25}, {width = 60}))
-
-      x += 300
+         add(platforms, make_obj({r.x + 100, g_racing_line - 25}, {width = 80}))
+      end
    end
 end
 
 
-function find_free_pos(known, pos_gen)
-   function is_pos_in_set(pos_set, pos)
-      for p in all(pos_set) do
-         if(pos == p.x) return true
-         end
+function find_free_pos(known, sec_gen)
+   function is_sec_in_set(sec_set, sec)
+      for s in all(sec_set) do
+         if(sec.id == s.section.id) return true
+      end
       return false
    end
 
-   local new_pos = pos_gen()
-   -- Enter loop if the new tile position is already present to generate a new position.
-   while(is_pos_in_set(known, new_pos)) do
-      new_pos = pos_gen()
+   local new_sec = sec_gen()
+   -- Enter loop if the new section is already present to generate a new section.
+   while(is_sec_in_set(known, new_sec)) do
+      new_sec = sec_gen()
    end
-   return new_pos
+   return new_sec
 end
 
 delivery_id = 1
@@ -204,10 +214,12 @@ function generate_deliveries()
    -- TODO The number of deliveries needs to be more dynamic.
    for i = 1,flr(level.length/400) do
       local loc   = del(locs, locs[randx(#locs)])
-      local del_x = find_free_pos(
-         deliveries, function() return ramps[randx(#ramps)].x + 150 end
+      local sec = find_free_pos(
+         deliveries, function() return level.sections[randx(#level.sections)] end
       )
-      deliveries[delivery_id] = make_obj({del_x, loc.y_pos}, {location=loc, width=loc.spr[3], id=delivery_id})
+      -- TODO Same logic as bg sprites, maybe attempt to avoid overlap?
+      local del_x = sec.x + randx(90) + 30
+      deliveries[delivery_id] = make_obj({del_x, loc.y_pos}, {location=loc, width=loc.spr[3], id=delivery_id,section=sec})
       -- The IDs happen to align with where the index in , it could diverge.
       delivery_id += 1
    end
@@ -502,6 +514,7 @@ function update_scene()
    foreach(boosters, update_pos)
    foreach(platforms, update_pos)
    foreach(level.deliveries, update_pos)
+   foreach(level.sections, update_pos)
 end
 
 function handle_deliveries()
@@ -647,13 +660,22 @@ function draw_scene()
       end
    end
 
-
    for p in all(platforms) do
       local px0 = wrapped_x(p)
       if should_draw(px0, p.width) then
          local px = p.x
          local py = p.y
          rectfill(px0, py, px0 + p.width, py - 2, white)
+      end
+   end
+
+   for s in all(level.sections) do
+      local sx0 = wrapped_x(s)
+      if should_draw(sx0, s.width) then
+         local sx = s.x
+         local sy = s.y
+         rectfill(sx0, sy, sx0 + s.width, sy + 2, s.colour)
+         print('section ' .. s.id, sx0 + 75, sy + 4, dim_grey)
       end
    end
 end
@@ -757,6 +779,7 @@ function tbl_to_str(a)
    return sub(res, 0, #res - 2) .. "}"
 end
 
+-- Create a deep copy of a given table.
 function copy_table(tbl)
    local ret = {}
    for i,v in pairs(tbl) do
@@ -769,7 +792,24 @@ function copy_table(tbl)
    return ret
 end
 
-function merge(t1,t2)
+-- Like copy_table but for any value
+function clone(v)
+   return type(v) == 'table' and copy_table(v) or v
+end
+
+-- Take a slice of a table.
+function slice(tbl, from, to)
+   from = from or 1
+   to = to or #tbl
+   local res = {}
+   for idx = from,to do
+      res[idx] = clone(tbl[idx])
+   end
+   return res
+end
+
+-- Add one table to another in–place.
+function merge(t1, t2)
    for k,v in pairs(t2) do t1[k] = v end
    return t1
 end

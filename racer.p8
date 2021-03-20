@@ -24,6 +24,7 @@ g_top_speed    = 3
 g_top_boost    = 10
 -- The speed at which a jump starts to build up on a ramp.
 g_jump_speed   = 2.6
+g_jump_max     = 38
 
 g_edge_rhs  = 64
 g_edge_lhs  = 16
@@ -347,7 +348,7 @@ function handle_ramp(r)
       if car.speed > g_jump_speed and car.dir == dir_right then
          local new_dy = car.dy - (0.03 * r.angle)
          if(car.boosted_at) new_dy *= 3
-         car.dy = abs(new_dy) > 32 and -32 or new_dy
+         car.dy = abs(new_dy) > g_jump_max and -g_jump_max or (new_dy * car.speed)
       elseif btn(b_left) then
          car.speed -= car.accel
          car.dy += 10
@@ -370,7 +371,7 @@ function handle_ramp(r)
       if abs(car.speed) > g_jump_speed and car.dir == dir_left then
          local new_dy = car.dy - (0.03 * r.angle)
          if(car.boosted_at) new_dy *= 3
-         car.dy = abs(new_dy) > 32 and -32 or new_dy
+         car.dy = abs(new_dy) > g_jump_max and -g_jump_max or (new_dy * car.speed)
       elseif btn(b_right) then
          car.speed += car.accel
          car.dy = 0
@@ -447,7 +448,7 @@ function update_car()
    if still_boosting() and (not car.jumping and t() - car.boosted_at > 0.3) or btn(break_button) then
       if car.boost_meter > 0 then
          if btn(break_button) then
-            car.boost_meter *= (car.boost_meter > 1) and 0.9 or 0
+            car.boost_meter *= (car.boost_meter > 3) and 0.9 or 0
          else
             car.boost_meter -= 1
          end

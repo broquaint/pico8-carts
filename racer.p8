@@ -102,7 +102,7 @@ function _init()
 
    scene = { make_bg_spr(spr_flag, { 0, 88 }) }
 
-   level.sections = make_sections()
+   level.sections   = make_sections()
    level.deliveries = generate_deliveries()
 
    ramps = {}
@@ -112,7 +112,7 @@ function _init()
    populate_scenery()
    populate_geometry()
 
-   car.deliveries = {level.deliveries[randx(#level.deliveries)]}
+   car.deliveries = shuffle(level.deliveries)
 end
 
 function make_obj(pos, attr)
@@ -192,7 +192,7 @@ function populate_geometry()
    end
 end
 
-function find_free_pos(known, sec_gen)
+function find_free_section(known, sec_gen)
    function is_sec_in_set(sec_set, sec)
       for s in all(sec_set) do
          if(sec.id == s.section.id) return true
@@ -222,7 +222,7 @@ function generate_deliveries()
    -- TODO The number of deliveries needs to be more dynamic.
    for i = 1,flr(level.length/400) do
       local loc   = del(locs, locs[randx(#locs)])
-      local sec = find_free_pos(deliveries, rand_section)
+      local sec = find_free_section(deliveries, rand_section)
       -- TODO Same logic as bg sprites, maybe attempt to avoid overlap?
       local del_x = sec.x + randx(90) + 30
       deliveries[delivery_id] = make_obj({del_x, loc.y_pos}, {location=loc, width=loc.spr[3], id=delivery_id,section=sec})
@@ -524,15 +524,20 @@ function update_scene()
 end
 
 function handle_deliveries()
+   if #car.deliveries == 0 then
+      return
+   end
+
+   local del_loc = level.deliveries[car.deliveries[1].id]
+
    local cx0 = car.x
    local cx1 = car.x+8
-   for idx, cd in pairs(car.deliveries) do
-      local del_loc = level.deliveries[cd.id]
-      local dx0 = del_loc.x
-      local dx1 = dx0+del_loc.width
-      if (cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0) then
-         car.delivered = deli(car.deliveries, idx)
-      end
+
+   local dx0 = del_loc.x
+   local dx1 = dx0+del_loc.width
+
+   if (cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0) then
+      car.delivered = deli(car.deliveries, 1)
    end
 end
 
@@ -835,6 +840,19 @@ function randx(n)
    return flr(rnd(n)) + 1
 end
 
+-- Create a randomly ordered copy of a
+function shuffle(a)
+   local copy = copy_table(a)
+   local res = {}
+   for _ = 1, #copy do
+      local idx = randx(#copy)
+      add(res, copy_table(copy[idx]))
+      deli(copy, idx)
+   end
+   return res
+end
+
+-- Like sprintf %2f
 function nice_pos(inms)
    local sec = flr(inms)
    local ms  = flr(inms * 100 % 100)

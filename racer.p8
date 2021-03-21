@@ -125,8 +125,11 @@ function _init()
 
    car.deliveries = shuffle(level.deliveries)
    car.del_id_map = {}
+   local m = 15
    for d in all(car.deliveries) do
       car.del_id_map[d.id] = d
+      d.due = m
+      m += 15
    end
 end
 
@@ -593,11 +596,12 @@ function handle_deliveries()
          end
          if t() - car.del_start > g_del_time then
             deli(car.deliveries, idx)
-            deli(car.del_id_map, cd.id)
+            car.del_id_map[cd.id] = nil
             car.del_start = 0
             if #car.deliveries == 0 then
                level.complete_at = t()
             end
+            return
          end
       end
    end
@@ -769,12 +773,13 @@ function draw_scene()
 end
 
 function draw_ewe_ai()
-   rectfill(92, 2, 124, 8, white)
+   local by = 2
+   rectfill(92, by, 124, by+6, white)
    if car.boost_meter > 0 then
-      rectfill(92, 2, 92 + car.boost_meter, 8, orange)
-      print('boost', 94, 3, yellow)
+      rectfill(92, by, 92 + car.boost_meter, by+6, orange)
+      print('boost', 94, by+1, yellow)
    else
-      print('boost', 94, 3, salmon)
+      print('boost', 94, by+1, salmon)
    end
 
    if car.del_start > 0 and not car.jumping then
@@ -782,11 +787,15 @@ function draw_ewe_ai()
    end
 
    local min = (t() < 10 and '0' or '') .. flr(t())
-   print('10:'..min..'am', 60, 2, white)
+   rectfill(92, 22, 125, 31, black)
+   rectfill(93, 23, 124, 31, dim_grey)
+   print('10:'..min..'am', 95, 25, lime)
    for idx = 1,#car.deliveries do
       local d      = car.deliveries[idx]
-      local before = tostr(10 + idx) .. 'AM'
-      print(before .. ' sect. '..d.section.id, 2, (idx-1) * 8 + 2, white)
+      local before = '10:' .. d.due .. 'am'
+      local rem    = d.due - t()
+      local col    = rem > 12 and white or rem > 6 and yellow or rem > 0 and salmon or red
+      print(before .. ' sect. '..d.section.id, 2, (idx-1) * 8 + 2, col)
    end
 
    local dbg = DEBUG and '🐱' or '@'

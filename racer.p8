@@ -34,6 +34,8 @@ g_edge_lhs  = 16
 g_racing_line = 118
 g_car_line    = g_racing_line - 6
 
+g_tile_size = 32
+
 r_step = 1 / 360
 
 spr_tree   = { 0,  32, 8,  16 }
@@ -101,6 +103,7 @@ function _init()
    level = {
       length = lvl_len,
       complete_at = false,
+      scene_map = {},
    }
 
    scene = { make_bg_spr(spr_flag, { 0, 88 }) }
@@ -125,7 +128,16 @@ function make_obj(pos, attr)
    )
 end
 
+function track_scene_obj(x)
+   level.scene_map['at_'..flr(x/g_tile_size)] = x
+end
+function is_tile_free(x)
+   return level.scene_map['at_'..flr(x/g_tile_size)] == nil
+end
+
 function make_bg_spr(spr, at)
+   -- Track what has gone where in 32 pixel "tile" divisions on the x-axis.
+   track_scene_obj(at[1])
    return make_obj(at, { spr = spr, width = spr[3] })
 end
 
@@ -145,22 +157,38 @@ function make_sections()
    local sec_size = level.length / 10
    for sec = 1, flr(level.length / sec_size) do
       local col = colours[sec == #colours and #colours or sec % #colours]
-      add(sections, make_obj({sec_x, 64}, {width=sec_size,colour=col,id=sec}))
+      add(sections, make_obj({sec_x, 32}, {width=sec_size,colour=col,id=sec}))
       sec_x += sec_size
    end
 
    return sections
 end
 
+function find_free_tile(tile_gen)
+   local new_tile = tile_gen()
+   -- Enter loop if the new tilet is already present to generate a new tile.
+   while(not is_tile_free(new_tile)) do
+      new_tile = tile_gen()
+   end
+   return new_tile
+end
+
+function rand_tile_in_section(s)
+   return find_free_tile(function()
+         return s.x + g_tile_size * randx(flr(s.width / g_tile_size))
+   end)
+end
+
 function populate_scenery()
    for s in all(level.sections) do
-      local new_x   = s.x + randx(90) + 30 -- Avoid bg sprites on the edges
-      local new_obj = randx(2) == 1
-         and make_bg_spr(spr_tree,  { new_x, 85 })
-         or  make_bg_spr(spr_shrub, { new_x, 95 })
+      for _ = 1,2 do
+         local tile_x = rand_tile_in_section(s)
+         local bg_obj = randx(2) == 1
+            and make_bg_spr(spr_tree,  { tile_x, 85 })
+            or  make_bg_spr(spr_shrub, { tile_x, 95 })
 
-      -- TODO Maybe have more than one bg sprite per section?
-      add(scene, new_obj)
+         add(scene, bg_obj)
+      end
    end
 end
 
@@ -213,10 +241,11 @@ end
 
 delivery_id = 1
 function generate_deliveries()
-   function rand_section()
-      local idx = randx(#level.sections)
+   local function rand_section()
+      -- Don't generate a delivery in the first or last section
+      local idx =  1 + randx(#level.sections - 2)
       -- Only use odd indexes so the locations don't align with ramps.
-      return level.sections[idx % 2 == 0 and idx - 1 or idx]
+      return level.sections[idx % 2 == 0 and idx + 1 or idx]
    end
 
    local deliveries = {}
@@ -225,10 +254,13 @@ function generate_deliveries()
    -- TODO The number of deliveries needs to be more dynamic.
    for i = 1,flr(level.length/400) do
       local loc   = del(locs, locs[randx(#locs)])
-      local sec = find_free_section(deliveries, rand_section)
-      -- TODO Same logic as bg sprites, maybe attempt to avoid overlap?
-      local del_x = sec.x + randx(90) + 30
-      deliveries[delivery_id] = make_obj({del_x, loc.y_pos}, {location=loc, width=loc.spr[3], id=delivery_id,section=sec})
+      local sec   = find_free_section(deliveries, rand_section)
+      local del_x = rand_tile_in_section(sec)
+      track_scene_obj(del_x)
+      deliveries[delivery_id] = make_obj(
+         {del_x, loc.y_pos},
+         {location=loc, width=loc.spr[3], id=delivery_id, section=sec}
+      )
       -- The IDs happen to align with where the index in , it could diverge.
       delivery_id += 1
    end

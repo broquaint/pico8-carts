@@ -124,6 +124,10 @@ function _init()
    populate_geometry()
 
    car.deliveries = shuffle(level.deliveries)
+   car.del_id_map = {}
+   for d in all(car.deliveries) do
+      car.del_id_map[d.id] = d
+   end
 end
 
 function make_obj(pos, attr)
@@ -567,32 +571,38 @@ function update_scene()
 end
 
 function handle_deliveries()
-   if #car.deliveries == 0 then
+   if #car.deliveries == 0 or car.jumping then
       return
    end
 
-   local del_loc = level.deliveries[car.deliveries[1].id]
+   local delivering = false
+   for idx = 1, #car.deliveries do
+      local cd      = car.deliveries[idx]
+      local del_loc = level.deliveries[cd.id]
 
-   local cx0 = car.x
-   local cx1 = car.x+8
+      local cx0 = car.x
+      local cx1 = car.x+8
 
-   local dx0 = del_loc.x
-   local dx1 = dx0+del_loc.width
+      local dx0 = del_loc.x
+      local dx1 = dx0+del_loc.width
 
-   if not car.jumping and (cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0) then
-      if car.del_start == 0 then
-         car.del_start = t()
-      end
-      if t() - car.del_start > g_del_time then
-         car.delivered = deli(car.deliveries, 1)
-         car.del_start = 0
-         if #car.deliveries == 0 then
-            level.complete_at = t()
+      if (cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0) then
+         delivering = true
+         if car.del_start == 0 then
+            car.del_start = t()
+         end
+         if t() - car.del_start > g_del_time then
+            deli(car.deliveries, idx)
+            deli(car.del_id_map, cd.id)
+            car.del_start = 0
+            if #car.deliveries == 0 then
+               level.complete_at = t()
+            end
          end
       end
-   else
-      car.del_start = 0
    end
+
+   if(not delivering) car.del_start = 0
 end
 
 function _update()
@@ -704,7 +714,7 @@ function draw_scene()
       local del_x = wrapped_x(d)
       if should_draw(del_x, d.width) then
          render_sprite(d.location.spr, del_x, d.y)
-         if #car.deliveries > 0 and car.deliveries[1].id == d.id then
+         if car.del_id_map[d.id] != nil then
             local dw = del_x + d.width
             if car.del_start > 0 and not car.jumping then
                local perc = 22 * ((t() - car.del_start) / g_del_time)
@@ -771,14 +781,13 @@ function draw_ewe_ai()
       print('⬇️ ' .. nice_pos(g_del_time - (t() - car.del_start)), 72, 122, azure)
    end
 
-   local del_name = (#car.deliveries > 0) and 'section '..car.deliveries[1].section.id or 'done!'
-   local del_x    = 126 - (#del_name * 4)
-   local del_y    = 12
-   print(del_name, del_x, del_y, dim_grey)
-   print(del_name, del_x - 1, del_y - 1, white)
-
-   local time = level.complete_at or t()
-   print('⧗ ' .. nice_pos(time), 2, 2, dim_grey)
+   local min = (t() < 10 and '0' or '') .. flr(t())
+   print('10:'..min..'am', 60, 2, white)
+   for idx = 1,#car.deliveries do
+      local d      = car.deliveries[idx]
+      local before = tostr(10 + idx) .. 'AM'
+      print(before .. ' sect. '..d.section.id, 2, (idx-1) * 8 + 2, white)
+   end
 
    local dbg = DEBUG and '🐱' or '@'
    local jumpstate = car.jumping and '⬆️' or '-'

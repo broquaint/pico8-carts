@@ -26,6 +26,8 @@ g_top_boost    = 10
 g_jump_speed   = 2.6
 g_jump_max     = 38
 
+g_del_time = 1.2
+
 g_edge_rhs  = 64
 g_edge_lhs  = 16
 
@@ -97,7 +99,8 @@ function _init()
    local lvl_len = 1500
 
    level = {
-      length = lvl_len
+      length = lvl_len,
+      complete_at = false,
    }
 
    scene = { make_bg_spr(spr_flag, { 0, 88 }) }
@@ -536,8 +539,19 @@ function handle_deliveries()
    local dx0 = del_loc.x
    local dx1 = dx0+del_loc.width
 
-   if (cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0) then
-      car.delivered = deli(car.deliveries, 1)
+   if not car.jumping and (cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0) then
+      if car.del_start == 0 then
+         car.del_start = t()
+      end
+      if t() - car.del_start > g_del_time then
+         car.delivered = deli(car.deliveries, 1)
+         car.del_start = 0
+         if #car.deliveries == 0 then
+            level.complete_at = t()
+         end
+      end
+   else
+      car.del_start = 0
    end
 end
 
@@ -650,6 +664,19 @@ function draw_scene()
       local del_x = wrapped_x(d)
       if should_draw(del_x, d.width) then
          render_sprite(d.location.spr, del_x, d.y)
+         if #car.deliveries > 0 and car.deliveries[1].id == d.id then
+            local dw = del_x + d.width
+            if car.del_start > 0 and not car.jumping then
+               local perc = 22 * ((t() - car.del_start) / g_del_time)
+               local dy1 = 127 - perc
+
+               rectfill(del_x,     105, dw,     dy1, white)
+               rectfill(del_x + 1, 105, dw - 1, dy1, magenta)
+            else
+               rectfill(del_x,     105, dw,     127, dim_grey)
+               rectfill(del_x + 1, 105, dw - 1, 127, navy)
+            end
+         end
       end
    end
 
@@ -700,15 +727,22 @@ function draw_ewe_ai()
       print('boost', 94, 3, salmon)
    end
 
-   local del_name = (#car.deliveries > 0) and car.deliveries[1].location.name or 'done!'
+   if car.del_start > 0 and not car.jumping then
+      print('⬇️ ' .. nice_pos(g_del_time - (t() - car.del_start)), 72, 122, azure)
+   end
+
+   local del_name = (#car.deliveries > 0) and 'section '..car.deliveries[1].section.id or 'done!'
    local del_x    = 126 - (#del_name * 4)
    local del_y    = 12
    print(del_name, del_x, del_y, dim_grey)
    print(del_name, del_x - 1, del_y - 1, white)
 
+   local time = level.complete_at or t()
+   print('⧗ ' .. nice_pos(time), 2, 2, dim_grey)
+
    local dbg = DEBUG and '🐱' or '@'
    local jumpstate = car.jumping and '⬆️' or '-'
-   print(dumper(dbg, ' ', nice_pos(car.dy), ' -> ', car.speed, ' ', jumpstate), 2, 2, azure)
+   print(dumper(dbg, ' ', nice_pos(car.dy), ' -> ', car.speed, ' ', jumpstate), 2, 122, azure)
 end
 
 function draw_car_debug()
@@ -743,8 +777,6 @@ end
 function _draw()
    cls(silver)
 
-   draw_ewe_ai()
-
    -- Background layer.
    rectfill(0, horizon_offset(100), 128, 105, violet)
    rectfill(0, 105, 128, 128, navy)
@@ -752,6 +784,8 @@ function _draw()
    draw_scene()
 
    draw_car()
+
+   draw_ewe_ai()
 end
 
 ----------------------
@@ -819,7 +853,7 @@ function slice(tbl, from, to)
    return res
 end
 
--- Add one table to another in–place.
+-- Add one table to another in-place.
 function merge(t1, t2)
    for k,v in pairs(t2) do t1[k] = v end
    return t1

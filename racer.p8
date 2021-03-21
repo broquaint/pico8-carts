@@ -422,26 +422,29 @@ function update_car()
       end
    end
 
-   -- debug('was going ', sw, ' now going ', car.speed, ' with boost ', car.boost_meter, ' boost amt ', car.boost_was, ' last boost at ', car.boosted_at)
-
    -- Don't consider speed as it hasn't yet been calculated
    local r = on_ramp(car.x)
 
    if not still_boosting() then
       -- TODO Make this more gradual, probably need to move away from linear speed.
+      local ns = car.speed
       if not car.jumping then
-         car.speed *= g_friction
+         ns *= g_friction
          if not accelerating  then
-            car.speed *= g_friction
+            ns *= g_friction
          end
       else
-         car.speed *= g_air_friction
+         ns *= g_air_friction
       end
 
       if r then
          -- TODO Improve friction relative to ramp.
-         car.speed *= g_friction * 0.95 - (r.angle/1000)
+         ns *= g_friction * 0.95 - (r.angle/1000)
       end
+
+      -- debug('applying friction was ', tostr(car.speed), ' now ', tostr(ns))
+      -- For some reason going left doesn't reduce speed to 0. FP math >_<
+      car.speed = abs(ns) > 0.1 and ns or 0
 
       car.boosted_at = false
    end

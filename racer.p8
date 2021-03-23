@@ -109,6 +109,7 @@ function _init()
       length = lvl_len,
       complete_at = false,
       scene_map = {},
+      start_time = 600,
    }
 
    scene = { make_bg_spr(spr_flag, { 0, 88 }) }
@@ -772,6 +773,23 @@ function draw_scene()
    end
 end
 
+function clock_time(n)
+   local hours = flr(n / 60)
+   local mins  = flr((n - (hours * 60)) % 60)
+   local meridiem = 'AM'
+   if hours >= 12 then
+      if(flr(hours / 12) % 2 != 0) meridiem = 'PM'
+      if(hours % 24 == 0) then
+         hours = 0
+      else
+         hours = hours % 12
+      end
+   end
+   local hour_s = (hours < 10 and '0' or '') .. hours
+   local min_s  = (mins < 10 and '0' or '') .. mins
+   return hour_s .. ':' .. min_s .. meridiem
+end
+
 function draw_ewe_ai()
    local by = 2
    rectfill(92, by, 124, by+6, white)
@@ -786,10 +804,9 @@ function draw_ewe_ai()
       print('⬇️ ' .. nice_pos(g_del_time - (t() - car.del_start)), 72, 122, azure)
    end
 
-   local min = (t() < 10 and '0' or '') .. flr(t())
    rectfill(92, 22, 125, 31, black)
    rectfill(93, 23, 124, 31, dim_grey)
-   print('10:'..min..'am', 95, 25, lime)
+   print(clock_time(t() + level.start_time), 95, 25, lime)
    for idx = 1,#car.deliveries do
       local d      = car.deliveries[idx]
       local before = '10:' .. d.due .. 'am'

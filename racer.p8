@@ -555,7 +555,7 @@ end
 
 function update_scene()
    local function update_pos(obj)
-      local x = obj.x + -car.speed
+      local x = obj.x + -flr(car.speed)
       if x < 0 and x > -64 then
          obj.x = x
       else

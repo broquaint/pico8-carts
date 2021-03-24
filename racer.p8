@@ -489,17 +489,18 @@ function update_car()
 
       -- debug('applying friction was ', tostr(car.speed), ' now ', tostr(ns))
       -- For some reason going left doesn't reduce speed to 0. FP math >_<
-      car.speed = abs(ns) > 0.1 and ns or 0
+      car.speed = abs(ns) > 0.05 and ns or 0
 
       car.boosted_at = false
    end
 
-   -- Reduce boost if on the ground or in the air and "breaking"
-   local break_button = car.dir == dir_right and b_left or b_right
-   if still_boosting() and (not car.jumping and t() - car.boosted_at > 0.3) or btn(break_button) then
+   -- Reduce boost if on the ground or in the air and "braking"
+   local brake_button = car.dir == dir_right and b_left or b_right
+   if still_boosting() and (not car.jumping and t() - car.boosted_at > 0.3) or btn(brake_button) then
       if car.boost_meter > 0 then
-         if btn(break_button) then
-            car.boost_meter *= (car.boost_meter > 3) and 0.9 or 0
+         if btn(brake_button) then
+            -- About enough to stop between ramps.
+            car.boost_meter -= 1.5
          else
             car.boost_meter -= 1
          end

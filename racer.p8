@@ -811,8 +811,11 @@ function draw_ewe_ai()
       local d      = car.deliveries[idx]
       local before = '10:' .. d.due .. 'am'
       local rem    = d.due - t()
+      local del_y  = (idx-1) * 8 + 2
       local col    = rem > 12 and white or rem > 6 and yellow or rem > 0 and salmon or red
-      print(before .. ' sect. '..d.section.id, 2, (idx-1) * 8 + 2, col)
+      print(before .. ' sect. '..d.section.id, 2, del_y, col)
+      rectfill(64, del_y, 69, del_y + 4, white)
+      rectfill(65, del_y+1, 68, del_y + 3, d.section.colour)
    end
 
    local dbg = DEBUG and '🐱' or '@'

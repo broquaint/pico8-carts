@@ -975,15 +975,17 @@ function shuffle(a)
 end
 
 -- Like sprintf %2f
-function nice_pos(inms)
-   local sec = flr(inms)
-   local ms  = flr(inms * 100 % 100)
-   if(ms == 0) then
-      ms = '00'
-   elseif(ms < 10) then
-      ms = '0' .. ms
+function nice_pos(num)
+   local s   = sgn(num)
+   local n   = abs(num)
+   local sig = flr(n)
+   local frc = flr(n * 100 % 100)
+   if(frc == 0) then
+      frc = '00'
+   elseif(frc < 10) then
+      frc = '0' .. frc
    end
-   return sec .. '.' .. ms
+   return (s == -1 and '-' or '') .. sig .. '.' .. frc
 end
 
 __gfx__

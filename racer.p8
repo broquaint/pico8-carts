@@ -757,9 +757,11 @@ function draw_scene()
    for p in all(platforms) do
       local px0 = wrapped_x(p)
       if should_draw(px0, p.width) then
-         local px = p.x
-         local py = p.y
-         rectfill(px0, py, px0 + p.width, py - 2, white)
+         local px1 = px0 + p.width
+         local py0 = p.y
+         local py1 = p.y + 1
+         line(px0, py0, px1, py0, navy)
+         line(px0, py1, px1, py1, dim_grey)
       end
    end
 

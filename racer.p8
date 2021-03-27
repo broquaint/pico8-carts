@@ -103,7 +103,7 @@ function _init()
       at_hypot = 0,
    }
 
-   local lvl_len = 1500
+   local lvl_len = 5000
 
    level = {
       length = lvl_len,
@@ -113,6 +113,7 @@ function _init()
       delivery_time = 600, -- change as deliveries are added
       prompt_for_help = true,
       will_help = false,
+      delivery_count = 10
    }
 
    scene = { make_bg_spr(spr_flag, { 0, 88 }) }
@@ -161,9 +162,9 @@ function make_sections()
    local colours = {azure, violet, salmon, coral, orange, yellow, lime}
 
    local sec_x = 0
-   local sec_size = level.length / 10
+   local sec_size = 150 -- level.length / 10
    for sec = 1, flr(level.length / sec_size) do
-      local col = colours[sec == #colours and #colours or sec % #colours]
+      local col = colours[(sec % #colours) == 0 and #colours or sec % #colours]
       add(sections, make_obj({sec_x, 32}, {width=sec_size,colour=col,id=sec}))
       sec_x += sec_size
    end
@@ -242,7 +243,7 @@ function make_delivery(deliveries)
    end
    local function rand_section()
       -- Don't generate a delivery in the first or last section
-      local idx =  1 + randx(#level.sections - 2)
+      local idx = 1 + randx(#level.sections - 2)
       -- Only use odd indexes so the locations don't align with ramps.
       return level.sections[idx % 2 == 0 and idx + 1 or idx]
    end
@@ -289,7 +290,7 @@ end
 function generate_deliveries()
    local deliveries = {}
    -- TODO The number of deliveries needs to be more dynamic.
-   for _ = 1,flr(level.length/400) do
+   for _ = 1, level.delivery_count do
       local new_del = make_delivery(deliveries)
       add_delivery(deliveries, new_del)
    end
@@ -745,6 +746,7 @@ function draw_scene()
       if should_draw(del_x, d.width) then
          render_sprite(d.location.spr, del_x, d.y)
          if not d.delivered then
+            print(clock_time(d.due), del_x - 4, d.y - 8, white)
             local dw = del_x + d.width
             if car.del_start > 0 and not car.jumping then
                local perc = 22 * ((t() - car.del_start) / g_del_time)
@@ -840,19 +842,24 @@ function draw_ewe_ai()
 
    rectfill(92, 22, 125, 31, black)
    rectfill(93, 23, 124, 31, dim_grey)
-   print(clock_time(t() + level.start_time), 95, 25, lime)
+   local t_offset = t() + level.start_time
+   print(clock_time(t_offset), 95, 25, lime)
    local del_offset = 0
    for d in all(level.deliveries) do
-      if not d.delivered then
+      if not d.delivered and del_offset < 3 then
          local before = clock_time(d.due)
-         local rem    = d.due - t()
+         local rem    = d.due - t_offset
          local del_y  = del_offset * 8 + 2
          local col    = rem > 12 and white or rem > 6 and yellow or rem > 0 and salmon or red
-         del_offset += 1
          print(before .. ' sect. '..d.section.id, 2, del_y, col)
-         rectfill(64, del_y, 69, del_y + 4, white)
-         rectfill(65, del_y+1, 68, del_y + 3, d.section.colour)
+         rectfill(66, del_y, 71, del_y + 4, white)
+         rectfill(67, del_y+1, 70, del_y + 3, d.section.colour)
+         del_offset += 1
       end
+   end
+   local remaining = count(level.deliveries, function(d) return not d.delivered end)
+   if remaining > 2 then
+      print(tostr(remaining - 3) .. ' remaining', 2, 25, white)
    end
 
    local dbg = DEBUG and '🐱' or '@'
@@ -991,6 +998,17 @@ function any(t, f)
       end
    end
    return false
+end
+
+-- Count of occurrences in a table
+function count(t, f)
+   local res = 0
+   for v in all(t) do
+      if f(v) then
+         res += 1
+      end
+   end
+   return res
 end
 
 -- Random index.

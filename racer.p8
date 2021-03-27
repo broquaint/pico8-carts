@@ -109,7 +109,10 @@ function _init()
       length = lvl_len,
       complete_at = false,
       scene_map = {},
-      start_time = 600,
+      start_time = 600, -- doesn't change
+      delivery_time = 600, -- change as deliveries are added
+      prompt_for_help = true,
+      will_help = false,
    }
 
    scene = { make_bg_spr(spr_flag, { 0, 88 }) }
@@ -123,15 +126,6 @@ function _init()
 
    populate_scenery()
    populate_geometry()
-
-   car.deliveries = shuffle(level.deliveries)
-   car.del_id_map = {}
-   local m = 15
-   for d in all(car.deliveries) do
-      car.del_id_map[d.id] = d
-      d.due = m
-      m += 15
-   end
 end
 
 function make_obj(pos, attr)
@@ -177,19 +171,22 @@ function make_sections()
    return sections
 end
 
-function find_free_tile(tile_gen)
-   local new_tile = tile_gen()
+function find_free(gen, check)
+   local el = gen()
    -- Enter loop if the new tilet is already present to generate a new tile.
-   while(not is_tile_free(new_tile)) do
-      new_tile = tile_gen()
+   while(not check(el)) do
+      el = gen()
    end
-   return new_tile
+   return el
 end
 
 function rand_tile_in_section(s)
-   return find_free_tile(function()
+   return find_free(
+      function()
          return s.x + g_tile_size * randx(flr(s.width / g_tile_size))
-   end)
+      end,
+      is_tile_free
+   )
 end
 
 function populate_scenery()
@@ -236,46 +233,65 @@ function populate_geometry()
    end
 end
 
-function find_free_section(known, sec_gen)
-   function is_sec_in_set(sec_set, sec)
-      for s in all(sec_set) do
-         if(sec.id == s.section.id) return true
+function make_delivery(deliveries)
+   function is_section_free(sec)
+      for s in all(deliveries) do
+         if(sec.id == s.section.id) return false
       end
-      return false
+      return true
    end
-
-   local new_sec = sec_gen()
-   -- Enter loop if the new section is already present to generate a new section.
-   while(is_sec_in_set(known, new_sec)) do
-      new_sec = sec_gen()
-   end
-   return new_sec
-end
-
-delivery_id = 1
-function generate_deliveries()
    local function rand_section()
       -- Don't generate a delivery in the first or last section
       local idx =  1 + randx(#level.sections - 2)
       -- Only use odd indexes so the locations don't align with ramps.
       return level.sections[idx % 2 == 0 and idx + 1 or idx]
    end
+   local function rand_location()
+      return locations[randx(#locations)]
+   end
+   local function is_free_location(loc)
+      for l in all(deliveries) do
+         if l.id == loc.id then
+            return false
+         end
+      end
+      return true
+   end
 
+   local loc   = find_free(rand_location, is_free_location)
+   local sec   = find_free(rand_section, is_section_free)
+   local del_x = rand_tile_in_section(sec)
+
+   track_scene_obj(del_x)
+
+   level.delivery_time += (10 + randx(7))
+   local delivery = make_obj(
+      {del_x, loc.y_pos},
+      {
+         location=loc,
+         width=loc.spr[3],
+         id=delivery_id,
+         section=sec,
+         due=level.delivery_time,
+         delivered=false
+      }
+   )
+
+   return delivery
+end
+
+delivery_id = 1
+function add_delivery(deliveries, del)
+   deliveries[delivery_id] = del
+   delivery_id += 1
+end
+
+function generate_deliveries()
    local deliveries = {}
-   -- local colours    = { salmon, azure, lime, yellow, orange, red, coral }
-   local locs = copy_table(locations)
    -- TODO The number of deliveries needs to be more dynamic.
-   for i = 1,flr(level.length/400) do
-      local loc   = del(locs, locs[randx(#locs)])
-      local sec   = find_free_section(deliveries, rand_section)
-      local del_x = rand_tile_in_section(sec)
-      track_scene_obj(del_x)
-      deliveries[delivery_id] = make_obj(
-         {del_x, loc.y_pos},
-         {location=loc, width=loc.spr[3], id=delivery_id, section=sec}
-      )
-      -- The IDs happen to align with where the index in , it could diverge.
-      delivery_id += 1
+   for _ = 1,flr(level.length/400) do
+      local new_del = make_delivery(deliveries)
+      add_delivery(deliveries, new_del)
    end
 
    return deliveries
@@ -576,31 +592,39 @@ function update_scene()
 end
 
 function handle_deliveries()
-   if #car.deliveries == 0 or car.jumping then
+   if car.jumping then
       return
    end
 
    local delivering = false
-   for idx = 1, #car.deliveries do
-      local cd      = car.deliveries[idx]
-      local del_loc = level.deliveries[cd.id]
-
+   for del in all(level.deliveries) do
       local cx0 = car.x
       local cx1 = car.x+8
 
-      local dx0 = del_loc.x
-      local dx1 = dx0+del_loc.width
+      local dx0 = del.x
+      local dx1 = dx0+del.width
 
-      if (cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0) then
+      if not del.delivered and ((cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0)) then
          delivering = true
          if car.del_start == 0 then
             car.del_start = t()
          end
+         -- Don't prompt on the first delivery.
+         if any(level.deliveries, function(d) return d.delivered end) then
+            if btn(b_x) and level.prompt_for_help then
+               level.prompt_for_help = false
+               level.will_help = true
+               local new_del = make_delivery(level.deliveries)
+               add_delivery(level.deliveries, new_del)
+            elseif btnp(b_z) then
+               level.prompt_for_help = false
+               level.will_help = false
+            end
+         end
          if t() - car.del_start > g_del_time then
-            deli(car.deliveries, idx)
-            car.del_id_map[cd.id] = nil
+            del.delivered = true
             car.del_start = 0
-            if #car.deliveries == 0 then
+            if #level.deliveries == 0 then
                level.complete_at = t()
             end
             return
@@ -720,7 +744,7 @@ function draw_scene()
       local del_x = wrapped_x(d)
       if should_draw(del_x, d.width) then
          render_sprite(d.location.spr, del_x, d.y)
-         if car.del_id_map[d.id] != nil then
+         if not d.delivered then
             local dw = del_x + d.width
             if car.del_start > 0 and not car.jumping then
                local perc = 22 * ((t() - car.del_start) / g_del_time)
@@ -728,6 +752,13 @@ function draw_scene()
 
                rectfill(del_x,     105, dw,     dy1, white)
                rectfill(del_x + 1, 105, dw - 1, dy1, magenta)
+               -- Don't prompt on the first delivery.
+               if any(level.deliveries, function(d) return d.delivered end) then
+                  if level.prompt_for_help then
+                     print('help the robots?', 20, 64, white)
+                     print(' ❎ ok 🅾️ no way', 40, 70, white)
+                  end
+               end
             else
                rectfill(del_x,     105, dw,     127, dim_grey)
                rectfill(del_x + 1, 105, dw - 1, 127, navy)
@@ -810,15 +841,18 @@ function draw_ewe_ai()
    rectfill(92, 22, 125, 31, black)
    rectfill(93, 23, 124, 31, dim_grey)
    print(clock_time(t() + level.start_time), 95, 25, lime)
-   for idx = 1,#car.deliveries do
-      local d      = car.deliveries[idx]
-      local before = '10:' .. d.due .. 'am'
-      local rem    = d.due - t()
-      local del_y  = (idx-1) * 8 + 2
-      local col    = rem > 12 and white or rem > 6 and yellow or rem > 0 and salmon or red
-      print(before .. ' sect. '..d.section.id, 2, del_y, col)
-      rectfill(64, del_y, 69, del_y + 4, white)
-      rectfill(65, del_y+1, 68, del_y + 3, d.section.colour)
+   local del_offset = 0
+   for d in all(level.deliveries) do
+      if not d.delivered then
+         local before = clock_time(d.due)
+         local rem    = d.due - t()
+         local del_y  = del_offset * 8 + 2
+         local col    = rem > 12 and white or rem > 6 and yellow or rem > 0 and salmon or red
+         del_offset += 1
+         print(before .. ' sect. '..d.section.id, 2, del_y, col)
+         rectfill(64, del_y, 69, del_y + 4, white)
+         rectfill(65, del_y+1, 68, del_y + 3, d.section.colour)
+      end
    end
 
    local dbg = DEBUG and '🐱' or '@'

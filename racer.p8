@@ -92,6 +92,7 @@ function _init()
       speed = 0,
       accel = 0.4,
       dy = 0,
+      launched = false,
       jumping = false,
       boosted_at = false,
       boost_meter = 0,
@@ -314,43 +315,64 @@ function track_car()
    add(dbg.past, {x = car.x, y = car.y + 8})
 end
 
-function respect_incline(r)
-   if r.angle < 90 then
-      car.speed -= 0.1
-   else
-      car.speed += 0.1
+function in_air()
+   return car.launched or car.jumping
+end
+
+function car_launch()
+   -- Only "launch" if not already in the air i.e jumping
+   if not in_air() then
+      car.launched = true
+      car.jumping  = false
    end
-   car.dy += 0.2
+end
+
+function car_jump()
+   car.launched = false
+   car.jumping  = true
+end
+
+function car_land()
+   car.launched = false
+   car.jumping  = false
+end
+
+function calc_gravity_delta()
+   local dy = min(g_jump_max, car.dy + (35 * g_dt)) -- 35 is arbitrary!
+   return dy, car.y + dy * g_dt
 end
 
 function apply_gravity()
    -- The number used here feels about right, is arbitrary.
-   car.dy += 35 * g_dt -- 35 is arbitrary!
-   car.y += car.dy * g_dt
+   car.dy, car.y = calc_gravity_delta()
 
    -- TODO Implement a bounce!
    if car.y >= g_car_line then
       car.y = g_car_line
       car.dy = 0
-      car.jumping = false
+      car_land()
    else
-      car.jumping = true
+      car_launch()
       debug('car.y = ', car.y, ', car.dy = ', car.dy)
    end
 end
 
 function on_ramp(car_x)
    car_x += 4
+   local _, next_y = calc_gravity_delta()
+   local car_y = next_y
    for r in all(ramps) do
       local rx0 = r.angle < 90 and r.x or r.x + r.width
       if r.angle < 90 then
-         local rx1 = ramp_trig(rx0, r.y, r.hypot, r.angle)
-         if car_x > rx0 and car_x < rx1 then
+         local rx1, ry1 = ramp_trig(rx0, r.y, r.hypot, r.angle)
+         if (car_x > rx0 and car_x < rx1) and car_y >= ry1 then
+            -- debug('on ramp ', car_x, ' > ', rx0, ' and ', car_x, ' < ', rx1, ' and ', car_y, ' >= ', ry1, '[', r.angle, ' ; ', r.hypot, ']')
             return r
          end
       else
-         local rx1 = ramp_trig(rx0, r.y, r.hypot, r.angle)
-         if car_x > rx1 and car_x < rx0 then
+         local rx1, ry1 = ramp_trig(rx0, r.y, r.hypot, r.angle)
+         if (car_x > rx1 and car_x < rx0) and car_y >= ry1 then
+            -- debug('on ramp ', car_x, ' > ', rx1, ' and ', car_x, ' < ', rx0, ' and ', car_y, ' >= ', ry1, '[', r.angle, ' ; ', r.hypot, ']')
             return r
          end
       end
@@ -370,7 +392,8 @@ end
 
 function on_platform()
    local car_x = car.x + 4
-   local car_y = car.y + 8
+   local _, next_y = calc_gravity_delta()
+   local car_y = next_y + 8
    for p in all(platforms) do
       if car_x > p.x and car_x < (p.x + p.width) then
          -- Landing
@@ -379,7 +402,8 @@ function on_platform()
          then
             return p
          -- Landed
-         elseif car.dy == 0 and not car.jumping then
+         elseif car.dy == 0 and not in_air() and flr(car_y - 8) == p.y then
+            debug('staying on platform ', p)
             return p
          end
       end
@@ -391,6 +415,15 @@ function still_boosting()
    local boost_active = car.boosted_at and t() - car.boosted_at < 0.5
    local boost_power  = car.boost_meter > 0
    return boost_active or boost_power
+end
+
+function respect_incline(r)
+   if r.angle < 90 then
+      car.speed -= 0.1
+   else
+      car.speed += 0.1
+   end
+   car.dy = min(g_jump_max, car.dy + 0.2)
 end
 
 function handle_ramp(r)
@@ -415,10 +448,11 @@ function handle_ramp(r)
       if car.speed > g_jump_speed and car.dir == dir_right then
          local new_dy = car.dy - (0.03 * r.angle)
          if(car.boosted_at) new_dy *= 3
-         car.dy = abs(new_dy) > g_jump_max and -g_jump_max or (new_dy * car.speed)
+         new_dy *= car.speed
+         car.dy = abs(new_dy) > g_jump_max and -g_jump_max or new_dy
       elseif btn(b_left) then
          car.speed -= car.accel
-         car.dy += 10
+         car.dy = min(g_jump_max, car.dy + 10)
       end
       -- debug('-> on l2r ramp ', r, ', car.x ', car_x, ' spd ', car.speed, ' car.dy ', car.dy)
    else
@@ -438,7 +472,8 @@ function handle_ramp(r)
       if abs(car.speed) > g_jump_speed and car.dir == dir_left then
          local new_dy = car.dy - (0.03 * r.angle)
          if(car.boosted_at) new_dy *= 3
-         car.dy = abs(new_dy) > g_jump_max and -g_jump_max or (new_dy * car.speed)
+         new_dy *= car.speed
+         car.dy = abs(new_dy) > g_jump_max and -g_jump_max or new_dy
       elseif btn(b_right) then
          car.speed += car.accel
          car.dy = 0
@@ -457,7 +492,7 @@ function handle_platform(p)
    car.on_platform = p
    car.y = p.y - 8
    car.dy = 0
-   car.jumping = false
+   car_land()
 end
 
 function update_car()
@@ -486,13 +521,18 @@ function update_car()
       end
    end
 
+   if not in_air() and btn(b_x) and car.del_start == 0 then
+      car_jump()
+      car.dy -= 30
+   end
+
    -- Don't consider speed as it hasn't yet been calculated
    local r = on_ramp(car.x)
 
    if not still_boosting() then
       -- TODO Make this more gradual, probably need to move away from linear speed.
       local ns = car.speed
-      if not car.jumping then
+      if not in_air() then
          ns *= g_friction
          if not accelerating  then
             ns *= g_friction
@@ -515,7 +555,7 @@ function update_car()
 
    -- Reduce boost if on the ground or in the air and "braking"
    local brake_button = car.dir == dir_right and b_left or b_right
-   if still_boosting() and (not car.jumping and t() - car.boosted_at > 0.3) or btn(brake_button) then
+   if still_boosting() and (not in_air() and t() - car.boosted_at > 0.3) or btn(brake_button) then
       if car.boost_meter > 0 then
          if btn(brake_button) then
             -- About enough to stop between ramps.
@@ -551,18 +591,39 @@ function update_car()
    -- Recalculate ramp now the car's position has been recalculated
    r = on_ramp(car.x)
 
-   -- TODO Handle landing on a ramp!
-   if r and not car.jumping then
+   if in_air() then
+      -- Landing
+      if car.dy > 0 then
+         if r then
+            handle_ramp(r)
+         elseif p then
+            handle_platform(p)
+         elseif not p then
+            car.on_platform = false
+            apply_gravity()
+         else
+            apply_gravity()
+         end
+      -- Launched on to a ramp
+      elseif car.jumping and r then
+         debug('on ramp ', r.angle, ' ; ', r.hypot, ' - ', car.x, 'x', car.y, ' - ', car.dy)
+         handle_ramp(r)
+      -- Falling
+      else
+         apply_gravity()
+      end
+   elseif r then
       handle_ramp(r)
       -- Initiate jump if on the next frame car is not on this ramp and
       -- has a negative vertical inertia.
       local next_ramp = on_ramp(car.x + car.speed)
       if next_ramp and r != next_ramp and car.dy < 0 then
-         car.jumping = true
+         -- debug('ramp change! ', r.angle, ' -> ', next_ramp.angle)
+         car_launch()
       end
-   elseif p and car.jumping then
+   elseif p then
       handle_platform(p)
-   elseif not p then
+   else
       car.on_platform = false
       apply_gravity()
    end
@@ -604,7 +665,7 @@ function update_scene()
 end
 
 function handle_deliveries()
-   if car.jumping then
+   if in_air() then
       return
    end
 
@@ -627,6 +688,8 @@ function handle_deliveries()
                level.prompt_for_help = false
                level.will_help = true
                local new_del = make_delivery(level.deliveries)
+               new_del.for_robots = true
+               new_del.section.for_robots = true
                add_delivery(level.deliveries, new_del)
             elseif btnp(b_z) then
                level.prompt_for_help = false
@@ -759,7 +822,7 @@ function draw_scene()
          if not d.delivered then
             print(clock_time(d.due), del_x - 4, d.y - 8, white)
             local dw = del_x + d.width
-            if car.del_start > 0 and not car.jumping then
+            if car.del_start > 0 and not in_air() then
                local perc = 22 * ((t() - car.del_start) / g_del_time)
                local dy1 = 127 - perc
 
@@ -815,7 +878,9 @@ function draw_scene()
          local sx = s.x
          local sy = s.y
          rectfill(sx0, sy, sx0 + s.width, sy + 2, s.colour)
-         print('section ' .. s.id, sx0 + 75, sy + 4, dim_grey)
+         local glyph = s.has_delivery and '⌂' or '…'
+         if(s.for_robots) glyph = ' 😐'
+         print(glyph .. s.id, sx0 + 75, sy + 4, dim_grey)
       end
    end
 end
@@ -847,7 +912,7 @@ function draw_ewe_ai()
       print('boost', 94, by+1, salmon)
    end
 
-   if car.del_start > 0 and not car.jumping then
+   if car.del_start > 0 and not in_air() then
       print('⬇️ ' .. nice_pos(g_del_time - (t() - car.del_start)), 72, 122, azure)
    end
 
@@ -882,7 +947,7 @@ function draw_ewe_ai()
    print(next_sect, 120, 36, dim_grey)
 
    local dbg = DEBUG and '🐱' or '@'
-   local jumpstate = car.jumping and '⬆️' or '-'
+   local jumpstate = in_air() and '⬆️' or '-'
    print(dumper(dbg, ' ', nice_pos(car.dy), ' -> ', car.speed, ' ', jumpstate), 2, 122, azure)
 end
 
@@ -915,9 +980,9 @@ function draw_car()
    end
 
    local s = spr_player1
-   if car.accelerating and not car.jumping then
+   if car.accelerating and not in_air() then
       s = t() % 1 > 0.5 and spr_player1 or spr_player2
-   elseif car.jumping then
+   elseif in_air() then
       s = spr_player3
    end
 

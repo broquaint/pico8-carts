@@ -28,6 +28,7 @@ g_jump_max     = 38
 
 g_del_time = 1.2
 
+g_section_size = 150
 g_edge_rhs  = 64
 g_edge_lhs  = 16
 
@@ -84,6 +85,7 @@ locations = {
 
 function _init()
    car = {
+      absolute_x = 16,
       x = 16,
       y = g_car_line,
       dir = dir_right,
@@ -103,17 +105,15 @@ function _init()
       at_hypot = 0,
    }
 
-   local lvl_len = 5000
-
    level = {
-      length = lvl_len,
+      length = g_section_size * 20,
       complete_at = false,
       scene_map = {},
       start_time = 600, -- doesn't change
       delivery_time = 600, -- change as deliveries are added
       prompt_for_help = true,
       will_help = false,
-      delivery_count = 10
+      delivery_count = 5
    }
 
    scene = { make_bg_spr(spr_flag, { 0, 88 }) }
@@ -162,7 +162,7 @@ function make_sections()
    local colours = {azure, violet, salmon, coral, orange, yellow, lime}
 
    local sec_x = 0
-   local sec_size = 150 -- level.length / 10
+   local sec_size = g_section_size -- level.length / 10
    for sec = 1, flr(level.length / sec_size) do
       local col = colours[(sec % #colours) == 0 and #colours or sec % #colours]
       add(sections, make_obj({sec_x, 32}, {width=sec_size,colour=col,id=sec}))
@@ -263,9 +263,11 @@ function make_delivery(deliveries)
    local sec   = find_free(rand_section, is_section_free)
    local del_x = rand_tile_in_section(sec)
 
+   sec.has_delivery = true
+
    track_scene_obj(del_x)
 
-   level.delivery_time += (10 + randx(7))
+   level.delivery_time += (12 + randx(7))
    local delivery = make_obj(
       {del_x, loc.y_pos},
       {
@@ -590,6 +592,15 @@ function update_scene()
    foreach(platforms, update_pos)
    foreach(level.deliveries, update_pos)
    foreach(level.sections, update_pos)
+
+   local abs_next_pos = car.absolute_x + flr(car.speed)
+   if abs_next_pos > level.length then
+      car.absolute_x = abs_next_pos % level.length
+   elseif abs_next_pos < 0 then
+      car.absolute_x = level.length + abs_next_pos
+   else
+      car.absolute_x = abs_next_pos
+   end
 end
 
 function handle_deliveries()
@@ -851,7 +862,9 @@ function draw_ewe_ai()
          local rem    = d.due - t_offset
          local del_y  = del_offset * 8 + 2
          local col    = rem > 12 and white or rem > 6 and yellow or rem > 0 and salmon or red
-         print(before .. ' sect. '..d.section.id, 2, del_y, col)
+         local msg    =  before .. ' ⌂ '.. d.section.id
+         if(d.for_robots) msg = msg .. ' 😐'
+         print(msg, 2, del_y, col)
          rectfill(66, del_y, 71, del_y + 4, white)
          rectfill(67, del_y+1, 70, del_y + 3, d.section.colour)
          del_offset += 1
@@ -861,6 +874,12 @@ function draw_ewe_ai()
    if remaining > 2 then
       print(tostr(remaining - 3) .. ' remaining', 2, 25, white)
    end
+
+   local cur_sect  = flr((75 + car.absolute_x) / g_section_size) + 1
+   local prev_sect = cur_sect <= 1 and #level.sections or cur_sect - 1
+   local next_sect = cur_sect >= #level.sections and 1 or cur_sect + 1
+   print(prev_sect, 2, 36, dim_grey)
+   print(next_sect, 120, 36, dim_grey)
 
    local dbg = DEBUG and '🐱' or '@'
    local jumpstate = car.jumping and '⬆️' or '-'

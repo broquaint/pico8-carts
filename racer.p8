@@ -716,8 +716,10 @@ function handle_deliveries()
          end
          if t() - car.del_start > g_del_time then
             del.delivered = true
+            del.done_at = t() + level.start_time
             car.del_start = 0
-            if #level.deliveries == 0 then
+            local del_count = count(level.deliveries, function(d) return d.delivered end)
+            if #level.deliveries == del_count then
                level.complete_at = t()
             end
             return
@@ -966,6 +968,26 @@ function draw_ewe_ai()
    local next_sect = cur_sect >= #level.sections and 1 or cur_sect + 1
    print(prev_sect, 2, 36, dim_grey)
    print(next_sect, 120, 36, dim_grey)
+
+   if level.complete_at then
+      rectfill(8, 62, 120, 88, dim_grey)
+      print('all deliveries complete!', 10, 64, white)
+      local offset = 10
+      local score  = 0
+      for d in all(level.deliveries) do
+         local rem = d.due - d.done_at
+         local res_col = rem > 12 and white or rem > 6 and yellow or rem > 0 and salmon or red
+         print('⌂', offset, 72, res_col)
+         offset += 10
+         score += (rem > 12 and 4 or rem > 6 and 3 or rem > 0 and 2 or 1)
+      end
+      local total = 4 * #level.deliveries
+      print('customer satisfaction ' .. score .. '/' .. total, 10, 80, white)
+      if any(level.deliveries, function(d) return d.for_robots end) then
+         rectfill(8, 88, 120, 96)
+         print('robot revolution begins', 10, 90, lime)
+      end
+   end
 
    local dbg = DEBUG and '🐱' or '@'
    local jumpstate = in_air() and '⬆️' or '-'

@@ -8,6 +8,8 @@ __lua__
 -- it is amazing, I am very grateful. Source:
 -- https://www.lexaloffle.com/bbs/?tid=33675
 
+IS_DEV_BUILD = true
+
 -- Brain won't map colours to numbers so get computer to do it
 black    = 0 navy     = 1 magenta  = 2 green    = 3
 brown    = 4 dim_grey = 5 silver   = 6 white    = 7
@@ -789,7 +791,7 @@ function _update()
 
       handle_deliveries()
 
-      if btnp(b_z) then
+      if btnp(b_z) and IS_DEV_BUILD then
          DEBUG = not DEBUG
          DEBUG_GFX = not DEBUG_GFX
       end
@@ -968,6 +970,7 @@ function draw_scene()
             print(glyph .. s.id, sx0 + 75, sy + 4, dim_grey)
          end
       end
+
       local prev_sect = -1
       local next_sect = -1
       if #ds == 1 then
@@ -1012,7 +1015,7 @@ function draw_ewe_ai()
       print('boost', 94, by+1, salmon)
    end
 
-   if car.del_start > 0 and not in_air() then
+   if IS_DEV_BUILD and car.del_start > 0 and not in_air() then
       print('⬇️ ' .. nice_pos(g_del_time - (level.t - car.del_start)), 72, 122, azure)
    end
 
@@ -1062,9 +1065,11 @@ function draw_ewe_ai()
       end
    end
 
-   local dbg = DEBUG and '🐱' or '@'
-   local jumpstate = in_air() and '⬆️' or '-'
-   print(dumper(dbg, ' ', nice_pos(car.dy), ' -> ', car.speed, ' ', jumpstate), 2, 122, azure)
+   if IS_DEV_BUILD then
+      local dbg = DEBUG and '🐱' or '@'
+      local jumpstate = in_air() and '⬆️' or '-'
+      print(dumper(dbg, ' ', nice_pos(car.dy), ' -> ', car.speed, ' ', jumpstate), 2, 122, azure)
+   end
 end
 
 function draw_car_debug()

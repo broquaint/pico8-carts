@@ -254,7 +254,7 @@ function populate_geometry()
          ))
 
          local l = make_ramp(
-            { x = new_x + 50, angle = randx(25) + 10, hypot = randx(20) + 30 }
+            { x = new_x + 50, angle = randx(20) + 15, hypot = randx(20) + 30 }
          )
          local r = make_ramp(
             { x = l.x + l.width, angle = 180 - l.angle, hypot = l.hypot }

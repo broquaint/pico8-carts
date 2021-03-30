@@ -23,6 +23,13 @@ b_left  = ⬅️ b_right = ➡️
 b_down  = ⬇️ b_up    = ⬆️
 b_x     = ❎  b_z     = 🅾️
 
+game_state_menu       = 'menu'
+game_state_delivering = 'deliverying'
+game_state_level_done = 'lvldone'
+game_state_complete   = 'complete'
+
+game_state = game_state_menu
+
 g_dt           = 1/30
 g_friction     = 0.9
 g_air_friction = 0.98
@@ -135,8 +142,6 @@ function _init()
 
    populate_scenery()
    populate_geometry()
-
-   music(0)
 end
 
 function make_obj(pos, attr)
@@ -755,15 +760,22 @@ function handle_deliveries()
 end
 
 function _update()
-   update_scene()
+   if game_state == game_state_delivering then
+      update_scene()
 
-   update_car()
+      update_car()
 
-   handle_deliveries()
+      handle_deliveries()
 
-   if btnp(b_z) then
-      DEBUG = not DEBUG
-      DEBUG_GFX = not DEBUG_GFX
+      if btnp(b_z) then
+         DEBUG = not DEBUG
+         DEBUG_GFX = not DEBUG_GFX
+      end
+   elseif game_state == game_state_menu then
+      if btnp(b_x) then
+         game_state = game_state_delivering
+         music(0)
+      end
    end
 end
 
@@ -875,8 +887,8 @@ function draw_scene()
                -- Don't prompt on the first delivery.
                if any(level.deliveries, function(d) return d.delivered end) then
                   if level.prompt_for_help then
-                     print('help the robots?', 20, 64, white)
-                     print(' ❎ ok 🅾️ no way', 40, 70, white)
+                     print('help the robots?', 20, 54, white)
+                     print(' ❎ ok 🅾️ no way', 40, 60, white)
                   end
                end
             else
@@ -916,15 +928,17 @@ function draw_scene()
       end
    end
 
-   for s in all(level.sections) do
-      local sx0 = wrapped_x(s)
-      if should_draw(sx0, s.width) then
-         local sx = s.x
-         local sy = s.y
-         rectfill(sx0, sy, sx0 + s.width, sy + 2, s.colour)
-         local glyph = s.has_delivery and '⌂' or '…'
-         if(s.for_robots) glyph = ' 😐'
-         print(glyph .. s.id, sx0 + 75, sy + 4, dim_grey)
+   if game_state != game_state_menu then
+      for s in all(level.sections) do
+         local sx0 = wrapped_x(s)
+         if should_draw(sx0, s.width) then
+            local sx = s.x
+            local sy = s.y
+            rectfill(sx0, sy, sx0 + s.width, sy + 2, s.colour)
+            local glyph = s.has_delivery and '⌂' or '…'
+            if(s.for_robots) glyph = ' 😐'
+            print(glyph .. s.id, sx0 + 75, sy + 4, dim_grey)
+         end
       end
    end
 end
@@ -1064,7 +1078,15 @@ function _draw()
 
    draw_car()
 
-   draw_ewe_ai()
+   if game_state == game_state_delivering then
+      draw_ewe_ai()
+   elseif game_state == game_state_menu then
+      -- print('can you do all your deliveries', 2, 32, white)
+      print('can you deliver everything on', 6, 32, white)
+      print('time and give a hand to the', 6, 40, white)
+      print('robot 😐 revolution?', 6, 48, white)
+      print('press ❎ to find out!', 20, 64, white)
+   end
 end
 
 ----------------------

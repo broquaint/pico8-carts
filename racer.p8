@@ -569,7 +569,7 @@ function update_car()
          ns *= g_air_friction
       end
 
-      if r then
+      if r and accelerating then
          -- TODO Improve friction relative to ramp.
          ns *= g_friction * 0.95 - (r.angle/1000)
       end

@@ -583,14 +583,18 @@ function update_car()
 
    -- Reduce boost if on the ground or in the air and "braking"
    local brake_button = car.dir == dir_right and b_left or b_right
-   if still_boosting() and (not in_air() and t() - car.boosted_at > 0.3) or btn(brake_button) then
-      if car.boost_meter > 0 then
-         if btn(brake_button) then
-            -- About enough to stop between ramps.
-            car.boost_meter -= 1.5
-         else
-            car.boost_meter -= 1
+   if still_boosting() then
+      if (not in_air() and t() - car.boosted_at > 0.3) or btn(brake_button) then
+         if car.boost_meter > 0 then
+            if btn(brake_button) then
+               -- About enough to stop between ramps.
+               car.boost_meter -= 1.7
+            else
+               car.boost_meter -= 1
+            end
          end
+      elseif in_air() and t() - car.boosted_at > 0.3 then
+         car.boost_meter -= 0.1
       end
    end
 

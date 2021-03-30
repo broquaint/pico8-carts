@@ -734,6 +734,7 @@ function handle_deliveries()
    end
 
    local delivering = false
+   local del_offset = 0
    for del in all(level.deliveries) do
       local cx0 = car.x
       local cx1 = car.x+8
@@ -741,43 +742,46 @@ function handle_deliveries()
       local dx0 = del.x
       local dx1 = dx0+del.width
 
-      if not del.delivered and ((cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0)) then
-         delivering = true
-         if car.del_start == 0 then
-            car.del_start = level.t
-            local del_count = count(level.deliveries, function(d) return d.delivered end) + 1
-            local del_sfx = 14
-            if del_count == #level.deliveries then
-               del_sfx = 13
-               music(-1, 200)
+      if not del.delivered then
+         if del_offset < 3 and ((cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0)) then
+            delivering = true
+            if car.del_start == 0 then
+               car.del_start = level.t
+               local del_count = count(level.deliveries, function(d) return d.delivered end) + 1
+               local del_sfx = 14
+               if del_count == #level.deliveries then
+                  del_sfx = 13
+                  music(-1, 200)
+               end
+               sfx(del_sfx, 2)
             end
-            sfx(del_sfx, 2)
-         end
-         -- Don't prompt on the first delivery.
-         if any(level.deliveries, function(d) return d.delivered end) then
-            if btn(b_x) and level.prompt_for_help then
-               level.prompt_for_help = false
-               level.will_help = true
-               local new_del = make_delivery(level.deliveries)
-               new_del.for_robots = true
-               new_del.section.for_robots = true
-               add_delivery(level.deliveries, new_del)
-            elseif btnp(b_z) then
-               level.prompt_for_help = false
-               level.will_help = false
+            -- Don't prompt on the first delivery.
+            if any(level.deliveries, function(d) return d.delivered end) then
+               if btn(b_x) and level.prompt_for_help then
+                  level.prompt_for_help = false
+                  level.will_help = true
+                  local new_del = make_delivery(level.deliveries)
+                  new_del.for_robots = true
+                  new_del.section.for_robots = true
+                  add_delivery(level.deliveries, new_del)
+               elseif btnp(b_z) then
+                  level.prompt_for_help = false
+                  level.will_help = false
+               end
+            end
+            if level.t - car.del_start > g_del_time then
+               del.delivered = true
+               del.done_at = level.t
+               car.del_start = 0
+               local del_count = count(level.deliveries, function(d) return d.delivered end)
+               if #level.deliveries == del_count then
+                  level.complete_at = level.t
+                  game_state = game_state_level_done
+               end
+               return
             end
          end
-         if level.t - car.del_start > g_del_time then
-            del.delivered = true
-            del.done_at = level.t
-            car.del_start = 0
-            local del_count = count(level.deliveries, function(d) return d.delivered end)
-            if #level.deliveries == del_count then
-               level.complete_at = level.t
-               game_state = game_state_level_done
-            end
-            return
-         end
+         del_offset += 1
       end
    end
 
@@ -901,15 +905,16 @@ function draw_scene()
 
    palt()
 
+   local del_offset = 0
    for d in all(level.deliveries) do
       local del_x = wrapped_x(d)
       if should_draw(del_x, d.width) then
          render_sprite(d.location.spr, del_x, d.y)
-         if not d.delivered then
+         if not d.delivered and del_offset < 3 then
             print(clock_time(d.due), del_x - 4, d.y - 8, white)
             local dw = del_x + d.width
             if car.del_start > 0 and not in_air() then
-               local perc = 22 * ((t() - car.del_start) / g_del_time)
+               local perc = 22 * ((level.t - car.del_start) / g_del_time)
                local dy1 = 127 - perc
 
                rectfill(del_x,     105, dw,     dy1, white)
@@ -927,6 +932,7 @@ function draw_scene()
             end
          end
       end
+      if(not d.delivered) del_offset += 1
    end
 
    for r in all(ramps) do

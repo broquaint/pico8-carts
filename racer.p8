@@ -218,16 +218,16 @@ function find_free(gen, check)
    return el
 end
 
-function rand_tile_in_section(s)
-   return find_free(
-      function()
-         return s.x + g_tile_size * randx(flr(s.width / g_tile_size))
-      end,
-      is_tile_free
-   )
-end
-
 function populate_scenery()
+   local function rand_tile_in_section(s)
+      return find_free(
+         function()
+            return s.x + g_tile_size * randx(flr(s.width / g_tile_size))
+         end,
+         is_tile_free
+      )
+   end
+
    for s in all(level.sections) do
       for _ = 1,2 do
          local tile_x = rand_tile_in_section(s)
@@ -295,10 +295,13 @@ function make_delivery(deliveries)
       end
       return true
    end
+   function rand_location_in_section(s)
+      return function() return s.x + flr(s.width / 2) end
+   end
 
    local loc   = find_free(rand_location, is_free_location)
    local sec   = find_free(rand_section, is_section_free)
-   local del_x = rand_tile_in_section(sec)
+   local del_x = find_free(rand_location_in_section(sec), is_tile_free)
 
    sec.has_delivery = true
 

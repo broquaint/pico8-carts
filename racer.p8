@@ -445,7 +445,7 @@ function on_platform()
          then
             return p
          -- Landed
-         elseif car.dy == 0 and not in_air() and flr(car_y - 8) == p.y then
+         elseif car.dy == 0 and not in_air() and car.y== (p.y - 8) then
             debug('staying on platform ', p)
             return p
          end
@@ -530,8 +530,6 @@ function handle_ramp(r)
 end
 
 function handle_platform(p)
-   debug('landed on platform ', p)
-   debug('car was at ', car)
    car.on_platform = p
    car.y = p.y - 8
    car.dy = 0
@@ -666,9 +664,6 @@ function update_car()
             handle_ramp(r)
          elseif p then
             handle_platform(p)
-         elseif not p then
-            car.on_platform = false
-            apply_gravity()
          else
             apply_gravity()
          end
@@ -676,7 +671,7 @@ function update_car()
       elseif car.jumping and r then
          debug('on ramp ', r.angle, ' ; ', r.hypot, ' - ', car.x, 'x', car.y, ' - ', car.dy)
          handle_ramp(r)
-      -- Falling
+      -- Rising
       else
          apply_gravity()
       end

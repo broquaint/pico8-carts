@@ -97,10 +97,36 @@ locations = {
 }
 
 function _init()
-   init_game()
+   init_game(levels[current_level])
 end
 
-function init_game()
+function make_level(len, start, count, gap)
+   return {
+      length = g_section_size * len,
+      complete_at = false,
+      scene_map = {},
+      t = start,
+      delivery_time = start + gap, -- change as deliveries are added
+      prompt_for_help = true,
+      will_help = false,
+      delivery_count = count,
+      delivery_gap = gap,
+      lhs = g_edge_lhs,
+      delivery_id = 1,
+   }
+end
+
+levels = {
+   make_level(20, 600,  5,  12),
+   make_level(25, 700,  7,  12),
+   make_level(30, 800,  9,  11),
+   make_level(35, 900,  11, 10),
+   make_level(40, 1000, 13, 10),
+}
+
+current_level = 1
+
+function init_game(lvl)
    car = {
       absolute_x = 16,
       x = 16,
@@ -124,16 +150,8 @@ function init_game()
       at_hypot = 0,
    }
 
-   level = {
-      length = g_section_size * 20,
-      complete_at = false,
-      scene_map = {},
-      start_time = 600, -- doesn't change
-      delivery_time = 610, -- change as deliveries are added
-      prompt_for_help = true,
-      will_help = false,
-      delivery_count = 5
-   }
+   -- For easy of use everywhere else.
+   level = lvl
 
    scene = { make_bg_spr(spr_flag, { 0, 88 }) }
 
@@ -286,13 +304,13 @@ function make_delivery(deliveries)
 
    track_scene_obj(del_x)
 
-   level.delivery_time += (12 + randx(7))
+   level.delivery_time += (level.delivery_gap + randx(7))
    local delivery = make_obj(
       {del_x, loc.y_pos},
       {
          location=loc,
          width=loc.spr[3],
-         id=delivery_id,
+         id=level.delivery_id,
          section=sec,
          due=level.delivery_time,
          delivered=false
@@ -302,15 +320,13 @@ function make_delivery(deliveries)
    return delivery
 end
 
-delivery_id = 1
 function add_delivery(deliveries, del)
-   deliveries[delivery_id] = del
-   delivery_id += 1
+   deliveries[level.delivery_id] = del
+   level.delivery_id += 1
 end
 
 function generate_deliveries()
    local deliveries = {}
-   -- TODO The number of deliveries needs to be more dynamic.
    for _ = 1, level.delivery_count do
       local new_del = make_delivery(deliveries)
       add_delivery(deliveries, new_del)
@@ -564,7 +580,8 @@ function update_car()
          sfx(1)
       end
    elseif game_state == game_state_level_done and btnp(b_x) then
-      init_game()
+      current_level += 1
+      init_game(levels[current_level])
       music(0)
       game_state = game_state_delivering
    end
@@ -625,13 +642,13 @@ function update_car()
    track_car()
 
    local next_pos = car.x + car.speed
-   if next_pos > g_edge_lhs and next_pos < g_edge_rhs then
+   if next_pos > level.lhs and next_pos < g_edge_rhs then
       car.x += car.speed
       -- TODO Don't update what ought to be a constant!
-      g_edge_lhs += 1
+      level.lhs += 1
    elseif next_pos > g_edge_rhs then
       car.x = g_edge_rhs
-      g_edge_lhs = g_edge_rhs
+      level.lhs = g_edge_rhs
    end
 
    local p = on_platform()
@@ -727,7 +744,7 @@ function handle_deliveries()
       if not del.delivered and ((cx1 > dx0 and cx1 < dx1) or (cx0 < dx1 and cx0 > dx0)) then
          delivering = true
          if car.del_start == 0 then
-            car.del_start = t()
+            car.del_start = level.t
             local del_count = count(level.deliveries, function(d) return d.delivered end) + 1
             local del_sfx = 14
             if del_count == #level.deliveries then
@@ -750,13 +767,13 @@ function handle_deliveries()
                level.will_help = false
             end
          end
-         if t() - car.del_start > g_del_time then
+         if level.t - car.del_start > g_del_time then
             del.delivered = true
-            del.done_at = t() + level.start_time
+            del.done_at = level.t
             car.del_start = 0
             local del_count = count(level.deliveries, function(d) return d.delivered end)
             if #level.deliveries == del_count then
-               level.complete_at = t()
+               level.complete_at = level.t
                game_state = game_state_level_done
             end
             return
@@ -782,6 +799,8 @@ function _update()
          DEBUG = not DEBUG
          DEBUG_GFX = not DEBUG_GFX
       end
+
+      level.t += 1/30
    elseif game_state == game_state_menu then
       if btnp(b_x) then
          game_state = game_state_delivering
@@ -972,7 +991,8 @@ function clock_time(n)
 end
 
 function draw_ewe_ai()
-   local by = 2
+   print('level ' .. current_level, 92, 2, white)
+   local by = 10
    rectfill(92, by, 124, by+6, white)
    if car.boost_meter > 0 then
       rectfill(92, by, 92 + car.boost_meter, by+6, orange)
@@ -982,13 +1002,14 @@ function draw_ewe_ai()
    end
 
    if car.del_start > 0 and not in_air() then
-      print('⬇️ ' .. nice_pos(g_del_time - (t() - car.del_start)), 72, 122, azure)
+      print('⬇️ ' .. nice_pos(g_del_time - (level.t - car.del_start)), 72, 122, azure)
    end
 
    rectfill(92, 22, 125, 31, black)
    rectfill(93, 23, 124, 31, dim_grey)
-   local t_offset = t() + level.start_time
+   local t_offset = game_state == game_state_delivering and level.t or level.complete_at
    print(clock_time(t_offset), 95, 25, lime)
+
    local del_offset = 0
    for d in all(level.deliveries) do
       if not d.delivered and del_offset < 3 then

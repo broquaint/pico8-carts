@@ -118,7 +118,7 @@ function _init()
       complete_at = false,
       scene_map = {},
       start_time = 600, -- doesn't change
-      delivery_time = 600, -- change as deliveries are added
+      delivery_time = 610, -- change as deliveries are added
       prompt_for_help = true,
       will_help = false,
       delivery_count = 5

@@ -128,7 +128,6 @@ current_level = 1
 
 function init_game(lvl)
    car = {
-      absolute_x = 16,
       x = 16,
       y = g_car_line,
       dir = dir_right,
@@ -720,15 +719,6 @@ function update_scene()
    foreach(platforms, update_pos)
    foreach(level.deliveries, update_pos)
    foreach(level.sections, update_pos)
-
-   local abs_next_pos = car.absolute_x + flr(car.speed)
-   if abs_next_pos > level.length then
-      car.absolute_x = abs_next_pos % level.length
-   elseif abs_next_pos < 0 then
-      car.absolute_x = level.length + abs_next_pos
-   else
-      car.absolute_x = abs_next_pos
-   end
 end
 
 function handle_deliveries()
@@ -968,9 +958,11 @@ function draw_scene()
    end
 
    if game_state != game_state_menu then
+      local ds = {}
       for s in all(level.sections) do
          local sx0 = wrapped_x(s)
          if should_draw(sx0, s.width) then
+            add(ds, s)
             local sx = s.x
             local sy = s.y
             rectfill(sx0, sy, sx0 + s.width, sy + 2, s.colour)
@@ -979,6 +971,19 @@ function draw_scene()
             print(glyph .. s.id, sx0 + 75, sy + 4, dim_grey)
          end
       end
+      local prev_sect = -1
+      local next_sect = -1
+      if #ds == 1 then
+         prev_sect = tonum(ds[1].id) - 1
+         next_sect = tonum(ds[1].id) + 1
+      else
+         prev_sect = tonum(ds[1].id)
+         next_sect = tonum(ds[2].id) + 1
+      end
+      if(prev_sect <= 0) prev_sect = #level.sections
+      if(next_sect >= #level.sections) next_sect = 1
+      print(prev_sect, 2, 36, dim_grey)
+      print(next_sect, 120, 36, dim_grey)
    end
 end
 
@@ -1038,12 +1043,6 @@ function draw_ewe_ai()
    if remaining > 3 then
       print(tostr(remaining - 3) .. ' remaining', 2, 25, white)
    end
-
-   local cur_sect  = flr((75 + car.absolute_x) / g_section_size) + 1
-   local prev_sect = cur_sect <= 1 and #level.sections or cur_sect - 1
-   local next_sect = cur_sect >= #level.sections and 1 or cur_sect + 1
-   print(prev_sect, 2, 36, dim_grey)
-   print(next_sect, 120, 36, dim_grey)
 
    if game_state == game_state_level_done then
       rectfill(8, 62, 120, 88, dim_grey)

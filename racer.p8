@@ -97,6 +97,10 @@ locations = {
 }
 
 function _init()
+   init_game()
+end
+
+function init_game()
    car = {
       absolute_x = 16,
       x = 16,
@@ -553,10 +557,16 @@ function update_car()
       end
    end
 
-   if not in_air() and btn(b_x) and car.del_start == 0 then
-      car_jump()
-      car.dy -= 30
-      sfx(1)
+   if game_state == game_state_delivering then
+      if not in_air() and btnp(b_x) and car.del_start == 0 then
+         car_jump()
+         car.dy -= 30
+         sfx(1)
+      end
+   elseif game_state == game_state_level_done and btnp(b_x) then
+      init_game()
+      music(0)
+      game_state = game_state_delivering
    end
 
    -- Don't consider speed as it hasn't yet been calculated
@@ -747,6 +757,7 @@ function handle_deliveries()
             local del_count = count(level.deliveries, function(d) return d.delivered end)
             if #level.deliveries == del_count then
                level.complete_at = t()
+               game_state = game_state_level_done
             end
             return
          end
@@ -760,7 +771,7 @@ function handle_deliveries()
 end
 
 function _update()
-   if game_state == game_state_delivering then
+   if game_state == game_state_delivering or game_state == game_state_level_done then
       update_scene()
 
       update_car()
@@ -1004,8 +1015,9 @@ function draw_ewe_ai()
    print(prev_sect, 2, 36, dim_grey)
    print(next_sect, 120, 36, dim_grey)
 
-   if level.complete_at then
+   if game_state == game_state_level_done then
       rectfill(8, 62, 120, 88, dim_grey)
+      print('press ❎ to continue', 10, 56, white)
       print('all deliveries complete!', 10, 64, white)
       local offset = 10
       local score  = 0
@@ -1078,7 +1090,7 @@ function _draw()
 
    draw_car()
 
-   if game_state == game_state_delivering then
+   if game_state == game_state_delivering or game_state == game_state_level_done then
       draw_ewe_ai()
    elseif game_state == game_state_menu then
       -- print('can you do all your deliveries', 2, 32, white)

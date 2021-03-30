@@ -372,17 +372,22 @@ function on_ramp(car_x)
    local car_y = next_y
    for r in all(ramps) do
       local rx0 = r.angle < 90 and r.x or r.x + r.width
-      if r.angle < 90 then
-         local rx1, ry1 = ramp_trig(rx0, r.y, r.hypot, r.angle)
-         if (car_x > rx0 and car_x < rx1) and car_y >= ry1 then
-            -- debug('on ramp ', car_x, ' > ', rx0, ' and ', car_x, ' < ', rx1, ' and ', car_y, ' >= ', ry1, '[', r.angle, ' ; ', r.hypot, ']')
-            return r
-         end
-      else
-         local rx1, ry1 = ramp_trig(rx0, r.y, r.hypot, r.angle)
-         if (car_x > rx1 and car_x < rx0) and car_y >= ry1 then
-            -- debug('on ramp ', car_x, ' > ', rx1, ' and ', car_x, ' < ', rx0, ' and ', car_y, ' >= ', ry1, '[', r.angle, ' ; ', r.hypot, ']')
-            return r
+      local ra = car_x - rx0
+      local rb = max(car.speed, g_car_line - car.y)
+      local rc = sqrt((ra*ra)+(rb*rb))
+      local ry1 = rc * sin(r.angle * r_step)
+
+      if car_y >= (g_car_line+ry1) then
+         if r.angle < 90 then
+            local rx1 = ramp_trig(rx0, r.y, r.hypot, r.angle)
+            if car_x > rx0 and car_x < rx1 then
+               return r
+            end
+         else
+            local rx1 = ramp_trig(rx0, r.y, r.hypot, r.angle)
+            if car_x > rx1 and car_x < rx0 then
+               return r
+            end
          end
       end
    end

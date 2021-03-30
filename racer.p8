@@ -987,7 +987,7 @@ function clock_time(n)
       if(flr(hours / 12) % 2 != 0) meridiem = 'PM'
       if(hours % 24 == 0) then
          hours = 0
-      else
+      elseif hours != 12 then
          hours = hours % 12
       end
    end
@@ -1032,7 +1032,7 @@ function draw_ewe_ai()
       end
    end
    local remaining = count(level.deliveries, function(d) return not d.delivered end)
-   if remaining > 2 then
+   if remaining > 3 then
       print(tostr(remaining - 3) .. ' remaining', 2, 25, white)
    end
 

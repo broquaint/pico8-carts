@@ -121,11 +121,11 @@ function make_level(len, start, count, gap)
 end
 
 levels = {
-   make_level(20, 600,  5,  12),
-   make_level(25, 700,  7,  12),
-   make_level(30, 800,  9,  11),
-   make_level(35, 900,  11, 10),
-   make_level(40, 1000, 13, 10),
+   make_level(20, 600,  4,  12),
+   make_level(27, 700,  6,  12),
+   make_level(33, 800,  8,  11),
+   make_level(39, 900,  9,  10),
+   make_level(44, 1000, 10, 10),
 }
 
 current_level = 1
@@ -588,6 +588,9 @@ function update_car()
       init_game(levels[current_level])
       music(0)
       game_state = game_state_delivering
+   elseif game_state == game_state_complete and btnp(b_x) then
+      current_level = 1
+      game_state = game_state_menu
    end
 
    -- Don't consider speed as it hasn't yet been calculated
@@ -768,7 +771,11 @@ function handle_deliveries()
                local del_count = count(level.deliveries, function(d) return d.delivered end)
                if #level.deliveries == del_count then
                   level.complete_at = level.t
-                  game_state = game_state_level_done
+                  if current_level < #levels then
+                     game_state = game_state_level_done
+                  else
+                     game_state = game_state_complete
+                  end
                end
                return
             end
@@ -784,7 +791,7 @@ function handle_deliveries()
 end
 
 function _update()
-   if game_state == game_state_delivering or game_state == game_state_level_done then
+   if game_state == game_state_delivering or game_state == game_state_level_done or game_state == game_state_complete then
       update_scene()
 
       update_car()
@@ -1110,6 +1117,11 @@ function draw_car()
    render_sprite(s, car.x, car.y, flip)
 end
 
+function draw_ending()
+   rectfill(8, 8, 96, 120, dim_grey)
+   print('the day is done, go and rest', 10, 32, white)
+end
+
 function _draw()
    cls(silver)
 
@@ -1123,6 +1135,8 @@ function _draw()
 
    if game_state == game_state_delivering or game_state == game_state_level_done then
       draw_ewe_ai()
+   elseif game_state == game_state_complete then
+      draw_ending()
    elseif game_state == game_state_menu then
       render_sprite(spr_title, 0, 0)
       -- print('can you do all your deliveries', 2, 32, white)

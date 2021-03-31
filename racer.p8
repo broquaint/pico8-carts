@@ -101,7 +101,8 @@ locations = {
 }
 
 function _init()
-   init_game(levels[current_level])
+   init_progress()
+   init_level(levels[current_level])
 end
 
 function make_level(len, start, count, gap)
@@ -117,6 +118,7 @@ function make_level(len, start, count, gap)
       delivery_gap = gap,
       lhs = g_edge_lhs,
       delivery_id = 1,
+      started_at = -1,
    }
 end
 
@@ -130,7 +132,20 @@ levels = {
 
 current_level = 1
 
-function init_game(lvl)
+progress = {}
+function init_progress()
+   progress = {
+      level_times = {},
+      overall_time = 0,
+      delivery_count = 0,
+      customer_satisfaction = {},
+      robot_help = {},
+      jumps = 0,
+      launches = 0,
+   }
+end
+
+function init_level(lvl)
    car = {
       x = 16,
       y = g_car_line,
@@ -155,6 +170,7 @@ function init_game(lvl)
 
    -- For easy of use everywhere else.
    level = lvl
+   level.started_at = t()
 
    scene = { make_bg_spr(spr_flag, { 0, 88 }) }
 
@@ -364,12 +380,14 @@ function car_launch()
    if not in_air() then
       car.launched = true
       car.jumping  = false
+      progress.launches += 1
    end
 end
 
 function car_jump()
    car.launched = false
    car.jumping  = true
+   progress.jumps += 1
 end
 
 function car_land()
@@ -585,12 +603,13 @@ function update_car()
       end
    elseif game_state == game_state_level_done and btnp(b_x) then
       current_level += 1
-      init_game(levels[current_level])
+      init_level(levels[current_level])
       music(0)
       game_state = game_state_delivering
    elseif game_state == game_state_complete and btnp(b_x) then
       current_level = 1
       game_state = game_state_menu
+      init_progress()
    end
 
    -- Don't consider speed as it hasn't yet been calculated
@@ -767,10 +786,21 @@ function handle_deliveries()
             if level.t - car.del_start > g_del_time then
                del.delivered = true
                del.done_at = level.t
+
+               local rem = del.due - del.done_at
+               del.score = rem > 12 and 4 or rem > 6 and 3 or rem > 0 and 2 or 1
+
                car.del_start = 0
                local del_count = count(level.deliveries, function(d) return d.delivered end)
                if #level.deliveries == del_count then
                   level.complete_at = level.t
+
+                  local lvl_time = t() - level.started_at
+                  add(progress.level_times, lvl_time)
+                  progress.overall_time += lvl_time
+                  add(progress.customer_satisfaction, {calc_level_score()})
+                  progress.delivery_count += #level.deliveries
+
                   if current_level < #levels then
                      game_state = game_state_level_done
                   else
@@ -1011,6 +1041,13 @@ function clock_time(n)
    return hour_s .. ':' .. min_s .. meridiem
 end
 
+score_colour_map = {
+   red,
+   salmon,
+   yellow,
+   white,
+}
+
 function draw_ewe_ai()
    print('level ' .. current_level, 92, 2, white)
    local by = 10
@@ -1056,16 +1093,15 @@ function draw_ewe_ai()
       print('press ❎ to continue', 10, 56, white)
       print('all deliveries complete!', 10, 64, white)
       local offset = 10
-      local score  = 0
       for d in all(level.deliveries) do
          local rem = d.due - d.done_at
          local res_col = rem > 12 and white or rem > 6 and yellow or rem > 0 and salmon or red
-         print('⌂', offset, 72, res_col)
+         print('⌂', offset, 72, score_colour_map[d.score])
          offset += 10
-         score += (rem > 12 and 4 or rem > 6 and 3 or rem > 0 and 2 or 1)
       end
-      local total = 4 * #level.deliveries
-      print('customer satisfaction ' .. score .. '/' .. total, 10, 80, white)
+
+      local level_score, total = calc_level_score()
+      print('customer satisfaction ' .. level_score .. '/' .. total, 10, 80, white)
       if any(level.deliveries, function(d) return d.for_robots end) then
          rectfill(8, 88, 120, 96)
          print('robot revolution begins', 10, 90, lime)
@@ -1077,6 +1113,14 @@ function draw_ewe_ai()
       local jumpstate = in_air() and '⬆️' or '-'
       print(dumper(dbg, ' ', nice_pos(car.dy), ' -> ', car.speed, ' ', jumpstate), 2, 122, azure)
    end
+end
+
+function calc_level_score()
+   local ls = 0
+   for d in all(level.deliveries) do
+      ls += d.score
+   end
+   return ls, 4 * #level.deliveries
 end
 
 function draw_car_debug()
@@ -1118,8 +1162,17 @@ function draw_car()
 end
 
 function draw_ending()
-   rectfill(8, 8, 96, 120, dim_grey)
+   cls(dim_grey)
    print('the day is done, go and rest', 10, 32, white)
+   print('deliveries ' .. progress.delivery_count .. ' in ' .. nice_pos(progress.overall_time) .. 's', 10, 40)
+   print('customer satisfaction:', 10, 48)
+   local offset = 56
+   for lvl, ls in pairs(progress.customer_satisfaction) do
+      print('level ' .. lvl .. ' - ' .. ls[1] .. '/' .. ls[2] .. ' in ' .. nice_pos(progress.level_times[lvl]) .. 's', 16, offset)
+      offset += 8
+   end
+   print('ramp jumps ' .. progress.launches .. ', car jumps ' .. progress.jumps, 10, offset + 8)
+   print('press ❎ to start again', 10, offset + 16)
 end
 
 function _draw()

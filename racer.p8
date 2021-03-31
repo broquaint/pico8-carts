@@ -284,7 +284,7 @@ function populate_geometry()
          ))
 
          if not any(level.deliveries, function(d) return d.section.id == s.id + 1 end) then
-            add(platforms, make_obj({r.x + 100, g_racing_line - 25}, {width = 80}))
+            add(platforms, make_obj({r.x + 100, g_racing_line - 25}, {width = 80, section = s}))
          end
       end
    end
@@ -778,11 +778,17 @@ function handle_deliveries()
                   new_del.for_robots = true
                   new_del.section.for_robots = true
                   add_delivery(level.deliveries, new_del)
+                  for idx, p in pairs(platforms) do
+                     if p.section.id == new_del.section.id-1 then
+                        deli(platforms, idx)
+                     end
+                  end
                elseif btnp(b_z) then
                   level.prompt_for_help = false
                   level.will_help = false
                end
             end
+
             if level.t - car.del_start > g_del_time then
                del.delivered = true
                del.done_at = level.t

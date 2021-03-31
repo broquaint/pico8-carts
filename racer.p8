@@ -139,6 +139,7 @@ function make_level(len, start, count, gap)
       lhs = g_edge_lhs,
       delivery_id = 1,
       started_at = -1,
+      complete_at = -1,
    }
 end
 
@@ -1195,22 +1196,24 @@ function draw_car()
 end
 
 function draw_ending()
-   cls(dim_grey)
-   print('the day is done, go and rest', 10, 16, white)
-   print('deliveries ' .. progress.delivery_count .. ' in ' .. nice_pos(progress.overall_time) .. 's', 10, 24)
-   print('customer satisfaction:', 10, 32)
+   cls(violet)
+   print('the day is done, go and rest', 6, 16, white)
+   print('deliveries ' .. progress.delivery_count .. ' in ' .. nice_pos(progress.overall_time) .. 's', 6, 24)
+   print('customer satisfaction:', 6, 32)
    local offset = 40
    for lvl, ls in pairs(progress.customer_satisfaction) do
       print('level ' .. lvl .. ' - ' .. ls[1] .. '/' .. ls[2] .. ' in ' .. nice_pos(progress.level_times[lvl]) .. 's', 16, offset)
       offset += 8
    end
    if progress.robot_help > 0 then
-      print(revolution_progress[progress.robot_help], 10, offset, lime)
+      print(revolution_progress[progress.robot_help], 6, offset, lime)
    end
-   print('ramp jumps ' .. progress.launches .. ', car jumps ' .. progress.jumps, 10, offset + 8, white)
+   print('ramp jumps ' .. progress.launches .. ', car jumps ' .. progress.jumps, 6, offset + 8, white)
    if level.t > (level.complete_at + 3) then
-      print('press ❎ to start again', 10, offset + 16)
+      print('press ❎ to start again', 6, offset + 16)
    end
+
+   print('thanks gruber for the music!', 6, offset + 32)
 end
 
 function _draw()

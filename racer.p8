@@ -322,13 +322,11 @@ function make_delivery(deliveries)
       end
       return true
    end
-   function rand_location_in_section(s)
-      return function() return s.x + flr(s.width / 2) end
-   end
 
    local loc   = find_free(rand_location, is_free_location)
    local sec   = find_free(rand_section, is_section_free)
-   local del_x = find_free(rand_location_in_section(sec), is_tile_free)
+   -- Just go with the middle of the section for consistency.
+   local del_x = sec.x + flr(sec.width / 2)
 
    sec.has_delivery = true
 

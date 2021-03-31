@@ -276,7 +276,7 @@ function populate_geometry()
          local new_x = s.x + randx(30)
 
          add(boosters, make_booster(
-                { x = new_x, boost = 1.1, width = randx(30) + 10 }
+                { x = new_x, boost = 1.1, width = randx(20) + 15 }
          ))
 
          local l = make_ramp(
@@ -290,7 +290,7 @@ function populate_geometry()
          add(ramps, r)
 
          add(boosters, make_booster(
-                { x = r.x+r.width+10, boost = 1.1, width = randx(30) + 10 }
+                { x = r.x+r.width+10, boost = 1.1, width = randx(20) + 15 }
          ))
 
          if not any(level.deliveries, function(d) return d.section.id == s.id + 1 end) then

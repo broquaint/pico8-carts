@@ -916,12 +916,30 @@ function draw_ramp(r, rx)
    end
 end
 
+function high_low_dels()
+   local del_offset = 0
+   local hi = -1
+   local lo = 99
+   for d in all(level.deliveries) do
+      if not d.delivered and del_offset < 3 then
+         if(d.section.id > hi) hi = d.section.id
+         if(d.section.id < lo) lo = d.section.id
+         del_offset +=1
+      end
+   end
+   return hi, lo
+end
+
 function draw_scene()
    for obj in all(scene) do
       local x = wrapped_x(obj)
       if should_draw(x, obj.width) then
          -- Flag fiddliness, prolly worth splitting it out.
          if obj.spr == spr_flag then
+            if game_state == game_state_delivering or game_state == game_state_level_done then
+               local hi, lo = high_low_dels()
+               print('<- ⌂ ' .. hi .. ' ◆ ' .. lo .. ' ⌂ ->', x + 10, obj.y - 10, white)
+            end
             palt(0, false)
             palt(1, true)
          else

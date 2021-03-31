@@ -100,7 +100,27 @@ locations = {
    make_location(spr_house_tam_dao, 'tam dao villa'),
 }
 
+revolution_progress = {
+   'robot revolution begins',
+   'robots get organised',
+   'robots foment discontent',
+   'means of production seized',
+   'utopia established'
+}
+
 function _init()
+   levels = {
+      make_level(20, 600,  4,  12),
+      make_level(27, 700,  6,  12),
+      make_level(33, 800,  8,  11),
+      make_level(39, 900,  9,  10),
+      make_level(44, 1000, 10, 10),
+   }
+
+   current_level = 1
+
+   progress = {}
+
    init_progress()
    init_level(levels[current_level])
 end
@@ -114,6 +134,7 @@ function make_level(len, start, count, gap)
       delivery_time = start + gap, -- change as deliveries are added
       prompt_for_help = true,
       will_help = false,
+      ask_at = randx(count - 2) + 1,
       delivery_count = count,
       delivery_gap = gap,
       lhs = g_edge_lhs,
@@ -122,17 +143,6 @@ function make_level(len, start, count, gap)
    }
 end
 
-levels = {
-   make_level(20, 600,  4,  12),
-   make_level(27, 700,  6,  12),
-   make_level(33, 800,  8,  11),
-   make_level(39, 900,  9,  10),
-   make_level(44, 1000, 10, 10),
-}
-
-current_level = 1
-
-progress = {}
 function init_progress()
    progress = {
       level_times = {},
@@ -144,14 +154,6 @@ function init_progress()
       launches = 0,
    }
 end
-
-revolution_progress = {
-   'robot revolution begins',
-   'robots get organised',
-   'robots foment discontent',
-   'means of production seized',
-   'utopia established'
-}
 
 function init_level(lvl)
    car = {
@@ -775,8 +777,9 @@ function handle_deliveries()
                end
                sfx(del_sfx, 2)
             end
+
             -- Don't prompt on the first delivery.
-            if any(level.deliveries, function(d) return d.delivered end) then
+            if del.id == level.ask_at then
                if btn(b_x) and level.prompt_for_help then
                   level.prompt_for_help = false
                   level.will_help = true
@@ -784,6 +787,8 @@ function handle_deliveries()
                   new_del.for_robots = true
                   new_del.section.for_robots = true
                   add_delivery(level.deliveries, new_del)
+
+                  -- Remove any platform over new delivery.
                   for idx, p in pairs(platforms) do
                      if p.section.id == new_del.section.id-1 then
                         deli(platforms, idx)
@@ -983,11 +988,9 @@ function draw_scene()
                rectfill(del_x,     105, dw,     dy1, white)
                rectfill(del_x + 1, 105, dw - 1, dy1, magenta)
                -- Don't prompt on the first delivery.
-               if any(level.deliveries, function(d) return d.delivered end) then
-                  if level.prompt_for_help then
-                     print('help the robots?', 20, 54, white)
-                     print(' ❎ ok 🅾️ no way', 40, 60, white)
-                  end
+               if d.id == level.ask_at and level.prompt_for_help then
+                  print('help the robots?', 20, 54, white)
+                  print(' ❎ ok 🅾️ no way', 40, 60, white)
                end
             else
                rectfill(del_x,     105, dw,     127, dim_grey)

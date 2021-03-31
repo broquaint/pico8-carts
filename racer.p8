@@ -1045,12 +1045,9 @@ function draw_scene()
          end
       end
 
-      local prev_sect = -1
-      local next_sect = -1
-      if #ds == 1 then
-         prev_sect = tonum(ds[1].id) - 1
-         next_sect = tonum(ds[1].id) + 1
-      else
+      local prev_sect = tonum(ds[1].id) - 1
+      local next_sect = tonum(ds[1].id) + 1
+      if #ds > 1 and ds[2].x < 64 then
          prev_sect = tonum(ds[1].id)
          next_sect = tonum(ds[2].id) + 1
       end

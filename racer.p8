@@ -139,11 +139,19 @@ function init_progress()
       overall_time = 0,
       delivery_count = 0,
       customer_satisfaction = {},
-      robot_help = {},
+      robot_help = 0,
       jumps = 0,
       launches = 0,
    }
 end
+
+revolution_progress = {
+   'robot revolution begins',
+   'robots get organised',
+   'robots foment discontent',
+   'means of production seized',
+   'utopia established'
+}
 
 function init_level(lvl)
    car = {
@@ -807,6 +815,10 @@ function handle_deliveries()
                   add(progress.customer_satisfaction, {calc_level_score()})
                   progress.delivery_count += #level.deliveries
 
+                  if(any(level.deliveries, function(d) return d.for_robots end)) then
+                     progress.robot_help += 1
+                  end
+
                   if current_level < #levels then
                      game_state = game_state_level_done
                   else
@@ -1102,8 +1114,6 @@ function draw_ewe_ai()
          local msg    =  before .. ' ⌂ '.. d.section.id
          if(d.for_robots) msg = msg .. ' 😐'
          print(msg, 2, del_y, col)
-         rectfill(66, del_y, 71, del_y + 4, white)
-         rectfill(67, del_y+1, 70, del_y + 3, d.section.colour)
          del_offset += 1
       end
    end
@@ -1128,7 +1138,7 @@ function draw_ewe_ai()
       print('customer satisfaction ' .. level_score .. '/' .. total, 10, 80, white)
       if any(level.deliveries, function(d) return d.for_robots end) then
          rectfill(8, 88, 120, 96)
-         print('robot revolution begins', 10, 90, lime)
+         print(revolution_progress[progress.robot_help], 10, 90, lime)
       end
    end
 
@@ -1195,7 +1205,10 @@ function draw_ending()
       print('level ' .. lvl .. ' - ' .. ls[1] .. '/' .. ls[2] .. ' in ' .. nice_pos(progress.level_times[lvl]) .. 's', 16, offset)
       offset += 8
    end
-   print('ramp jumps ' .. progress.launches .. ', car jumps ' .. progress.jumps, 10, offset + 8)
+   if progress.robot_help > 0 then
+      print(revolution_progress[progress.robot_help], 10, offset, lime)
+   end
+   print('ramp jumps ' .. progress.launches .. ', car jumps ' .. progress.jumps, 10, offset + 8, white)
    print('press ❎ to start again', 10, offset + 16)
 end
 

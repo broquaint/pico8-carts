@@ -1,10 +1,9 @@
 pico-8 cartridge // http://www.pico-8.com
-version 30
+version 32
 __lua__
 
-
 -- Credits:
--- Gruber — the music is "Morning Shower" from "Pico-8 Tunes Vol. 2",
+-- Gruber - the music is "Morning Shower" from "Pico-8 Tunes Vol. 2",
 -- it is amazing, I am very grateful. Source:
 -- https://www.lexaloffle.com/bbs/?tid=33675
 

@@ -7,7 +7,7 @@ __lua__
 -- it is amazing, I am very grateful. Source:
 -- https://www.lexaloffle.com/bbs/?tid=33675
 
-IS_DEV_BUILD = true
+IS_DEV_BUILD = false
 
 -- Brain won't map colours to numbers so get computer to do it
 black    = 0 navy     = 1 magenta  = 2 green    = 3
@@ -1197,7 +1197,7 @@ end
 
 function draw_ending()
    cls(violet)
-   print('the day is done, go and rest', 6, 16, white)
+   print('the day is done, go and rest!', 6, 16, white)
    print('deliveries ' .. progress.delivery_count .. ' in ' .. nice_pos(progress.overall_time) .. 's', 6, 24)
    print('customer satisfaction:', 6, 32)
    local offset = 40

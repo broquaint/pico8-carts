@@ -607,7 +607,7 @@ function _update()
       end
    else
       if(running_time > time_limit) then
-         printh("Ran out of time at " .. t() .. " started " .. begin .. " extra time " .. extra_time .. " - time limit was " .. time_limit)
+         -- printh("Ran out of time at " .. t() .. " started " .. begin .. " extra time " .. extra_time .. " - time limit was " .. time_limit)
          gamestate = state_no_void
          lvldone = t()
          sfx(6)

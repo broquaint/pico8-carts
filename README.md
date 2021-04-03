@@ -13,7 +13,8 @@ maybe more. Now seemed like a good a time as any to play about with
 * `voidseeker.p8` — Void Seeker is an attempt at a game about "Going
   into the Void", but really it's a basic exploration of how to make
   PICO-8 go. Now available [on itch.io](https://broquaint.itch.io/void-seeker).
-* `racer.p8` — A possible entry for [Eggjam 2][].
+* `gofastedeliverthings.p8` — An entry for [Eggjam 2][], now available
+  on [itch.io](https://broquaint.itch.io/go-fast-deliver-things).
 * `trig.p8` — An exploration of trigonometric functions of PICO–8.
 * `scratch.p8` — The closest thing I have to a REPL.
 

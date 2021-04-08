@@ -5,8 +5,11 @@ __lua__
 
 #include utils.lua
 
-lvl={up={},down={}}
+terrain={up={},down={}}
 function _init()
+   local lvl={up={},down={}}
+
+   -- Generate slopes
    for _=1,10 do
       local go_up       = randx(2) > 1
       local offset_up   = randx(20)
@@ -18,6 +21,25 @@ function _init()
          offset_up   += go_up and -2 or 2
          offset_down += go_up and  2 or -2
       end
+   end
+
+   local function calc_terrain_step(lvl, i, x, terr)
+      local from = lvl[i]
+      local to   = lvl[i+1]
+      local step = -(from-to) / 8
+      local y    = from
+      for j = 1,8 do
+         add(terr, { x=x, y=y })
+         x+=2
+         y+=step
+      end
+   end
+   -- Calculate terrain
+   local x = 0
+   for i = 1, #lvl.up - 1 do
+      calc_terrain_step(lvl.up,   i, x, terrain.up)
+      calc_terrain_step(lvl.down, i, x, terrain.down)
+      x += 16
    end
 end
 
@@ -46,36 +68,31 @@ function _update()
    camera(flr(cam_x))
 end
 
+function draw_terrain(terr, do_draw)
+   local px0 = player_x + cam_x
+   local px1 = px0 + 8
+   local py0 = player_y
+   local py1 = py0 + 8
+
+   for pos in all(terr) do
+      local colour = violet
+      if (px0 >= pos.x and px0 <= (pos.x+2))
+      or (px1 >= pos.x and px1 <= (pos.x+2)) then
+         colour = salmon
+      end
+      do_draw(pos.x, pos.y, colour)
+   end
+end
+
 function _draw()
    cls(navy)
 
-   local x = 0
-   for i = 1,#lvl.up - 1 do
-      local from = lvl.up[i]
-      local to   = lvl.up[i+1]
-      local step = -(from-to) / 8
-      local y = from
-      for j = 1,8 do
-         -- dump_once(x, ' x ', y, ' [',from,'-',to,']')
-         rectfill(x, 0, x+2, y, violet)
-         x+=2
-         y+=step
-      end
-   end
-
-   local x = 0
-   for i = 1,#lvl.down - 1 do
-      local from = lvl.down[i]
-      local to   = lvl.down[i+1]
-      local step = -(from-to) / 8
-      local y    = from
-      for j = 1,8 do
-         --dump_once(x, ' x ', y, ' [',from,'-',to,']')
-         rectfill(x, 128, x+2, 128-y, violet)
-         x+=2
-         y+=step
-      end
-   end
+   draw_terrain(terrain.up, function(x, y, colour)
+                   rectfill(x, 0, x+2, y, colour)
+   end)
+   draw_terrain(terrain.down, function(x, y, colour)
+                   rectfill(x, 128, x+2, 128-y, colour)
+   end)
 
    -- line(0, 64, 128+cam_x, 64, yellow)
    spr(1, flr(player_x + cam_x), player_y)

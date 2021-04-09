@@ -47,25 +47,76 @@ cam_x=0
 cam_speed = 1
 player_x = 8
 player_y = 64
+
+g_max_speed = 5
+g_min_speed = 1
+
+function did_collide(terr, x, y, test)
+   local px0 = x + cam_x
+   local px1 = px0 + 8
+   local py0 = y
+   local py1 = py0 + 8
+
+   for pos in all(terr) do
+      if test(pos, px0, px1, py0, py1) then
+         return true
+      end
+   end
+
+   return false
+end
+
+function did_collide_up(x, y)
+   local function coll_test(pos, px0, px1, py0, py1)
+      return ((px0 >= pos.x and px0 <= (pos.x+2))
+           or (px1 >= pos.x and px1 <= (pos.x+2)))
+         and py0 < pos.y
+   end
+
+   return did_collide(terrain.up, x, y, coll_test)
+end
+
+function did_collide_down(x, y)
+   local function coll_test(pos, px0, px1, py0, py1)
+      return ((px0 >= pos.x and px0 <= (pos.x+2))
+           or (px1 >= pos.x and px1 <= (pos.x+2)))
+         and py1 > (128-pos.y)
+   end
+
+   return did_collide(terrain.down, x, y, coll_test)
+end
+
 function _update()
+   local next_x = player_x
+   local next_y = player_y
+   local next_s = cam_speed
    if btn(b_right) then
-      player_x += 1
-      cam_speed += 0.25
+      next_x += 1
+      -- TODO Momentum!
+      next_s = min(g_max_speed, max(0.2, cam_speed) * 1.1)
    end
    if btn(b_left) then
-      player_x -= 1
-      cam_speed -= 0.25
+      next_x -= 1
+      next_s = max(g_min_speed, cam_speed * 0.9)
    end
    if btn(b_up) then
-      player_y -= 1
+      next_y -= 1
    end
    if btn(b_down) then
-      player_y += 1
+      next_y += 1
    end
 
-   cam_x += cam_speed
+   if did_collide_up(next_x, next_y) or did_collide_down(next_x, next_y) then
+      dump('collided at ',next_x,'x',next_y)
+   else
+      player_x  = next_x
+      player_y  = next_y
+      cam_speed = next_s
 
-   camera(flr(cam_x))
+      cam_x += cam_speed
+
+      camera(flr(cam_x))
+   end
 end
 
 function draw_terrain(terr, do_draw)

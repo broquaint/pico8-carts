@@ -58,6 +58,9 @@ player_y = 64
 g_max_speed = 5
 g_min_speed = 1
 
+-- td = terrain_depth
+g_td = 15
+
 function did_collide(terr, x, y, test)
    local px0 = x + cam_x
    local px1 = px0 + 8
@@ -75,9 +78,10 @@ end
 
 function did_collide_up(x, y)
    local function coll_test(pos, px0, px1, py0, py1)
+      local pos_top = max(1, pos.y - g_td)
       return ((px0 >= pos.x and px0 <= (pos.x+2))
            or (px1 >= pos.x and px1 <= (pos.x+2)))
-         and py0 < pos.y
+         and py0 < pos_top
    end
 
    return did_collide(terrain.up, x, y, coll_test)
@@ -85,9 +89,10 @@ end
 
 function did_collide_down(x, y)
    local function coll_test(pos, px0, px1, py0, py1)
+      local pos_top = pos.y - g_td
       return ((px0 >= pos.x and px0 <= (pos.x+2))
            or (px1 >= pos.x and px1 <= (pos.x+2)))
-         and py1 > (128-pos.y)
+         and py1 > (128-pos_top)
    end
 
    return did_collide(terrain.down, x, y, coll_test)
@@ -152,11 +157,11 @@ function _draw()
 
    draw_terrain(terrain.up, function(x, y, colour)
                    rectfill(x, 0, x+2, y, colour)
-                   rectfill(x, 0, x+2, y-15, black)
+                   rectfill(x, 0, x+2, y-g_td, black)
    end)
    draw_terrain(terrain.down, function(x, y, colour)
                    rectfill(x, 128, x+2, 128-y, colour)
-                   rectfill(x, 128, x+2, 128-(y-15), black)
+                   rectfill(x, 128, x+2, 128-(y-g_td), black)
    end)
 
    -- line(0, 64, 128+cam_x, 64, yellow)

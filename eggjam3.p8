@@ -10,16 +10,21 @@ function _init()
    local lvl={up={},down={}}
 
    -- Generate slopes
-   for _=1,10 do
+   for l=1,10 do
       local go_up       = randx(2) > 1
-      local offset_up   = randx(20)
-      local offset_down = randx(20)
+      local offset_up   = randx(20) + (l*2)
+      local offset_down = randx(20) + (l*2)
       for _=1,16 do
-         add(lvl.up,   randx(40) + offset_up)
-         add(lvl.down, randx(40) + offset_down)
+         local up = randx(30) + offset_up
+         add(lvl.up,   up)
+         local down = randx(30) + offset_down
+         if (down + up + 8) >= 118 then
+            down -= randx(5) + 10
+         end
+         add(lvl.down, down)
          -- Random slopes so the middle isn't totally safe
-         offset_up   += go_up and -2 or 2
-         offset_down += go_up and  2 or -2
+         offset_up   = max(1, offset_up   + (go_up and -2 or 2))
+         offset_down = max(1, offset_down + (go_up and  2 or -2))
       end
    end
 

@@ -28,22 +28,24 @@ function _init()
       end
    end
 
-   local function calc_terrain_step(lvl, i, x, terr)
-      local from = lvl[i]
-      local to   = lvl[i+1]
+   local function calc_terrain_step(terr, from, to, x, tc)
       local step = -(from-to) / 8
       local y    = from
       for j = 1,8 do
-         add(terr, { x=x, y=y })
+         add(terr, { x=x, y=y, colour=tc })
          x+=2
          y+=step
       end
    end
+
+   local colours = {brown,dim_grey,magenta,violet,dim_grey}
    -- Calculate terrain
    local x = 0
    for i = 1, #lvl.up - 1 do
-      calc_terrain_step(lvl.up,   i, x, terrain.up)
-      calc_terrain_step(lvl.down, i, x, terrain.down)
+      local tc_up = colours[randx(#colours)]
+      local tc_down = colours[randx(#colours)]
+      calc_terrain_step(terrain.up, lvl.up[i], lvl.up[i+1], x, tc_up)
+      calc_terrain_step(terrain.down, lvl.down[i], lvl.down[i+1], x, tc_down)
       x += 16
    end
 end
@@ -131,12 +133,17 @@ function draw_terrain(terr, do_draw)
    local py1 = py0 + 8
 
    for pos in all(terr) do
-      local colour = violet
-      if (px0 >= pos.x and px0 <= (pos.x+2))
-      or (px1 >= pos.x and px1 <= (pos.x+2)) then
-         colour = salmon
+      local pcx = pos.x - cam_x
+      -- Only draw onscreen terrain
+      if pcx > -4 and pcx < 132 then
+         local colour = nil
+         if (px0 >= pos.x and px0 <= (pos.x+2))
+            or (px1 >= pos.x and px1 <= (pos.x+2)) then
+            colour = salmon
+         end
+
+         do_draw(pos.x, pos.y, colour or pos.colour)
       end
-      do_draw(pos.x, pos.y, colour)
    end
 end
 
@@ -145,15 +152,17 @@ function _draw()
 
    draw_terrain(terrain.up, function(x, y, colour)
                    rectfill(x, 0, x+2, y, colour)
+                   rectfill(x, 0, x+2, y-15, black)
    end)
    draw_terrain(terrain.down, function(x, y, colour)
                    rectfill(x, 128, x+2, 128-y, colour)
+                   rectfill(x, 128, x+2, 128-(y-15), black)
    end)
 
    -- line(0, 64, 128+cam_x, 64, yellow)
    spr(1, flr(player_x + cam_x), player_y)
 
-   print(dumper('@ ', cam_x), cam_x + 2, 2, white)
+   print(dumper('<| ', cam_x), cam_x + 2, 2, white)
 end
 
 __gfx__

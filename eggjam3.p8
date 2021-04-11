@@ -58,13 +58,21 @@ function _init()
    end
 end
 
-cam_x=0
+cam_x = 0
 cam_speed = 1
+
 player_x = 8
 player_y = 64
+player_speed_vert  = 0
+player_speed_horiz = 0
+
+collided = false
 
 g_max_speed = 5
 g_min_speed = 1
+
+g_friction = 0.88
+g_accel    = 0.3
 
 -- td = terrain_depth
 g_td = 15
@@ -110,27 +118,40 @@ function _update()
    local next_x = player_x
    local next_y = player_y
    local next_s = cam_speed
+
    if btn(b_right) then
       next_x += 1
-      -- TODO Momentum!
       next_s = min(g_max_speed, max(0.2, cam_speed) * 1.1)
    end
    if btn(b_left) then
       next_x -= 1
       next_s = max(g_min_speed, cam_speed * 0.9)
    end
+
    if btn(b_up) then
-      next_y -= 1
-   end
-   if btn(b_down) then
-      next_y += 1
+      player_speed_vert -= g_accel
+      -- next_y -= 1
+   elseif btn(b_down) then
+      player_speed_vert += g_accel
+      -- next_y += 1
+   else
+      player_speed_vert *= g_friction
    end
 
+   next_y += player_speed_vert
+
    if did_collide_up(next_x, next_y) or did_collide_down(next_x, next_y) then
-      dump('collided at ',next_x,'x',next_y)
+      -- dump('collided at ',next_x,'x',next_y)
+      collided = true
    else
+      collided = false
+   end
+
+   player_y = next_y
+
+   if not collided then
       player_x  = next_x
-      player_y  = next_y
+
       cam_speed = next_s
 
       cam_x += cam_speed

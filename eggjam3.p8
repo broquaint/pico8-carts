@@ -145,8 +145,12 @@ function _update()
 
    if did_collide_up(next_x, next_y) then
       collided = { up = true,  down = false }
+      player_speed_horiz = 0
+      cam_speed = g_min_speed
    elseif did_collide_down(next_x, next_y) then
       collided = { up = false, down = true }
+      player_speed_horiz = 0
+      cam_speed = g_min_speed
    else
       collided = { up = false, down = false }
    end

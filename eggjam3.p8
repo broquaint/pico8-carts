@@ -66,13 +66,16 @@ player_y = 64
 player_speed_vert  = 0
 player_speed_horiz = 0
 
-collided = false
+collided = { up = false, down = false}
 
-g_max_speed = 5
+g_max_speed = 6
 g_min_speed = 1
 
-g_friction = 0.88
-g_accel    = 0.3
+g_friction = 0.9
+g_accel_fwd  = 0.2
+g_accel_back = 0.4
+g_accel_vert = 0.3
+
 
 -- td = terrain_depth
 g_td = 15
@@ -120,41 +123,47 @@ function _update()
    local next_s = cam_speed
 
    if btn(b_right) then
-      next_x += 1
+      player_speed_horiz = min(g_max_speed, player_speed_horiz + g_accel_fwd)
       next_s = min(g_max_speed, max(0.2, cam_speed) * 1.1)
-   end
-   if btn(b_left) then
-      next_x -= 1
-      next_s = max(g_min_speed, cam_speed * 0.9)
+   elseif btn(b_left) then
+      player_speed_horiz = max(-2.5, player_speed_horiz - g_accel_back)
+      next_s = max(g_min_speed, cam_speed * 0.95)
+   else
+      player_speed_horiz *= g_friction
    end
 
    if btn(b_up) then
-      player_speed_vert -= g_accel
-      -- next_y -= 1
+      player_speed_vert -= g_accel_vert
    elseif btn(b_down) then
-      player_speed_vert += g_accel
-      -- next_y += 1
+      player_speed_vert += g_accel_vert
    else
-      player_speed_vert *= g_friction
+      player_speed_vert = abs(player_speed_vert) > 0.05 and player_speed_vert * g_friction or 0
    end
 
-   next_y += player_speed_vert
+   next_y = player_speed_vert > 0 and flr(player_speed_vert + next_y) or -flr(-player_speed_vert) + next_y
 
-   if did_collide_up(next_x, next_y) or did_collide_down(next_x, next_y) then
-      -- dump('collided at ',next_x,'x',next_y)
-      collided = true
+   if did_collide_up(next_x, next_y) then
+      collided = { up = true,  down = false }
+   elseif did_collide_down(next_x, next_y) then
+      collided = { up = false, down = true }
    else
-      collided = false
+      collided = { up = false, down = false }
    end
 
-   player_y = next_y
+   if (not collided.up and next_y < player_y)
+      or (not collided.down and next_y > player_y) then
+      player_y = flr(next_y)
+   end
 
-   if not collided then
-      player_x  = next_x
+   if not collided.up and not collided.down then
+      next_x += player_speed_horiz
+      if next_x > 8 and next_x < 96 then
+         player_x = flr(next_x)
+      end
 
       cam_speed = next_s
 
-      cam_x += cam_speed
+      cam_x += flr(cam_speed)
 
       camera(flr(cam_x))
    end
@@ -196,7 +205,7 @@ function _draw()
    -- line(0, 64, 128+cam_x, 64, yellow)
    spr(1, flr(player_x + cam_x), player_y)
 
-   print(dumper('<| ', cam_x), cam_x + 2, 2, white)
+   print(dumper('<| ', cam_x, ' -> ', cam_speed, ' @> ', player_speed_horiz, ' @^ ', player_speed_vert), cam_x + 2, 2, white)
 end
 
 __gfx__

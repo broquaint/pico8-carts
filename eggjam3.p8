@@ -12,14 +12,14 @@ function _init()
    -- Generate slopes
    for l=1,10 do
       local go_up       = randx(2) > 1
-      local offset_up   = randx(20) + (l*2)
-      local offset_down = randx(20) + (l*2)
+      local offset_up   = randx(20) + (l*3)
+      local offset_down = randx(20) + (l*3)
       for _=1,16 do
          local up = randx(30) + offset_up
          add(lvl.up,   up)
          local down = randx(30) + offset_down
          if (down + up + 8) >= 118 then
-            down -= randx(5) + 10
+            down -= randx(5) + 8
          end
          add(lvl.down, down)
          -- Random slopes so the middle isn't totally safe
@@ -32,13 +32,14 @@ function _init()
       local step = -(from-to) / 8
       local y    = from
       for j = 1,8 do
-         add(terr, { x=x, y=y, colour=tc })
+         local c  = ({azure,lime,red,yellow})[randx(4)]
+         add(terr, { x=x, y=y, colour=tc, texture=(randx(20)<2 and {c=c,y=-3+randx(y-g_td)}) })
          x+=2
          y+=step
       end
    end
 
-   local colours = {{brown,dim_grey},{magenta,violet},{silver,white}}
+   local colours = {{silver,dim_grey},{magenta,violet},{silver,white}}
    -- Calculate terrain
    local x = 0
    for i = 1, #lvl.up - 2, 2 do
@@ -179,27 +180,38 @@ function draw_terrain(terr, do_draw)
       local pcx = pos.x - cam_x
       -- Only draw onscreen terrain
       if pcx > -4 and pcx < 132 then
-         local colour = nil
-         if (px0 >= pos.x and px0 <= (pos.x+2))
-            or (px1 >= pos.x and px1 <= (pos.x+2)) then
-            colour = salmon
-         end
-
-         do_draw(pos.x, pos.y, colour or pos.colour)
+         do_draw(pos)
       end
    end
+end
+
+function draw_terrain_texture(x, y, c)
+   pset(x,   y, white)
+   pset(x-1, y,   c)
+   pset(x+1, y,   c)
+   pset(x,   y-1, c)
+   pset(x,   y+1, c)
 end
 
 function _draw()
    cls(navy)
 
-   draw_terrain(terrain.up, function(x, y, colour)
-                   rectfill(x, 0, x+2, y, colour)
-                   rectfill(x, 0, x+2, y-g_td, black)
+   draw_terrain(terrain.up, function(t)
+                   rectfill(t.x, t.y-g_td, t.x+2, t.y, t.colour)
+                   rectfill(t.x, 0, t.x+2, t.y-g_td, black)
+                   if t.texture then
+                      draw_terrain_texture(t.x, t.texture.y, t.texture.c)
+                   end
    end)
-   draw_terrain(terrain.down, function(x, y, colour)
-                   rectfill(x, 128, x+2, 128-y, colour)
-                   rectfill(x, 128, x+2, 128-(y-g_td), black)
+   draw_terrain(terrain.down, function(t)
+                   local w      = t.x + 2
+                   local from_y = 128 - t.y
+                   local to_y   = 128 - (t.y - g_td)
+                   rectfill(t.x, from_y, w, to_y, t.colour)
+                   rectfill(t.x, 128, w, to_y, black)
+                   if t.texture then
+                      draw_terrain_texture(t.x, 128-t.texture.y, t.texture.c)
+                   end
    end)
 
    -- line(0, 64, 128+cam_x, 64, yellow)

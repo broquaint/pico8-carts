@@ -5,9 +5,6 @@ __lua__
 
 #include utils.lua
 
-terrain={up={},down={}}
-objects={}
-
 function make_obj(attr)
    return merge({
       at = t(),
@@ -42,7 +39,26 @@ function animate(obj)
    add(anims, obj)
 end
 
-function _init()
+function start_escape()
+   cam_x = 0
+   cam_speed = 1
+
+   player_x = 8
+   player_y = 64
+   player_speed_vert  = 0
+   player_speed_horiz = 0
+
+   player_fuel = 100
+
+   frame_count = 0
+
+   collided = { up = false, down = false}
+end
+
+function generate_terrain()
+   terrain={up={},down={}}
+   objects={}
+
    local lvl={up={},down={}}
 
    -- Generate slopes
@@ -51,10 +67,10 @@ function _init()
       local offset_up   = randx(20) + (l*3)
       local offset_down = randx(20) + (l*3)
       for _ = 1,16 do
-         local up = randx(30) + offset_up
+         local up = 8 + randx(30) + offset_up
          add(lvl.up,   up)
          local down = randx(30) + offset_down
-         if (down + up + 8) >= 118 then
+         if (down + up + 8) >= 110 then
             down -= randx(5) + 8
          end
          add(lvl.down, down)
@@ -103,15 +119,10 @@ function _init()
    end
 end
 
-cam_x = 0
-cam_speed = 1
-
-player_x = 8
-player_y = 64
-player_speed_vert  = 0
-player_speed_horiz = 0
-
-collided = { up = false, down = false}
+function _init()
+   start_escape()
+   generate_terrain()
+end
 
 g_max_speed = 6
 g_min_speed = 1
@@ -173,6 +184,8 @@ function run_animations()
 end
 
 function _update()
+   frame_count += 1
+
    run_animations()
 
    local next_x = player_x
@@ -212,7 +225,7 @@ function _update()
    end
 
    if (not collided.up and next_y < player_y)
-      or (not collided.down and next_y > player_y) then
+   or (not collided.down and next_y > player_y) then
       player_y = flr(next_y)
    end
 
@@ -227,6 +240,13 @@ function _update()
       cam_x += flr(cam_speed)
 
       camera(flr(cam_x))
+
+      if frame_count % 30 == 0 then
+         local next_f = player_fuel - max(1, cam_speed * 0.5)
+         player_fuel = next_f >= 0 and next_f or 0
+      end
+   else
+      player_fuel = (player_fuel > 0.5) and (player_fuel - 0.5) or 0
    end
 
    for obj in all(objects) do
@@ -299,7 +319,11 @@ function _draw()
       sspr(4, 10, 3, 5, px - (3+flr(cam_speed)), player_y+2, 2+cam_speed, 5)
    end
 
-   print(dumper('<| ', cam_x, ' -> ', cam_speed, ' @> ', player_speed_horiz, ' @^ ', player_speed_vert), cam_x + 2, 2, white)
+   rectfill(cam_x, 0, cam_x+128, 8, silver)
+   print('fuel ', cam_x+2, 2, white)
+   rectfill(cam_x+20, 1, cam_x+20+player_fuel, 7, player_fuel > 30 and yellow or orange)
+   print(nice_pos(player_fuel), cam_x+22, 2, player_fuel > 30 and orange or red)
+   if(DEBUG) print(dumper('<| ', cam_x, ' -> ', cam_speed, ' @> ', player_speed_horiz, ' @^ ', player_speed_vert, ' F',frame_count), cam_x + 2, 11, yellow)
 end
 
 __gfx__

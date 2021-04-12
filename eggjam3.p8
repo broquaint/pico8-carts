@@ -183,6 +183,11 @@ function run_animations()
    end
 end
 
+function consume_fuel(n)
+   local next_f = player_fuel - n
+   player_fuel = next_f >= 0 and next_f or 0
+end
+
 function _update()
    frame_count += 1
 
@@ -198,6 +203,9 @@ function _update()
    elseif btn(b_left) then
       player_speed_horiz = max(-2.5, player_speed_horiz - g_accel_back)
       next_s = max(g_min_speed, cam_speed * 0.95)
+      if flr(cam_speed) > g_min_speed then
+         consume_fuel(max(0.05, cam_speed * 0.1))
+      end
    else
       player_speed_horiz *= g_friction
    end
@@ -242,11 +250,10 @@ function _update()
       camera(flr(cam_x))
 
       if frame_count % 30 == 0 then
-         local next_f = player_fuel - max(1, cam_speed * 0.5)
-         player_fuel = next_f >= 0 and next_f or 0
+         consume_fuel(max(1, cam_speed * 0.5))
       end
    else
-      player_fuel = (player_fuel > 0.5) and (player_fuel - 0.5) or 0
+      consume_fuel(0.5)
    end
 
    for obj in all(objects) do

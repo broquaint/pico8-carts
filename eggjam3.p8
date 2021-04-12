@@ -6,15 +6,52 @@ __lua__
 #include utils.lua
 
 terrain={up={},down={}}
+objects={}
+
+function make_obj(attr)
+   return merge({
+      at = t(),
+      x = 120, y = 32,
+      from = 32, to = 96,
+      frames = 60,
+      colour = azure,
+      animating = false,
+      alive = true
+      }, attr)
+end
+
+anims={}
+function animate(obj)
+   function easeout(t)
+      t-=1
+      return 1-t*t
+   end
+
+   function lerp(a,b,t)
+      return a+(b-a)*t
+   end
+
+   obj.co = cocreate(function()
+         obj.animating = true
+         for f = 1, obj.frames do
+            obj.y = lerp(obj.from, obj.to, easeout(f/obj.frames))
+            yield()
+         end
+         obj.alive = false
+   end)
+   coresume(obj.co)
+   add(anims, obj)
+end
+
 function _init()
    local lvl={up={},down={}}
 
    -- Generate slopes
-   for l=1,10 do
+   for l = 1,10 do
       local go_up       = randx(2) > 1
       local offset_up   = randx(20) + (l*3)
       local offset_down = randx(20) + (l*3)
-      for _=1,16 do
+      for _ = 1,16 do
          local up = randx(30) + offset_up
          add(lvl.up,   up)
          local down = randx(30) + offset_down
@@ -56,6 +93,14 @@ function _init()
       calc_terrain_step(terrain.down, lvl.down[i], lvl.down[i+1], x, tc_down[2])
 
       x += 16
+
+      if x % 128 == 0 then
+         local oy = terrain.up[#terrain.up].y
+         local obj = make_obj(
+            { y=oy, x=x, from=oy, to=128-terrain.down[#terrain.down].y }
+         )
+         add(objects, obj)
+      end
    end
 end
 
@@ -118,7 +163,20 @@ function did_collide_down(x, y)
    return did_collide(terrain.down, x, y, coll_test)
 end
 
+function run_animations()
+   for obj in all(anims) do
+      if costatus(obj.co) != 'dead' then
+         coresume(obj.co)
+      else
+         del(anims, obj)
+         if(obj.callback) obj.callback()
+      end
+   end
+end
+
 function _update()
+   run_animations()
+
    local next_x = player_x
    local next_y = player_y
    local next_s = cam_speed
@@ -172,6 +230,17 @@ function _update()
 
       camera(flr(cam_x))
    end
+
+   for obj in all(objects) do
+      if (obj.x - cam_x) < 120 and not obj.animating then
+         animate(obj)
+      end
+   end
+end
+
+function on_screen(x)
+   local pcx = x - cam_x
+   return pcx > -4 and pcx < 132
 end
 
 function draw_terrain(terr, do_draw)
@@ -181,9 +250,7 @@ function draw_terrain(terr, do_draw)
    local py1 = py0 + 8
 
    for pos in all(terr) do
-      local pcx = pos.x - cam_x
-      -- Only draw onscreen terrain
-      if pcx > -4 and pcx < 132 then
+      if on_screen(pos.x) then
          do_draw(pos)
       end
    end
@@ -217,6 +284,12 @@ function _draw()
                       draw_terrain_texture(t.x, 128-t.texture.y, t.texture.c)
                    end
    end)
+
+   for obj in all(objects) do
+      if obj.alive and on_screen(obj.x) then
+         circfill(obj.x, obj.y, 4, obj.colour)
+      end
+   end
 
    local px = flr(player_x + cam_x)
    -- Player "ship"

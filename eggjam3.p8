@@ -69,9 +69,12 @@ function generate_terrain()
       for _ = 1,16 do
          local up = 8 + randx(30) + offset_up
          add(lvl.up,   up)
-         local down = randx(30) + offset_down
-         if (down + up + 8) >= 110 then
-            down -= randx(5) + 8
+         local down = 128 - (randx(30) + offset_down)
+         -- Prevent up and down meeting in the middle.
+         if (down-up) < 10 then
+            -- local wasd=down
+            down += randx(5) + 8
+            -- dump('rounded down from ', wasd, ' to ', down, ', up is ', up)
          end
          add(lvl.down, down)
          -- Random slopes so the middle isn't totally safe
@@ -85,7 +88,7 @@ function generate_terrain()
       local y    = from
       for j = 1,8 do
          local c  = ({azure,lime,red,yellow})[randx(4)]
-         add(terr, { x=x, y=y, colour=tc, texture=(randx(20)<2 and {c=c,y=-3+randx(y-g_td)}) })
+         add(terr, { x=x, y=y, colour=tc, from=from,to=to, texture=(randx(20)<2 and {c=c,offset=randx(20)}) })
          x+=2
          y+=step
       end
@@ -112,7 +115,7 @@ function generate_terrain()
       if x % 128 == 0 and randx(3) > 1 then
          local oy = terrain.up[#terrain.up].y - 4
          local obj = make_obj(
-            { y=oy, x=x, from=oy, to=128-terrain.down[#terrain.down].y }
+            { y=oy, x=x, from=oy, to=terrain.down[#terrain.down].y }
          )
          add(objects, obj)
       end
@@ -163,10 +166,9 @@ end
 
 function did_collide_down(x, y)
    local function coll_test(pos, px0, px1, py0, py1)
-      local pos_top = pos.y - g_td
       return ((px0 >= pos.x and px0 <= (pos.x+2))
            or (px1 >= pos.x and px1 <= (pos.x+2)))
-         and py1 > (128-pos_top)
+         and py1 > (pos.y+g_td)
    end
 
    return did_collide(terrain.down, x, y, coll_test)
@@ -293,20 +295,20 @@ function _draw()
    cls(navy)
 
    draw_terrain(terrain.up, function(t)
-                   rectfill(t.x, t.y-g_td, t.x+2, t.y, t.colour)
-                   rectfill(t.x, 0, t.x+2, t.y-g_td, black)
+                   local from_y = t.y - g_td
+                   rectfill(t.x, from_y, t.x+2, t.y, t.colour)
+                   rectfill(t.x, 0, t.x+2, from_y, black)
                    if t.texture then
-                      draw_terrain_texture(t.x, t.texture.y, t.texture.c)
+                      draw_terrain_texture(t.x, from_y - t.texture.offset, t.texture.c)
                    end
    end)
    draw_terrain(terrain.down, function(t)
                    local w      = t.x + 2
-                   local from_y = 128 - t.y
-                   local to_y   = 128 - (t.y - g_td)
-                   rectfill(t.x, from_y, w, to_y, t.colour)
+                   local to_y   = t.y + g_td
+                   rectfill(t.x, t.y, w, to_y, t.colour)
                    rectfill(t.x, 128, w, to_y, black)
                    if t.texture then
-                      draw_terrain_texture(t.x, 128-t.texture.y, t.texture.c)
+                      draw_terrain_texture(t.x, to_y + t.texture.offset, t.texture.c)
                    end
    end)
 
@@ -328,8 +330,11 @@ function _draw()
 
    rectfill(cam_x, 0, cam_x+128, 8, silver)
    print('fuel ', cam_x+2, 2, white)
-   rectfill(cam_x+20, 1, cam_x+20+player_fuel, 7, player_fuel > 30 and yellow or orange)
+   local fuel_bar_width = 84 * (player_fuel/100)
+   rectfill(cam_x+20, 1, cam_x+20+fuel_bar_width, 7, player_fuel > 30 and yellow or orange)
    print(nice_pos(player_fuel), cam_x+22, 2, player_fuel > 30 and orange or red)
+   print(nice_pos(t()), cam_x+107, 2, white)
+
    if(DEBUG) print(dumper('<| ', cam_x, ' -> ', cam_speed, ' @> ', player_speed_horiz, ' @^ ', player_speed_vert, ' F',frame_count), cam_x + 2, 11, yellow)
 end
 

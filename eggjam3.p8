@@ -87,12 +87,15 @@ function generate_terrain()
       end
    end
 
+   local tex_col  = ({azure,lime,red,yellow})[randx(4)]
    local function calc_terrain_step(terr, from, to, x, tc)
       local step = -(from-to) / 8
       local y    = from
       for j = 1,8 do
-         local c  = ({azure,lime,red,yellow})[randx(4)]
-         add(terr, { x=x, y=y, colour=tc, from=from,to=to, texture=(randx(20)<2 and {c=c,offset=randx(20)}) })
+         add(terr, {
+                x=x, y=y, colour=tc,
+                from=from,to=to,
+                texture=(randx(20)<2 and make_obj({c=tex_col,offset=randx(20),wink=white})) })
          x+=2
          y+=step
       end
@@ -288,12 +291,20 @@ function draw_terrain(terr, do_draw)
    end
 end
 
-function draw_terrain_texture(x, y, c)
-   pset(x,   y, white)
+function draw_terrain_texture(x, y, t)
+   local c = t.c
+   pset(x,   y,   t.wink)
    pset(x-1, y,   c)
    pset(x+1, y,   c)
    pset(x,   y-1, c)
    pset(x,   y+1, c)
+   if not t.animating and on_screen(x) then
+      animate(t, function()
+                 if frame_count % 30 == 0 then
+                    t.wink = t.wink == white and navy or white
+                 end
+      end)
+   end
 end
 
 function _draw()
@@ -304,7 +315,7 @@ function _draw()
                    rectfill(t.x, from_y, t.x+2, t.y, t.colour)
                    rectfill(t.x, 0, t.x+2, from_y, black)
                    if t.texture then
-                      draw_terrain_texture(t.x, from_y - t.texture.offset, t.texture.c)
+                      draw_terrain_texture(t.x, from_y - t.texture.offset, t.texture)
                    end
    end)
    draw_terrain(terrain.down, function(t)
@@ -313,7 +324,7 @@ function _draw()
                    rectfill(t.x, t.y, w, to_y, t.colour)
                    rectfill(t.x, 128, w, to_y, black)
                    if t.texture then
-                      draw_terrain_texture(t.x, to_y + t.texture.offset, t.texture.c)
+                      draw_terrain_texture(t.x, to_y + t.texture.offset, t.texture)
                    end
    end)
 

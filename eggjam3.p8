@@ -298,12 +298,8 @@ function draw_terrain_texture(x, y, t)
    pset(x+1, y,   c)
    pset(x,   y-1, c)
    pset(x,   y+1, c)
-   if not t.animating and on_screen(x) then
-      animate(t, function()
-                 if frame_count % 30 == 0 then
-                    t.wink = t.wink == white and navy or white
-                 end
-      end)
+   if frame_count % 30 == 0 then
+      t.wink = t.wink == white and navy or white
    end
 end
 

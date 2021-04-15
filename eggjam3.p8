@@ -138,6 +138,8 @@ function generate_terrain()
                       y=up_y+randx(gap),
                       x=x,
                       anim_at=1,
+                      fuel_used=false,
+                      crashed=false,
                       alive=true,
                       cb=function()end,
             }))
@@ -213,6 +215,31 @@ function consume_fuel(n)
    player_fuel = next_f >= 0 and next_f or 0
 end
 
+function check_objects(x, y)
+   local px0 = x + cam_x
+   local px1 = px0 + 8
+   local py0 = y
+   local py1 = py0 + 8
+
+   for obj in all(objects) do
+      if on_screen(obj.x) then
+         if obj.type == o_fuel_ring and not obj.fuel_used and not obj.crashed then
+            if px0 > (obj.x+4) then
+               local ry0 = obj.y
+               local ry1 = ry0 + 14
+               if py0 > ry0 and py1 < ry1 then
+                  player_fuel = min(100, player_fuel + 10)
+                  obj.fuel_used = true
+               elseif (py0 < ry0 and py1 > ry0) or (py0 < ry1 and py1 > ry1) then
+                  obj.crashed = true
+                  animate(obj, animate_ring_crash)
+               end
+            end
+         end
+      end
+   end
+end
+
 function _update()
    frame_count += 1
 
@@ -254,6 +281,7 @@ function _update()
       player_speed_horiz = 0
       cam_speed = g_min_speed
    else
+      check_objects(next_x, next_y)
       collided = { up = false, down = false }
    end
 
@@ -301,10 +329,24 @@ ring_sprites = {
 function animate_ring(r)
    while on_screen(r.x) do
       for frame = 1,21 do
+         if(r.crashed) return
          r.anim_at = -flr(-(frame/7))
          yield()
       end
    end
+end
+
+function animate_ring_crash(r)
+   r.crashed = 0
+   for f=1,119 do
+      if f % 30 == 0 then
+         r.crashed += 1
+      end
+      yield()
+   end
+   for f=1,60 do yield() end
+   -- Move it off screen
+   r.x = -1
 end
 
 function on_screen(x)
@@ -348,6 +390,7 @@ function draw_ring_half(ring, side)
       rs[1] = rs[1] + flr(rs[3] / 2)
       rs[3] = -flr(-(rs[3] / 2))
       add(rs, ring.x+4)
+      if(ring.crashed) rs[#rs] += ring.crashed
    end
 
    add(rs, ring.y)

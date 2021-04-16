@@ -15,11 +15,15 @@ function make_obj(attr)
 end
 
 function delay(f, n)
-   animate(make_obj({}), function() for _=1,n do yield() end f() end)
+   animate(function() for _=1,n do yield() end f() end)
+end
+
+function animate(f)
+   animate_obj({}, f)
 end
 
 anims={}
-function animate(obj, animation)
+function animate_obj(obj, animation)
    obj.co = cocreate(function()
          obj.animating = true
          animation(obj)
@@ -39,24 +43,27 @@ function animate_move(obj)
       return a+(b-a)*t
    end
 
-   animate(obj, function()
+   animate_obj(obj, function()
               for f = 1, obj.frames do
+                 if(obj.crashed) return
                  obj.y = lerp(obj.from, obj.to, easein(f/obj.frames))
                  yield()
               end
    end)
 end
 
+g_fuel_max = 50
+
 function start_escape()
    cam_x = 0
    cam_speed = 1
 
-   player_x = 8
+   player_x = 16
    player_y = 64
    player_speed_vert  = 0
    player_speed_horiz = 0
 
-   player_fuel = 100
+   player_fuel = g_fuel_max
 
    frame_count = 0
 
@@ -132,9 +139,15 @@ function generate_terrain()
       if gap > 20 then
          if x % 128 == 0 and randx(3) > 1 then
             local oy  = up_y - 4
-            local obj = make_obj(
-               { type=o_stalactite, y=oy, x=x, from=oy, to=down_y, frames=40, alive=true, cb=function(o) o.alive=false end }
-            )
+            local obj = make_obj({
+                  type=o_stalactite,
+                  y=oy, x=x,
+                  from=oy, to=down_y,
+                  frames=40,
+                  alive=true,
+                  crashed=false,
+                  cb=function(o) o.alive=false end
+            })
             add(objects, obj)
          elseif x % 96 == 0 then -- and randx(5) > 3 then
             add(objects, make_obj({
@@ -227,17 +240,41 @@ function check_objects(x, y)
 
    for obj in all(objects) do
       if on_screen(obj.x) then
-         if obj.type == o_fuel_ring and not obj.fuel_used and not obj.crashed then
-            if px0 > (obj.x+4) then
+         if obj.type == o_stalactite and obj.alive and not obj.crashed then
+            local sx0 = obj.x
+            local sx1 = sx0 + 8
+            local sy0 = obj.y
+            local sy1 = sy0 + 8
+            if  ((px0 > sx0 and px0 < sx1) or (px1 > sx0 and px1 < sx1))
+            and ((py0 > sy0 and py0 < sy1) or (py1 > sy0 and py1 < sy1)) then
+               consume_fuel(7)
+               obj.crashed = true
+               animate(function()
+                     local orig_x = obj.x
+                     local orig_s = cam_speed
+                     for f=1,49 do
+                        if f % 10 == 0 then
+                           obj.x = obj.x > 0 and -1 or orig_x
+                        end
+                        yield()
+                     end
+                     obj.x = -1
+               end)
+               return g_min_speed
+            end
+         elseif obj.type == o_fuel_ring and not obj.fuel_used and not obj.crashed then
+            if px1 > (obj.x+4) then
                local ry0 = obj.y
                local ry1 = ry0 + 14
                if py0 > ry0 and py1 < ry1 then
-                  player_fuel = min(100, player_fuel + 10)
+                  player_fuel = min(g_fuel_max, player_fuel + 4)
                   obj.fuel_used = frame_count
                   delay(function() obj.x = -1 end, 45)
+                  return cam_speed * 1.5
                elseif (py0 < ry0 and py1 > ry0) or (py0 < ry1 and py1 > ry1) then
                   obj.crashed = true
-                  animate(obj, animate_ring_crash)
+                  consume_fuel(2)
+                  animate_obj(obj, animate_ring_crash)
                end
             end
          end
@@ -286,7 +323,8 @@ function _update()
       player_speed_horiz = 0
       cam_speed = g_min_speed
    else
-      check_objects(next_x, next_y)
+      local new_s = check_objects(next_x, next_y)
+      if(new_s) next_s = min(g_max_speed, new_s)
       collided = { up = false, down = false }
    end
 
@@ -297,7 +335,7 @@ function _update()
 
    if not collided.up and not collided.down then
       next_x += player_speed_horiz
-      if next_x > 8 and next_x < 96 then
+      if next_x > 16 and next_x < 96 then
          player_x = flr(next_x)
       end
 
@@ -316,10 +354,10 @@ function _update()
 
    for obj in all(objects) do
       if not obj.animating and obj.alive and on_screen(obj.x) then
-         if obj.type == o_stalactite and obj.x - (cam_x+player_x) < 60 then
+         if obj.type == o_stalactite and not obj.crashed and obj.x - (cam_x+player_x) < 60 then
             animate_move(obj)
          elseif obj.type == o_fuel_ring and not(obj.fuel_used or obj.crashed) then
-            animate(obj, function(r) animate_ring(r) end)
+            animate_obj(obj, function(r) animate_ring(r) end)
          end
       end
    end
@@ -439,7 +477,8 @@ function _draw()
    for obj in all(objects) do
       if on_screen(obj.x) then
          if obj.type == o_stalactite then
-            spr(obj.alive and 2 or 3, obj.x, obj.y)
+            local s = obj.crashed and 4 or (obj.alive and 2 or 3)
+            spr(s, obj.x, obj.y)
          elseif obj.type == o_fuel_ring then
             draw_ring_half(obj, 'back')
             add(ring_halves, obj)
@@ -463,7 +502,7 @@ function _draw()
 
    rectfill(cam_x, 0, cam_x+128, 8, silver)
    print('fuel ', cam_x+2, 2, white)
-   local fuel_bar_width = 84 * (player_fuel/100)
+   local fuel_bar_width = 84 * (player_fuel/g_fuel_max)
    rectfill(cam_x+20, 1, cam_x+20+fuel_bar_width, 7, player_fuel > 30 and yellow or orange)
    print(nice_pos(player_fuel), cam_x+22, 2, player_fuel > 30 and orange or red)
    print(nice_pos(t()), cam_x+107, 2, white)
@@ -473,12 +512,12 @@ end
 
 __gfx__
 00000000066666600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000065aaaa5605500550000005500000000000000009aa0000000000000aaa00000000000009990000000000000000000000000000000000000000000000
-007007006aacaca60655556000055560000000000000009000a00000000000a000a00000000000a0009000000000000000000000000000000000000000000000
-000770006aacaca606655660006556600000000000000900000a000000000a00000a000000000a00000900000000000000000000000000000000000000000000
-000770006a9aaaa600666600006656000000000000000900000a000000000a000009000000000a00000900000000000000000000000000000000000000000000
-007007006aa99aa60066660011655600000000000000a0000000a00000009000000090000000a000000090000000000000000000000000000000000000000000
-0000000065aaaa560007700001157110000000000000a0000000a00000009000000090000000a0000000a0000000000000000000000000000000000000000000
+0000000065aaaa5605500550000005500550055000000009aa0000000000000aaa00000000000009990000000000000000000000000000000000000000000000
+007007006aacaca60655556000055560065555600000009000a00000000000a000a00000000000a0009000000000000000000000000000000000000000000000
+000770006aacaca606655660006556600065666000000900000a000000000a00000a000000000a00000900000000000000000000000000000000000000000000
+000770006a9aaaa600666600006656000005560000000900000a000000000a000009000000000a00000900000000000000000000000000000000000000000000
+007007006aa99aa60066660011655600000656000000a0000000a00000009000000090000000a000000090000000000000000000000000000000000000000000
+0000000065aaaa560007700001157110000050000000a0000000a00000009000000090000000a0000000a0000000000000000000000000000000000000000000
 00000000066666600000000000000011000000000000a0000000a00000009000000090000000a0000000a0000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000a0000000900000009000000090000000a0000000a0000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000a0000000900000009000000090000000a0000000a0000000000000000000000000000000000000000000

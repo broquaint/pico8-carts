@@ -14,6 +14,10 @@ function make_obj(attr)
       }, attr)
 end
 
+function delay(f, n)
+   animate(make_obj({}), function() for _=1,n do yield() end f() end)
+end
+
 anims={}
 function animate(obj, animation)
    obj.co = cocreate(function()
@@ -229,7 +233,8 @@ function check_objects(x, y)
                local ry1 = ry0 + 14
                if py0 > ry0 and py1 < ry1 then
                   player_fuel = min(100, player_fuel + 10)
-                  obj.fuel_used = true
+                  obj.fuel_used = frame_count
+                  delay(function() obj.x = -1 end, 45)
                elseif (py0 < ry0 and py1 > ry0) or (py0 < ry1 and py1 > ry1) then
                   obj.crashed = true
                   animate(obj, animate_ring_crash)
@@ -313,7 +318,7 @@ function _update()
       if not obj.animating and obj.alive and on_screen(obj.x) then
          if obj.type == o_stalactite and obj.x - (cam_x+player_x) < 60 then
             animate_move(obj)
-         elseif obj.type == o_fuel_ring then
+         elseif obj.type == o_fuel_ring and not(obj.fuel_used or obj.crashed) then
             animate(obj, function(r) animate_ring(r) end)
          end
       end
@@ -329,7 +334,7 @@ ring_sprites = {
 function animate_ring(r)
    while on_screen(r.x) do
       for frame = 1,21 do
-         if(r.crashed) return
+         if(r.crashed or r.fuel_used) return
          r.anim_at = -flr(-(frame/7))
          yield()
       end
@@ -393,8 +398,20 @@ function draw_ring_half(ring, side)
       if(ring.crashed) rs[#rs] += ring.crashed
    end
 
+   if ring.fuel_used then
+      if frame_count - ring.fuel_used < 30 then
+         pal(orange, brown)
+         pal(yellow, orange)
+      else
+         pal(orange, magenta)
+         pal(yellow, brown)
+      end
+   end
+
    add(rs, ring.y)
    sspr(unpack(rs))
+
+   pal()
 end
 
 function _draw()

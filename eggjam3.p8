@@ -94,11 +94,11 @@ function generate_terrain()
       end
    end
 
-   local tex_col  = ({azure,lime,red,yellow})[randx(4)]
    local function calc_terrain_step(terr, from, to, x, tc)
       local step = -(from-to) / 8
       local y    = from
       for j = 1,8 do
+         local tex_col = ({azure,lime,red,yellow})[randx(4)]
          add(terr, {
                 x=x, y=y, colour=tc,
                 from=from,to=to,

@@ -115,7 +115,7 @@ function generate_terrain()
       end
    end
 
-   local colours = {{silver,dim_grey},{magenta,violet},{silver,white}}
+   local colours = {{dim_grey,silver},{magenta,violet},{silver,white}}
    -- Calculate terrain
    local x = 0
    for i = 1, #lvl.up - 2, 2 do
@@ -123,13 +123,18 @@ function generate_terrain()
       local tc_down = colours[i < 60 and 2 or i < 120 and 1 or 3]
 
       calc_terrain_step(terrain.up,   lvl.up[i],   lvl.up[i+1],   x, tc_up[1])
-      calc_terrain_step(terrain.down, lvl.down[i], lvl.down[i+1], x, tc_down[1])
+      local from, to = lvl.down[i], lvl.down[i+1]
+      local tc = from > to and tc_down[1] or tc_down[2]
+      calc_terrain_step(terrain.down, from, to, x, tc)
 
       x += 16
       i += 1
 
+      from, to = lvl.down[i], lvl.down[i+1]
+      tc = from > to and tc_down[1] or tc_down[2]
+
       calc_terrain_step(terrain.up,   lvl.up[i],   lvl.up[i+1],   x, tc_up[2])
-      calc_terrain_step(terrain.down, lvl.down[i], lvl.down[i+1], x, tc_down[2])
+      calc_terrain_step(terrain.down, lvl.down[i], lvl.down[i+1], x, tc)
 
       x += 16
 
@@ -138,7 +143,7 @@ function generate_terrain()
       local gap    = down_y - up_y
       if gap > 20 then
          if x % 128 == 0 and randx(3) > 1 then
-            local oy  = up_y - 4
+            local oy  = up_y - g_td
             local obj = make_obj({
                   type=o_stalactite,
                   y=oy, x=x,
@@ -201,7 +206,7 @@ end
 
 function did_collide_up(x, y)
    local function coll_test(pos, px0, px1, py0, py1)
-      local pos_top = max(1, pos.y - g_td)
+      local pos_top = max(1, pos.y)
       return ((px0 >= pos.x and px0 <= (pos.x+2))
            or (px1 >= pos.x and px1 <= (pos.x+2)))
          and py0 < pos_top
@@ -467,8 +472,8 @@ function _draw()
    cls(navy)
 
    draw_terrain(terrain.up, function(t)
-                   local from_y = t.y - g_td
-                   rectfill(t.x, from_y, t.x+2, t.y, t.colour)
+                   local from_y = t.y - 4
+                   rectfill(t.x, from_y, t.x+2, t.y, dim_grey)
                    rectfill(t.x, 0, t.x+2, from_y, black)
                    if t.texture then
                       draw_terrain_texture(t.x, from_y - t.texture.offset, t.texture)

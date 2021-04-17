@@ -165,8 +165,7 @@ function generate_terrain()
                       anim_at=1,
                       fuel_used=false,
                       crashed=false,
-                      alive=true,
-                      cb=function()end,
+                      alive=true
             }))
          end
       end
@@ -396,7 +395,7 @@ function animate_ring(r)
 end
 
 function animate_ring_crash(r)
-   r.crashed = 0
+   r.crashed = 1
    for f=1,119 do
       if f % 30 == 0 then
          r.crashed += 1
@@ -518,10 +517,10 @@ function _draw()
 
    rectfill(cam_x, 0, cam_x+128, 8, silver)
    print('fuel ', cam_x+2, 2, white)
-   local fuel_bar_width = 84 * (player_fuel/g_fuel_max)
+   local fuel_bar_width = 78 * (player_fuel/g_fuel_max)
    rectfill(cam_x+20, 1, cam_x+20+fuel_bar_width, 7, player_fuel > 15 and yellow or orange)
    print(nice_pos(player_fuel), cam_x+22, 2, player_fuel > 30 and orange or red)
-   print(nice_pos(t()), cam_x+107, 2, white)
+   print('⧗'..nice_pos(frame_count/30), cam_x+99, 2, white)
 
    if(DEBUG) print(dumper('<| ', cam_x, ' -> ', cam_speed, ' @> ', player_speed_horiz, ' @^ ', player_speed_vert, ' F',frame_count), cam_x + 2, 11, yellow)
 end

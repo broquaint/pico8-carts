@@ -307,10 +307,10 @@ function _update()
    local next_s = cam_speed
 
    if btn(b_right) then
-      player_speed_horiz = min(g_max_speed, player_speed_horiz + g_accel_fwd)
+      player_speed_horiz = min(g_max_speed, player_speed_horiz == 0 and 1 or player_speed_horiz + g_accel_fwd)
       next_s = min(g_max_speed, max(0.2, cam_speed) * 1.1)
    elseif btn(b_left) then
-      player_speed_horiz = max(-2.5, player_speed_horiz - g_accel_back)
+      player_speed_horiz = max(-2.5, player_speed_horiz == 0 and -1 or player_speed_horiz - g_accel_back)
       next_s = max(g_min_speed, cam_speed * 0.95)
       if flr(cam_speed) > g_min_speed then
          consume_fuel(max(0.05, cam_speed * 0.1))
@@ -320,10 +320,10 @@ function _update()
    end
 
    if btn(b_up) then
-      player_speed_vert -= g_accel_vert
+      player_speed_vert = player_speed_vert == 0 and -1 or (player_speed_vert - g_accel_vert)
    elseif btn(b_down) then
-      player_speed_vert += g_accel_vert
-   else
+      player_speed_vert = player_speed_vert == 0 and 1 or (player_speed_vert + g_accel_vert)
+    else
       player_speed_vert = abs(player_speed_vert) > 0.05 and player_speed_vert * g_friction or 0
    end
 

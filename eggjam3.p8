@@ -324,14 +324,19 @@ function check_objects(x, y)
             local cy0 = py0+4
             local cy1 = cy0+4
             if  (cx1 >= obj.x and cx1 < obj.x+4)
-            and (cy0 > obj.y and cy1 < obj.y+obj.spr[3]) then
+            and (cy0 >= obj.y and cy1 <= obj.y+obj.spr[3]) then
                obj.collected = true
                collecting_form = obj
                add(collected_forms, obj)
                player_speed_vert  = 0
                animate(function()
+                     obj.dw = obj.spr[3]
+                     obj.dh = obj.spr[4]
                      while claw.extending do
-                        obj.x = flr(player_x + cam_x) + 12 + claw.length 
+                        obj.x = flr(player_x + cam_x) + 11 + claw.length
+                        obj.dw = max(0, obj.dw - 0.25)
+                        obj.dh = max(0, obj.dw - 0.25)
+                        obj.y += 0.15
                         yield()
                      end
                      obj.x = -1
@@ -590,6 +595,8 @@ function _draw()
             local s = copy_table(obj.spr)
             add(s, obj.x)
             add(s, obj.y)
+            add(s, obj.dw or s[3])
+            add(s, obj.dh or s[4])
             sspr(unpack(s))
          end
       end

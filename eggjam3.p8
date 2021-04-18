@@ -82,17 +82,17 @@ function generate_terrain()
    -- Generate slopes
    for l = 1,10 do
       local go_up       = randx(2) > 1
-      local offset_up   = randx(20) + (l*3)
-      local offset_down = randx(20) + (l*3)
+      local offset_up   = randx(15) + (l*3)
+      local offset_down = randx(15) + (l*3)
       for _ = 1,16 do
-         local up = 8 + randx(30) + offset_up
+         local up = 8 + randx(15) + offset_up
          add(lvl.up,   up)
          local down = 128 - (randx(30) + offset_down)
          -- Prevent up and down meeting in the middle.
-         if (down-up) < 10 then
-            -- local wasd=down
-            down += randx(5) + 8
-            -- dump('rounded down from ', wasd, ' to ', down, ', up is ', up)
+         if (down-up) < 15 then
+            local wasd=down
+            down = up + 20
+            dump('rounded down from ', wasd, ' to ', down, ', up is ', up)
          end
          add(lvl.down, down)
          -- Random slopes so the middle isn't totally safe
@@ -106,10 +106,12 @@ function generate_terrain()
       local y    = from
       for j = 1,8 do
          local tex_col = ({azure,lime,red,yellow})[randx(4)]
+         local texture = make_obj({c=tex_col,offset=randx(20),wink=white})
          add(terr, {
                 x=x, y=y, colour=tc,
-                from=from,to=to,
-                texture=(randx(20)<2 and make_obj({c=tex_col,offset=randx(20),wink=white})) })
+                from=from, to=to,
+                texture=(randx(20)<2 and texture)
+         })
          x+=2
          y+=step
       end
@@ -119,13 +121,13 @@ function generate_terrain()
    -- Calculate terrain
    local x = 0
    for i = 1, #lvl.up - 2, 2 do
-      local tc_up   = colours[i < 60 and 1 or i < 120 and 2 or 3]
-      local tc_down = colours[i < 60 and 2 or i < 120 and 1 or 3]
+      local tc_down = colours[i < 60 and 1 or i < 120 and 2 or 3]
 
-      calc_terrain_step(terrain.up,   lvl.up[i],   lvl.up[i+1],   x, tc_up[1])
       local from, to = lvl.down[i], lvl.down[i+1]
       local tc = from > to and tc_down[1] or tc_down[2]
-      calc_terrain_step(terrain.down, from, to, x, tc)
+
+      calc_terrain_step(terrain.up,   lvl.up[i], lvl.up[i+1], x)
+      calc_terrain_step(terrain.down, from,      to,          x, tc)
 
       x += 16
       i += 1
@@ -133,7 +135,7 @@ function generate_terrain()
       from, to = lvl.down[i], lvl.down[i+1]
       tc = from > to and tc_down[1] or tc_down[2]
 
-      calc_terrain_step(terrain.up,   lvl.up[i],   lvl.up[i+1],   x, tc_up[2])
+      calc_terrain_step(terrain.up,   lvl.up[i],   lvl.up[i+1],   x)
       calc_terrain_step(terrain.down, lvl.down[i], lvl.down[i+1], x, tc)
 
       x += 16
@@ -194,8 +196,9 @@ function did_collide(terr, x, y, test)
    local py0 = y
    local py1 = py0 + 8
 
-   for pos in all(terr) do
+   for idx, pos in pairs(terr) do
       if test(pos, px0, px1, py0, py1) then
+         debug('collided at\n', terrain.up[idx], '\n', terrain.down[idx])
          return true
       end
    end
@@ -472,7 +475,7 @@ function _draw()
 
    draw_terrain(terrain.up, function(t)
                    local from_y = t.y - 4
-                   rectfill(t.x, from_y, t.x+2, t.y, dim_grey)
+                   rectfill(t.x, from_y, t.x+2, t.y, brown)
                    rectfill(t.x, 0, t.x+2, from_y, black)
                    if t.texture then
                       draw_terrain_texture(t.x, from_y - t.texture.offset, t.texture)

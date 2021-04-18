@@ -72,6 +72,15 @@ end
 
 o_stalactite = 'stalactite'
 o_fuel_ring  = 'fuel_ring'
+o_form       = 'platonic_form'
+
+forms = {
+   { name = 'square',   spr = {2,  18, 11, 11} },
+   { name = 'circle',   spr = {17, 17, 14, 14} },
+   { name = 'triangle', spr = {34, 18, 11, 11} },
+   { name = 'diamond',  spr = {49, 17, 14, 14} },
+   -- TODO Colours
+}
 
 function generate_terrain()
    terrain={up={},down={}}
@@ -117,6 +126,7 @@ function generate_terrain()
       end
    end
 
+   local lvl_forms = shuffle(forms)
    local colours = {{dim_grey,silver},{magenta,violet},{silver,white}}
    -- Calculate terrain
    local x = 0
@@ -144,8 +154,20 @@ function generate_terrain()
       local down_y = terrain.down[#terrain.down].y
       local gap    = down_y - up_y
       if gap > 20 then
-         if x % 128 == 0 and randx(3) > 1 then
-            local oy  = up_y - g_td
+         if x % 160 == 0 and #lvl_forms > 0 then
+            local form_spr = lvl_forms[1]
+            del(lvl_forms, form_spr)
+            local form = make_obj({
+                  type=o_form,
+                  y=up_y+flr(gap/2),
+                  x=x,
+                  spr = form_spr.spr,
+                  name = form_spr.name,
+                  collected=false
+            })
+            add(objects, form)
+         elseif x % 128 == 0 and randx(3) > 1 then
+            local oy  = up_y - 6
             local obj = make_obj({
                   type=o_stalactite,
                   y=oy, x=x,
@@ -160,15 +182,16 @@ function generate_terrain()
             })
             add(objects, obj)
          elseif x % 96 == 0 then -- and randx(5) > 3 then
-            add(objects, make_obj({
-                      type=o_fuel_ring,
-                      y=up_y+randx(gap),
-                      x=x,
-                      anim_at=1,
-                      fuel_used=false,
-                      crashed=false,
-                      alive=true
-            }))
+            local ring = make_obj({
+                  type=o_fuel_ring,
+                  y=up_y+randx(gap),
+                  x=x,
+                  anim_at=1,
+                  fuel_used=false,
+                  crashed=false,
+                  alive=true
+            })
+            add(objects, ring)
          end
       end
    end
@@ -198,7 +221,7 @@ function did_collide(terr, x, y, test)
 
    for idx, pos in pairs(terr) do
       if test(pos, px0, px1, py0, py1) then
-         debug('collided at\n', terrain.up[idx], '\n', terrain.down[idx])
+         -- dump_once('collided at\n', terrain.up[idx], '\n', terrain.down[idx])
          return true
       end
    end
@@ -243,6 +266,8 @@ function consume_fuel(n)
 end
 
 ring_streak = 0
+collected_forms = {}
+collecting_form = false
 function check_objects(x, y)
    local px0 = x + cam_x + 1
    local px1 = px0 + 6
@@ -294,6 +319,26 @@ function check_objects(x, y)
                   sfx(5)
                end
             end
+         elseif obj.type == o_form and not obj.collected and claw.extended then
+            local cx1 = px1+8+claw.length
+            local cy0 = py0+4
+            local cy1 = cy0+4
+            if  (cx1 >= obj.x and cx1 < obj.x+4)
+            and (cy0 > obj.y and cy1 < obj.y+obj.spr[3]) then
+               obj.collected = true
+               collecting_form = obj
+               add(collected_forms, obj)
+               player_speed_vert  = 0
+               animate(function()
+                     while claw.extending do
+                        obj.x = flr(player_x + cam_x) + 12 + claw.length 
+                        yield()
+                     end
+                     obj.x = -1
+                     collecting_form = false
+               end)
+               return g_min_speed
+            end
          end
       end
    end
@@ -302,11 +347,10 @@ end
 claw = make_obj({length=0,anim_at=18,extending=false,extended=false})
 function extend_claw()
    local function anim()
-      for f=1,15 do
-         if f % 5 == 0 then
-            dump('extending claw: ', claw)
-            claw.length += 1
-            claw.anim_at = min(20, claw.anim_at+1)
+      for f=1,10 do
+         if f % 2 == 0 then
+            claw.length += 0.5
+            claw.anim_at = min(15, claw.anim_at+1)
          end
          yield()
       end
@@ -319,14 +363,14 @@ function extend_claw()
       claw.extended=false
 
       for f=1,15 do
-         if f % 5 == 0 then
-            claw.length -= 1
-            claw.anim_at = max(18, claw.anim_at-1)
+         if f % 3 == 0 then
+            claw.length -= 0.5
+            claw.anim_at = max(11, claw.anim_at-1)
          end
          yield()
       end
-      claw.extending=false
-      dump('claw done extending: ', claw)
+
+      claw.extending = false
    end
 
    claw.extending=true
@@ -346,25 +390,28 @@ function _update()
    local next_y = player_y
    local next_s = cam_speed
 
-   if btn(b_right) then
-      player_speed_horiz = min(g_max_speed, player_speed_horiz == 0 and 1 or player_speed_horiz + g_accel_fwd)
-      next_s = min(g_max_speed, max(0.2, cam_speed) * 1.1)
-   elseif btn(b_left) then
-      player_speed_horiz = max(-2.5, player_speed_horiz == 0 and -1 or player_speed_horiz - g_accel_back)
-      next_s = max(g_min_speed, cam_speed * 0.95)
-      if flr(cam_speed) > g_min_speed then
-         consume_fuel(max(0.05, cam_speed * 0.1))
+   if not collecting_form then
+      if btn(b_right) then
+         player_speed_horiz = min(g_max_speed, player_speed_horiz == 0 and 1 or player_speed_horiz + g_accel_fwd)
+         next_s = min(g_max_speed, max(0.2, cam_speed) * 1.1)
+      elseif btn(b_left) then
+         player_speed_horiz = max(-2.5, player_speed_horiz == 0 and -1 or player_speed_horiz - g_accel_back)
+         next_s = max(g_min_speed, cam_speed * 0.95)
+         if flr(cam_speed) > g_min_speed then
+            consume_fuel(max(0.05, cam_speed * 0.1))
+         end
+      else
+         player_speed_horiz *= g_friction
       end
-   else
-      player_speed_horiz *= g_friction
-   end
 
-   if btn(b_up) then
-      player_speed_vert = player_speed_vert == 0 and -1 or (player_speed_vert - g_accel_vert)
-   elseif btn(b_down) then
-      player_speed_vert = player_speed_vert == 0 and 1 or (player_speed_vert + g_accel_vert)
-    else
-      player_speed_vert = abs(player_speed_vert) > 0.5 and player_speed_vert * g_friction or 0
+
+      if btn(b_up) then
+         player_speed_vert = player_speed_vert == 0 and -1 or (player_speed_vert - g_accel_vert)
+      elseif btn(b_down) then
+         player_speed_vert = player_speed_vert == 0 and 1 or (player_speed_vert + g_accel_vert)
+      else
+         player_speed_vert = abs(player_speed_vert) > 0.5 and player_speed_vert * g_friction or 0
+      end
    end
 
    next_y = player_speed_vert > 0 and flr(player_speed_vert + next_y) or -flr(-player_speed_vert) + next_y
@@ -538,6 +585,11 @@ function _draw()
          elseif obj.type == o_fuel_ring then
             draw_ring_half(obj, 'back')
             add(ring_halves, obj)
+         elseif obj.type == o_form then
+            local s = copy_table(obj.spr)
+            add(s, obj.x)
+            add(s, obj.y)
+            sspr(unpack(s))
          end
       end
    end
@@ -549,7 +601,7 @@ function _draw()
       line(px+8, player_y+4, px+8+claw.length, player_y+4, green)
       spr(claw.anim_at, px+8+claw.length, player_y)
    else
-      spr(18, px+8, player_y)
+      spr(11, px+8, player_y)
    end
    -- "thruster" on ship
    line(px-1, player_y+2, px-1,player_y+6, silver)
@@ -582,20 +634,35 @@ end
 __gfx__
 00000000066666600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000065aaaa5605500550000005500550055000000009aa0000000000000aaa00000000000009990000000000000000000000000000000000000000000000
-007007006aacaca60655556000055560065555600000009000a00000000000a000a00000000000a0009000000000000000000000000000000000000000000000
-000770006aacaca606655660006556600065666000000900000a000000000a00000a000000000a00000900000000000000000000000000000000000000000000
-000770006a9aaaa600666600006656000005560000000900000a000000000a000009000000000a00000900000000000000000000000000000000000000000000
-007007006aa99aa60066660011655600000656000000a0000000a00000009000000090000000a000000090000000000000000000000000000000000000000000
-0000000065aaaa560007700001157110000050000000a0000000a00000009000000090000000a0000000a0000000000000000000000000000000000000000000
+007007006aacaca60655556000055560065555600000009000a00000000000a000a00000000000a000900000000000000b0000000bb000000bb000000bb33000
+000770006aacaca606655660006556600065666000000900000a000000000a00000a000000000a0000090000b0000000b0b00000b0300000b0330000b0000000
+000770006a9aaaa600666600006656000005560000000900000a000000000a000009000000000a0000090000b0000000b3000000b3000000b0000000b0000000
+007007006aa99aa60066660011655600000656000000a0000000a00000009000000090000000a00000009000b0000000b0b00000b0300000b0330000b0000000
+0000000065aaaa560007700001157110000050000000a0000000a00000009000000090000000a0000000a000000000000b0000000bb000000bb000000bb33000
 00000000066666600000000000000011000000000000a0000000a00000009000000090000000a0000000a0000000000000000000000000000000000000000000
 00000000066666600000000000000000000000000000a0000000900000009000000090000000a0000000a0000000000000000000000000000000000000000000
 0000000065aaaa560000000000000000000000000000a0000000900000009000000090000000a0000000a0000000000000000000000000000000000000000000
-000000806aacaca60bb000000bb000000bb330000000a000000090000000900000009000000090000000a0000000000000000000000000000000000000000000
-000008a06aacaca6b0300000b0330000b000000000000a000009000000000900000a000000000900000a00000000000000000000000000000000000000000000
-00008a706a9aaaa6b3000000b0000000b000000000000a000009000000000a00000a000000000900000a00000000000000000000000000000000000000000000
-000008a06aa99aa6b0300000b0330000b0000000000000a000900000000000a000a000000000009000a000000000000000000000000000000000000000000000
-0000008065aaaa560bb000000bb000000bb330000000000aa90000000000000aaa00000000000009990000000000000000000000000000000000000000000000
+000000806aacaca60000000000000000000000000000a000000090000000900000009000000090000000a0000000000000000000000000000000000000000000
+000008a06aacaca600000000000000000000000000000a000009000000000900000a000000000900000a00000000000000000000000000000000000000000000
+00008a706a9aaaa600000000000000000000000000000a000009000000000a00000a000000000900000a00000000000000000000000000000000000000000000
+000008a06aa99aa6000000000000000000000000000000a000900000000000a000a000000000009000a000000000000000000000000000000000000000000000
+0000008065aaaa560000000000000000000000000000000aa90000000000000aaa00000000000009990000000000000000000000000000000000000000000000
 00000000066666600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000aaaaa90000000000000000000000000000aa00000000554777777774550055477777777455005547777777745500554777777774550
+00aaaaaaaaa999000000aaaaaaa900000090000000000000000000aaa9000000058888888888885005cccccccccccc50053333333333335005aaaaaaaaaaaa50
+00aaaaaaaaaaa900000aaaaaaaaa900000a900000000000000000aaaaa900000048888888888884004cccccccccccc40043333333333334004aaaaaaaaaaaa40
+00a7777aaaaaa90000aaaa77aaaaa90000aa9000000000000000aa7aaaa90000078888888888887007cccccccccccc70073333333333337007aaaaaaaaaaaa70
+00a7777aaaaaaa000aaaa777aaaaaa9000aaaa0000000000000aa77aaaaa9000078888888888887007cccccccccccc70073333333333337007aaaaaaaaaaaa70
+00a77aaaaaaaaa000aaa777aaaaaaaa000aaaaa00000000000aa777aaaaaa900078888888888887007cccccccccccc70073333333333337007aaaaaaaaaaaa70
+00a77aaaaaaaaa000aa7777aaaaaaaa000aaaaaa000000000aaaaaaaaaaaaaa0078888888888887007cccccccccccc70073333333333337007aaaaaaaaaaaa70
+00aaaaaaaaaaaa000aa77aaaaaaaaaa000aaaaaaa00000000aaaaaaaaaaaaaa0078888888888887007cccccccccccc70073333333333337007aaaaaaaaaaaa70
+00aaaaaaaaaaaa000aaaaaaaaaaaaaa000aaaaaaaa000000009aaaaaaaaaaa00078888888888887007cccccccccccc70073333333333337007aaaaaaaaaaaa70
+00aaaaaaaaaaaa0009aaaaaaaaaaaaa000a7aaaaaaa000000009aaaaaaaaa000078888888888887007cccccccccccc70073333333333337007aaaaaaaaaaaa70
+009aaaaaaaaaaa00009aaaaaaaaaaa0000a77aaaaaa9000000009aaaaaaa0000078888888888887007cccccccccccc70073333333333337007aaaaaaaaaaaa70
+009aaaaaaaaaaa000009aaaaaaaaa00000a777aaaaaa9000000009aaaaa00000048888888888884004cccccccccccc40043333333333334004aaaaaaaaaaaa40
+00999aaaaaaaaa0000009aaaaaaa000000aaaaaaaaaaa9000000009aaa000000058888888888885005cccccccccccc50053333333333335005aaaaaaaaaaaa50
+0000000000000000000009aaaaa0000000000000000000000000000aa00000000554777777774550055477777777455005547777777745500554777777774550
 __sfx__
 4905000000520005220f5220f51111511115111252112521135201353118510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4904000000530005320f5320f52111521115211253112531135301354118510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

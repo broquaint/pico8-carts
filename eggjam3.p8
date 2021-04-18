@@ -244,10 +244,10 @@ end
 
 ring_streak = 0
 function check_objects(x, y)
-   local px0 = x + cam_x
-   local px1 = px0 + 8
-   local py0 = y
-   local py1 = py0 + 8
+   local px0 = x + cam_x + 1
+   local px1 = px0 + 6
+   local py0 = y + 1
+   local py1 = py0 + 6
 
    for obj in all(objects) do
       if on_screen(obj.x) then

@@ -326,7 +326,7 @@ function _update()
    elseif btn(b_down) then
       player_speed_vert = player_speed_vert == 0 and 1 or (player_speed_vert + g_accel_vert)
     else
-      player_speed_vert = abs(player_speed_vert) > 0.05 and player_speed_vert * g_friction or 0
+      player_speed_vert = abs(player_speed_vert) > 0.5 and player_speed_vert * g_friction or 0
    end
 
    next_y = player_speed_vert > 0 and flr(player_speed_vert + next_y) or -flr(-player_speed_vert) + next_y
@@ -352,7 +352,7 @@ function _update()
 
    if not collided.up and not collided.down then
       next_x += player_speed_horiz
-      if next_x > 16 and next_x < 96 then
+      if next_x > 16 and next_x < 64 then
          player_x = flr(next_x)
       end
 
@@ -512,6 +512,13 @@ function _draw()
    -- "exhaust" from thruster
    if not collided.up and not collided.down then
       sspr(4, 10, 3, 5, px - (3+flr(cam_speed)), player_y+2, 2+cam_speed, 5)
+      local vert_thrust_cols = {[0]=red,[1]=orange,[2]=yellow,[3]=white}
+      local col = vert_thrust_cols[flr(abs(player_speed_vert))]
+      if player_speed_vert > 0 then
+         line(px + 2, player_y-1, px+5, player_y-1, col)
+      elseif player_speed_vert < 0 then
+         line(px + 2, player_y+8, px+5, player_y+8, col)
+      end
    end
 
    for obj in all(ring_halves) do

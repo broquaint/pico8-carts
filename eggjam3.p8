@@ -323,8 +323,8 @@ function check_objects(x, y)
             local cx1 = px1+8+claw.length
             local cy0 = py0+4
             local cy1 = cy0+4
-            if  (cx1 >= obj.x and cx1 < obj.x+4)
-            and (cy0 >= obj.y and cy1 <= obj.y+obj.spr[3]) then
+            if  (cx1 >= obj.x and cx1 < obj.x+8)
+            and (cy0 >= obj.y and cy1 <= (obj.y+obj.spr[4]+4)) then
                obj.collected = true
                collecting_form = obj
                add(collected_forms, obj)
@@ -364,7 +364,7 @@ function extend_claw()
       -- Have it extend for at least 0.3s
       for _=1,10 do yield() end
       local fc = frame_count
-      while btn(b_x) and (frame_count - fc) < 70 do yield() end
+      while btn(b_x) and (frame_count - fc) < 70 and not collecting_form do yield() end
       claw.extended=false
 
       for f=1,15 do

@@ -88,25 +88,34 @@ function generate_terrain()
 
    local lvl={up={},down={}}
 
+   local towards={
+      {{16,32}, {120, 96}},
+      {{32,48}, {96, 120}},
+      {{48,16}, {120, 48}},
+      {{16,32}, {48,  96}}
+   }
+
    -- Generate slopes
-   for l = 1,10 do
-      local go_up       = randx(2) > 1
-      local offset_up   = randx(15) + (l*3)
-      local offset_down = randx(15) + (l*3)
-      for _ = 1,16 do
-         local up = 8 + randx(15) + offset_up
-         add(lvl.up,   up)
-         local down = 128 - (randx(30) + offset_down)
-         -- Prevent up and down meeting in the middle.
-         if (down-up) < 15 then
-            local wasd=down
-            down = up + 20
-            dump('rounded down from ', wasd, ' to ', down, ', up is ', up)
-         end
+   for l = 1,4 do
+      local up_from = towards[l][1][1]
+      local up_to   = towards[l][1][2]
+      local up_step = -((up_from-up_to)/32)
+
+      local down_from = towards[l][2][1]
+      local down_to   = towards[l][2][2]
+      local down_step = -(down_from-down_to)/32
+
+      local up_offset = up_step
+      local down_offset = down_step
+      for _ = 1,32 do
+         local up = (up_from + up_offset) + randx(15)
+         up_offset += up_step
+         add(lvl.up, up)
+
+         local down = min(127, (down_from + down_offset) + -randx(15))
+
+         down_offset += down_step
          add(lvl.down, down)
-         -- Random slopes so the middle isn't totally safe
-         offset_up   = max(1, offset_up   + (go_up and -2 or 2))
-         offset_down = max(1, offset_down + (go_up and  2 or -2))
       end
    end
 
@@ -127,11 +136,12 @@ function generate_terrain()
    end
 
    local lvl_forms = shuffle(forms)
-   local colours = {{dim_grey,silver},{magenta,violet},{silver,white}}
+   local colours = {{black,dim_grey},{dim_grey,magenta},{magenta,violet},{violet,silver}}
    -- Calculate terrain
    local x = 0
+   local n = #lvl.up / 4
    for i = 1, #lvl.up - 2, 2 do
-      local tc_down = colours[i < 60 and 1 or i < 120 and 2 or 3]
+      local tc_down = colours[i < n and 1 or i < (n*2) and 2 or i < (n*3) and 3 or 4]
 
       local from, to = lvl.down[i], lvl.down[i+1]
       local tc = from > to and tc_down[1] or tc_down[2]
@@ -154,7 +164,7 @@ function generate_terrain()
       local down_y = terrain.down[#terrain.down].y
       local gap    = down_y - up_y
       if gap > 20 then
-         if x % 160 == 0 and #lvl_forms > 0 then
+         if x % 512 == 0 and #lvl_forms > 0 then
             local form_spr = lvl_forms[1]
             del(lvl_forms, form_spr)
             local form = make_obj({
@@ -181,7 +191,7 @@ function generate_terrain()
                   end
             })
             add(objects, obj)
-         elseif x % 96 == 0 then -- and randx(5) > 3 then
+         elseif x % 144 == 0 then -- and randx(5) > 3 then
             local ring = make_obj({
                   type=o_fuel_ring,
                   y=up_y+randx(gap),

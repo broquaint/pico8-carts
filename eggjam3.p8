@@ -100,19 +100,26 @@ function generate_terrain()
       local up_from = towards[l][1][1]
       local up_to   = towards[l][1][2]
       local up_step = -((up_from-up_to)/32)
+      local up_rand = randx(2) > 1 and randx(15) or -randx(15)
 
       local down_from = towards[l][2][1]
       local down_to   = towards[l][2][2]
       local down_step = -(down_from-down_to)/32
+      local down_rand = randx(2) > 1 and randx(15) or -randx(15)
 
       local up_offset = up_step
       local down_offset = down_step
       for _ = 1,32 do
-         local up = (up_from + up_offset) + randx(15)
+         local up = (up_from + up_offset) + randx(10) + up_rand
          up_offset += up_step
          add(lvl.up, up)
 
-         local down = min(127, (down_from + down_offset) + -randx(15))
+         local down = min(127, (down_from + down_offset) + -randx(15) + down_rand)
+         if (down-up) < 15 then
+            local wasd=down
+            down = up + 20
+            -- dump('rounded down from ', wasd, ' to ', down, ', up is ', up)
+         end
 
          down_offset += down_step
          add(lvl.down, down)

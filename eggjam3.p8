@@ -110,21 +110,22 @@ function generate_terrain()
       {{16,32}, {48,  96}}
    }
 
+   local section_length = 64
    -- Generate slopes
    for l = 1,4 do
       local up_from = towards[l][1][1]
       local up_to   = towards[l][1][2]
-      local up_step = -((up_from-up_to)/32)
+      local up_step = -((up_from-up_to)/section_length)
       local up_rand = randx(2) > 1 and randx(15) or -randx(15)
 
       local down_from = towards[l][2][1]
       local down_to   = towards[l][2][2]
-      local down_step = -(down_from-down_to)/32
+      local down_step = -(down_from-down_to)/section_length
       local down_rand = randx(2) > 1 and randx(15) or -randx(15)
 
       local up_offset = up_step
       local down_offset = down_step
-      for _ = 1,32 do
+      for _ = 1,section_length do
          local up = (up_from + up_offset) + randx(10) + up_rand
          up_offset += up_step
          add(lvl.up, up)
@@ -185,18 +186,21 @@ function generate_terrain()
       local up_y   = terrain.up[#terrain.up].y
       local down_y = terrain.down[#terrain.down].y
       local gap    = down_y - up_y
+      -- Don't consider the gap as it will always be in the middle
+      if x % 1024 == 0 and #lvl_forms > 0 then
+         local form_spr = lvl_forms[1]
+         del(lvl_forms, form_spr)
+         local form = make_obj(merge(copy_table(form_spr), {
+            type=o_form,
+            y=up_y+flr(gap/2),
+            x=x,
+            collected=false
+         }))
+         add(objects, form)
+      end
+
       if gap > 20 then
-         if x % 512 == 0 and #lvl_forms > 0 then
-            local form_spr = lvl_forms[1]
-            del(lvl_forms, form_spr)
-            local form = make_obj(merge(copy_table(form_spr), {
-                  type=o_form,
-                  y=up_y+flr(gap/2),
-                  x=x,
-                  collected=false
-            }))
-            add(objects, form)
-         elseif x % 128 == 0 and randx(3) > 1 then
+         if x % 128 == 0 and randx(3) > 1 then
             local oy  = up_y - 6
             local obj = make_obj({
                   type=o_stalactite,

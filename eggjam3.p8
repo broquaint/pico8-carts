@@ -157,7 +157,7 @@ function generate_terrain()
       local y    = from
       for j = 1,8 do
          local tex_col = ({azure,lime,red,yellow})[randx(4)]
-         local texture = make_obj({c=tex_col,offset=randx(20),wink=white})
+         local texture = make_obj({c=tex_col,offset=randx(20),colours={}})
          add(terr, {
                 x=x, y=y, colour=tc,
                 from=from, to=to,
@@ -598,13 +598,20 @@ end
 
 function draw_terrain_texture(x, y, t)
    local c = t.c
-   pset(x,   y,   t.wink)
+   pset(x,   y,   t.wink or 'white')
    pset(x-1, y,   c)
    pset(x+1, y,   c)
    pset(x,   y-1, c)
    pset(x,   y+1, c)
-   if frame_count % 30 == 0 then
-      t.wink = t.wink == white and navy or white
+   if not t.animating then
+      t.animating = true
+      delay(function()
+            if(#t.colours == 0) t.colours = {white,silver,dim_grey,silver,white}
+            local idx = randx(#t.colours)
+            t.wink = t.colours[idx]
+            deli(t.colours, idx);
+            t.animating = false
+      end, randx(15)+10)
    end
 end
 

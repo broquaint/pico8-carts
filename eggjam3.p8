@@ -645,6 +645,19 @@ function draw_ring_half(ring, side)
    pal()
 end
 
+function draw_form_warning()
+   local rhs = flr(screen_width + cam_x)
+
+   for obj in all(objects) do
+      if obj.type == o_form and obj.x > rhs and (obj.x - rhs) < 160 then
+         if frame_count % 30 > 15 then
+            line(cam_x+127, obj.y - 4, cam_x+127, obj.y + 16, yellow)
+            line(cam_x+126, obj.y - 4, cam_x+126, obj.y + 16, orange)
+         end
+      end
+   end
+end
+
 function draw_menu()
    sspr(2, 97, 81, 15, 20, 2)
 end
@@ -718,6 +731,8 @@ function draw_level()
          end
       end
    end
+
+   draw_form_warning()
 
    for obj in all(ring_halves) do
       draw_ring_half(obj, 'front')

@@ -208,35 +208,35 @@ function generate_terrain()
             collected=false
          }))
          add(objects, form)
-      end
-
-      if gap > 20 then
-         if x % 128 == 0 and randx(3) > 1 then
-            local oy  = up_y - 6
-            local obj = make_obj({
-                  type=o_stalactite,
-                  y=oy, x=x,
-                  from=oy, to=down_y,
-                  frames=40,
-                  alive=true,
-                  crashed=false,
-                  cb=function(o)
-                     if(on_screen(o.x) and not o.crashed) sfx(8)
-                     o.alive=false
-                  end
-            })
-            add(objects, obj)
-         elseif x % 144 == 0 then -- and randx(5) > 3 then
-            local ring = make_obj({
-                  type=o_fuel_ring,
-                  y=up_y+randx(gap),
-                  x=x,
-                  anim_at=1,
-                  fuel_used=false,
-                  crashed=false,
-                  alive=true
-            })
-            add(objects, ring)
+      else
+         if gap > 20 then
+            if x % 128 == 0 and randx(3) > 1 then
+               local oy  = up_y - 6
+               local obj = make_obj({
+                     type=o_stalactite,
+                     y=oy, x=x,
+                     from=oy, to=down_y,
+                     frames=40,
+                     alive=true,
+                     crashed=false,
+                     cb=function(o)
+                        if(on_screen(o.x) and not o.crashed) sfx(8)
+                        o.alive=false
+                        end
+               })
+               add(objects, obj)
+            elseif x % 144 == 0 then -- and randx(5) > 3 then
+               local ring = make_obj({
+                     type=o_fuel_ring,
+                     y=up_y+randx(gap),
+                     x=x,
+                     anim_at=1,
+                     fuel_used=false,
+                     crashed=false,
+                     alive=true
+               })
+               add(objects, ring)
+            end
          end
       end
    end

@@ -676,6 +676,20 @@ function draw_exposition()
    print('ready? go!', 16, 16, white)
 end
 
+function draw_exit()
+   local exit_x = terrain.up[#terrain.up].x
+   rectfill(exit_x+5, 0, cam_x+128, 128, black)
+
+   print('the end ... or is it?', exit_x + 20, 64, white)
+
+   local up_y   = terrain.up[#terrain.up].y
+   local down_y = terrain.down[#terrain.down].y
+   for i = 0,48 do
+      line(exit_x+5, up_y+4,   exit_x+i, 0,   navy)
+      line(exit_x+5, down_y-4, exit_x+i, 127, navy)
+   end
+end
+
 function draw_level()
    if current_state == game_state_gaming then
       draw_terrain(terrain.up, function(t)
@@ -697,6 +711,10 @@ function draw_level()
                       draw_terrain_texture(t.x, to_y + t.texture.offset, t.texture)
                    end
    end)
+
+   if (cam_x+128) > terrain.up[#terrain.up].x then
+      draw_exit()
+   end
 
    local ring_halves = {}
    for obj in all(objects) do

@@ -59,6 +59,7 @@ g_fuel_max = 50
 
 game_state_menu       = 'menu'
 game_state_gaming     = 'gaming'
+game_state_splaining  = 'exposition'
 game_state_level_done = 'lvldone'
 game_state_complete   = 'complete'
 
@@ -560,6 +561,7 @@ function bob_ship()
    end
 end
 
+last_transition = 0
 function _update()
    frame_count += 1
 
@@ -567,11 +569,17 @@ function _update()
 
    if current_state == game_state_menu then
       if btnp(b_x) then
-         current_state = game_state_gaming
+         current_state = game_state_splaining
+         last_transition = frame_count
          -- sfx?
       end
       if not bobbing.animating then
          animate_obj(bobbing, bob_ship)
+      end
+   elseif current_state == game_state_splaining then
+      if btnp(b_x) and frame_count - last_transition > 45 then
+         current_state = game_state_gaming
+         last_transition = frame_count
       end
    else
       update_level()
@@ -662,6 +670,10 @@ function draw_menu()
    sspr(2, 97, 81, 15, 20, 2)
 
    print('press ❎ to begin', 32, 32, white)
+end
+
+function draw_exposition()
+   print('ready? go!', 16, 16, white)
 end
 
 function draw_level()
@@ -770,6 +782,8 @@ function _draw()
    draw_level()
    if current_state == game_state_menu then
       draw_menu()
+   elseif current_state == game_state_splaining then
+      draw_exposition()
    else
       draw_ui()
    end

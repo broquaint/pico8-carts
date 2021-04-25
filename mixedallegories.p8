@@ -118,12 +118,14 @@ function generate_terrain()
       {{16,32}, {120, 96}},
       {{32,48}, {96, 120}},
       {{48,16}, {120, 48}},
-      {{16,32}, {48,  96}}
+      {{16,32}, {48,  96}},
+      {{32,24}, {96, 108}},
    }
 
    local section_length = 64
    -- Generate slopes
-   for l = 1,4 do
+   for l = 1,5 do
+      if(l == 5) section_length = 32
       local up_from = towards[l][1][1]
       local up_to   = towards[l][1][2]
       local up_step = -((up_from-up_to)/section_length)
@@ -275,7 +277,7 @@ function did_collide(terr, x, y, test)
    local py1 = py0 + 8
 
    for idx, pos in pairs(terr) do
-      if test(pos, px0, px1, py0, py1) then
+      if on_screen(pos.x) and test(pos, px0, px1, py0, py1) then
          -- dump_once('collided at\n', terrain.up[idx], '\n', terrain.down[idx])
          return true
       end
@@ -727,8 +729,8 @@ function draw_exit()
    local up_y   = terrain.up[#terrain.up].y
    local down_y = terrain.down[#terrain.down].y
    for i = 0,48 do
-      line(exit_x+5, up_y+4,   exit_x+i, 0,   navy)
-      line(exit_x+5, down_y-4, exit_x+i, 127, navy)
+      line(exit_x+5, up_y,   exit_x+i, 0,   i > 36 and violet or navy)
+      line(exit_x+5, down_y, exit_x+i, 127, i > 36 and violet or navy)
    end
 end
 

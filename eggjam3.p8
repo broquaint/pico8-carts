@@ -827,10 +827,15 @@ function draw_ui()
 
    local ficon_offset = cam_x+91
    for i = 1, #forms do
+      local missing_form = true
       for j = 1, #collected_forms do
          if collected_forms[j].name  == forms[i].name then
             spr(forms[i].icon_spr, ficon_offset, 0)
+            missing_form = false
          end
+      end
+      if missing_form then
+         rectfill(ficon_offset+2, 2, ficon_offset+6, 6, white)
       end
       ficon_offset += 8
    end

@@ -672,8 +672,50 @@ function draw_menu()
    print('press ❎ to begin', 32, 32, white)
 end
 
+dazzling = {
+   on = false,
+   colour = white
+}
 function draw_exposition()
-   print('ready? go!', 16, 16, white)
+   -- Probably unnecessary.
+   rectfill(0, 0, 128, 96, navy)
+
+   local msg = [[
+you are deep within plato's
+allegorical cave where the
+forms have been found - it's
+your mission to retrieve them
+and establish
+]]
+    print(msg, 8, 8, white)
+    print('kallipolis!', 64, 32, dazzling.colour)
+
+    local function dazzle()
+       local c = {white,yellow,orange}
+       while current_state == game_state_splaining do
+          local rem = frame_count % 30
+          dazzling.colour = rem < 10 and white or rem < 20 and yellow or orange
+          yield()
+       end
+       dazzling.on = false
+    end
+    if not dazzling.on then
+       animate(dazzle)
+       dazzling.on = true
+    end
+
+    msg = [[
+grab the forms with your claw
+by pressing ❎ when they are
+within reach.
+
+pass through fuel rings to
+top up your rapidly depleting
+fuel and avoid the dangers of
+the cave
+]]
+
+   print(msg, 8, 48, white)
 end
 
 function draw_exit()
@@ -737,13 +779,15 @@ function draw_level()
    end
 
    local px = flr(player_x + cam_x)
-   -- Player "ship"
-   spr(1, px, player_y)
-   if claw.extending then
-      line(px+8, player_y+4, px+8+claw.length, player_y+4, green)
-      spr(claw.anim_at, px+8+claw.length, player_y)
-   else
-      spr(11, px+8, player_y)
+   if current_state != game_state_splaining then
+      -- Player "ship"
+      spr(1, px, player_y)
+      if claw.extending then
+         line(px+8, player_y+4, px+8+claw.length, player_y+4, green)
+         spr(claw.anim_at, px+8+claw.length, player_y)
+      else
+         spr(11, px+8, player_y)
+      end
    end
 
    if current_state == game_state_gaming then

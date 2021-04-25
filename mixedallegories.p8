@@ -14,8 +14,12 @@ function make_obj(attr)
       }, attr)
 end
 
+function wait(n)
+   for _ = 1,n do yield() end
+end
+
 function delay(f, n)
-   animate(function() for _=1,n do yield() end f() end)
+   animate(function() wait(n) f() end)
 end
 
 function animate(f)
@@ -411,7 +415,7 @@ function extend_claw()
 
       claw.extended=true
       -- Have it extend for at least 0.3s
-      for _=1,10 do yield() end
+      wait(10)
       local fc = frame_count
       while btn(b_x) and (frame_count - fc) < 70 and not collecting_form do yield() end
       claw.extended=false
@@ -541,7 +545,7 @@ function animate_ring_crash(r)
       end
       yield()
    end
-   for f=1,60 do yield() end
+   wait(60)
    -- Move it off screen
    r.x = -1
 end
@@ -560,7 +564,7 @@ function bob_ship()
          yield()
       end
       from, to = to, to + (to == orig_y and offset or -offset)
-      for _=1,10 do yield() end
+      wait(10)
    end
 end
 
@@ -728,7 +732,7 @@ for i = 1,16 do
 end
 
 function animate_star_twinkle(star)
-   for _ = 1,star.idx*10 do yield() end
+   wait(star.idx*10)
    local start_frame = frame_count
    while current_state != game_state_menu do
       local rem = frame_count - start_frame

@@ -125,20 +125,21 @@ function generate_terrain()
    local section_length = 64
    -- Generate slopes
    for l = 1,5 do
-      if(l == 5) section_length = 32
+      local seclen = l == 5 and 32 or section_length
+
       local up_from = towards[l][1][1]
       local up_to   = towards[l][1][2]
-      local up_step = -((up_from-up_to)/section_length)
+      local up_step = -((up_from-up_to)/seclen)
       local up_rand = randx(2) > 1 and randx(15) or -randx(15)
 
       local down_from = towards[l][2][1]
       local down_to   = towards[l][2][2]
-      local down_step = -(down_from-down_to)/section_length
+      local down_step = -(down_from-down_to)/seclen
       local down_rand = randx(2) > 1 and randx(15) or -randx(15)
 
       local up_offset = up_step
       local down_offset = down_step
-      for _ = 1,section_length do
+      for _ = 1,seclen do
          local up = (up_from + up_offset) + randx(10) + up_rand
          up_offset += up_step
          add(lvl.up, up)
@@ -211,7 +212,7 @@ function generate_terrain()
          }))
          add(objects, form)
       else
-         if gap > 20 then
+         if gap > 20 and i < (section_length * 4) then
             if x % 128 == 0 and randx(3) > 1 then
                local oy  = up_y - 6
                local obj = make_obj({
@@ -720,11 +721,14 @@ the cave
    print(msg, 8, 48, white)
 end
 
+exit_stars={}
+for i = 1,16 do
+   add(exit_stars, make_obj({x=randx(128), y=randx(128), colour=black,trail={}}))
+end
+
 function draw_exit()
    local exit_x = terrain.up[#terrain.up].x
    rectfill(exit_x+5, 0, cam_x+128, 128, black)
-
-   print('the end ... or is it?', exit_x + 20, 64, white)
 
    local up_y   = terrain.up[#terrain.up].y
    local down_y = terrain.down[#terrain.down].y
@@ -732,6 +736,28 @@ function draw_exit()
       line(exit_x+5, up_y,   exit_x+i, 0,   i > 36 and violet or navy)
       line(exit_x+5, down_y, exit_x+i, 127, i > 36 and violet or navy)
    end
+
+   for star in all(exit_stars) do
+      local sx = cam_x+star.x
+      if sx > (exit_x+128) then
+         if star.animating then
+            pset(star.x + cam_x, star.y, star.colour)
+         else
+            local start_frame = frame_count
+            animate_obj(star, function()
+                           while current_state != game_state_menu do
+                              local rem = frame_count - start_frame
+                              star.colour = rem < 30 and black or rem < 45 and navy or rem < 70 and dim_grey or rem < 85 and silver or white
+                              yield()
+                           end
+            end)
+         end
+      end
+   end
+
+   local msg_x = 30 + max(exit_x, cam_x)
+   rectfill(msg_x-4, 32, msg_x+64, 96, black)
+   print('the end ... or is it?', msg_x, 64, white)
 end
 
 function draw_level()

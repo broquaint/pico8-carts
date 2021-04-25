@@ -679,6 +679,16 @@ dazzling = {
    on = false,
    colour = white
 }
+function anim_dazzle(d)
+   local c = {white,yellow,orange}
+   while current_state != game_state_menu do
+      local rem = frame_count % 30
+      d.colour = rem < 10 and white or rem < 20 and yellow or orange
+      yield()
+   end
+   d.on = false
+end
+
 function draw_exposition()
    -- Probably unnecessary.
    rectfill(0, 0, 128, 96, navy)
@@ -693,17 +703,8 @@ and establish
     print(msg, 8, 8, white)
     print('kallipolis!', 64, 32, dazzling.colour)
 
-    local function dazzle()
-       local c = {white,yellow,orange}
-       while current_state == game_state_splaining do
-          local rem = frame_count % 30
-          dazzling.colour = rem < 10 and white or rem < 20 and yellow or orange
-          yield()
-       end
-       dazzling.on = false
-    end
     if not dazzling.on then
-       animate(dazzle)
+       animate_obj(dazzling, anim_dazzle)
        dazzling.on = true
     end
 
@@ -723,8 +724,26 @@ end
 
 exit_stars={}
 for i = 1,16 do
-   add(exit_stars, make_obj({x=randx(128), y=randx(128), colour=black,trail={}}))
+   add(exit_stars, make_obj({x=randx(128), y=randx(128), idx=i,colour=black,trail={}}))
 end
+
+function animate_star_twinkle(star)
+   for _ = 1,star.idx*10 do yield() end
+   local start_frame = frame_count
+   while current_state != game_state_menu do
+      local rem = frame_count - start_frame
+      star.colour = rem < 30 and black or rem < 45 and navy or rem < 70 and dim_grey or rem < 85 and silver or white
+      yield()
+   end
+end
+
+win_states = {
+   [0] = {'tyranny',     red},
+   [1] = {'democracy',   salmon},
+   [2] = {'oligarchy',   coral},
+   [3] = {'timocracy',   orange},
+   [4] = {'aristocracy', yellow},
+}
 
 function draw_exit()
    local exit_x = terrain.up[#terrain.up].x
@@ -737,27 +756,38 @@ function draw_exit()
       line(exit_x+5, down_y, exit_x+i, 127, i > 36 and violet or navy)
    end
 
-   for star in all(exit_stars) do
+   for idx,star in pairs(exit_stars) do
       local sx = cam_x+star.x
       if sx > (exit_x+128) then
          if star.animating then
             pset(star.x + cam_x, star.y, star.colour)
          else
-            local start_frame = frame_count
-            animate_obj(star, function()
-                           while current_state != game_state_menu do
-                              local rem = frame_count - start_frame
-                              star.colour = rem < 30 and black or rem < 45 and navy or rem < 70 and dim_grey or rem < 85 and silver or white
-                              yield()
-                           end
-            end)
+            animate_obj(star, animate_star_twinkle)
          end
       end
    end
 
-   local msg_x = 30 + max(exit_x, cam_x)
+   local msg_x = max(exit_x + 64, cam_x + 8)
    rectfill(msg_x-4, 32, msg_x+64, 96, black)
-   print('the end ... or is it?', msg_x, 64, white)
+   local msg = [[
+congratulations! you made it
+out of the allegorical cave!
+
+]]
+    print(msg, msg_x, 32, white)
+    print('kallipolis', msg_x, 48, dazzling.colour)
+    print('can be established', msg_x+43, 48, white)
+    local cf = #collected_forms
+    local ws = win_states[cf]
+    local indefinite = (cf == 4 or cf == 2) and 'an' or 'a'
+    local offset     = (cf == 4 or cf == 2) and 24   or 20
+    print('as '..indefinite, msg_x, 56, white)
+    print(ws[1], msg_x+offset, 56, ws[2])
+
+    if not dazzling.on then
+       animate_obj(dazzling, anim_dazzle)
+       dazzling.on = true
+    end
 end
 
 function draw_level()

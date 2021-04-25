@@ -82,6 +82,9 @@ function start_escape()
 
    frame_count = 0
 
+   started_at = 0
+   finished_at = 0
+
    collided = { up = false, down = false}
 end
 
@@ -317,7 +320,8 @@ function consume_fuel(n)
    player_fuel = next_f >= 0 and next_f or 0
 end
 
-ring_streak = 0
+ring_streak     = 0
+collected_rings = 0
 collected_forms = {}
 collecting_form = false
 function check_objects(x, y)
@@ -362,6 +366,7 @@ function check_objects(x, y)
                   delay(function() obj.x = -1 end, 45)
                   sfx(ring_streak)
                   ring_streak = min(3, ring_streak+1)
+                  collected_rings += 1
                   return cam_speed * 1.5
                elseif (py0 < ry0 and py1 > ry0) or (py0 < ry1 and py1 > ry1) then
                   obj.crashed = true
@@ -438,6 +443,11 @@ end
 function update_level()
    if btnp(b_x) and not claw.extending then
       extend_claw()
+   end
+
+   if current_state != game_state_level_done and (cam_x+player_x) > terrain.up[#terrain.up].x then
+      current_state = game_state_level_done
+      finished_at = t()
    end
 
    local next_x = player_x
@@ -587,6 +597,7 @@ function _update()
       if btnp(b_x) and frame_count - last_transition > 45 then
          current_state = game_state_gaming
          last_transition = frame_count
+         started_at = t()
       end
    else
       update_level()
@@ -786,12 +797,19 @@ out of the allegorical cave!
     local indefinite = (cf == 4 or cf == 2) and 'an' or 'a'
     local offset     = (cf == 4 or cf == 2) and 24   or 20
     print('as '..indefinite, msg_x, 56, white)
-    print(ws[1], msg_x+offset, 56, ws[2])
+    print(ws[1]..'.', msg_x+offset, 56, ws[2])
 
     if not dazzling.on then
        animate_obj(dazzling, anim_dazzle)
        dazzling.on = true
     end
+
+    local rt = nice_pos(finished_at - started_at)
+    print('escaped in '..rt..'s', msg_x, 96, white)
+    rt = count(objects, function(o) return o.type == o_fuel_ring end)
+    print(
+       dumper('collected fuel rings ', collected_rings, '/', rt), msg_x, 102
+    )
 end
 
 function draw_level()
@@ -852,10 +870,9 @@ function draw_level()
       end
    end
 
-   if current_state == game_state_gaming then
+   if current_state == game_state_gaming or current_state == game_state_level_done then
       -- "thruster" on ship
       line(px-1, player_y+2, px-1,player_y+6, silver)
-
 
       -- "exhaust" from thruster
       if not collided.up and not collided.down then

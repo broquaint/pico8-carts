@@ -50,13 +50,11 @@ function lerp(a,b,t)
 end
 
 function animate_move(obj)
-   animate_obj(obj, function()
-              for f = 1, obj.frames do
-                 if(obj.crashed) return
-                 obj.y = lerp(obj.from, obj.to, easein(f/obj.frames))
-                 yield()
-              end
-   end)
+   for f = 1, obj.frames do
+      if(obj.crashed or obj.collected) return
+      obj.y = lerp(obj.from, obj.to, easein(f/obj.frames))
+      yield()
+   end
 end
 
 g_fuel_max = 50
@@ -90,6 +88,7 @@ function start_escape()
 end
 
 o_stalactite = 'stalactite'
+o_seed       = 'seed'
 o_fuel_ring  = 'fuel_ring'
 o_form       = 'platonic_form'
 
@@ -223,7 +222,7 @@ function generate_terrain()
          if gap > 20 and i < (section_length * 4) then
             if x % 128 == 0 and randx(3) > 1 then
                local oy  = up_y - 6
-               local obj = make_obj({
+               local stalactite = make_obj({
                      type=o_stalactite,
                      y=oy, x=x,
                      from=oy, to=down_y,
@@ -235,7 +234,17 @@ function generate_terrain()
                         o.alive=false
                         end
                })
-               add(objects, obj)
+               local seed = make_obj({
+                     type=o_seed,
+                     y=down_y, x=x,
+                     from=down_y-6, to=up_y+flr(gap/4),
+                     frames=45,
+                     alive=true,
+                     apogee=false,
+                     collected=false,
+                     cur_spr=27,
+               })
+               add(objects, randx(2) > 1 and stalactite or seed)
             elseif x % 144 == 0 then -- and randx(5) > 3 then
                local ring = make_obj({
                      type=o_fuel_ring,
@@ -323,6 +332,7 @@ end
 
 ring_streak     = 0
 collected_rings = 0
+collected_seeds = 0
 collected_forms = {}
 collecting_form = false
 function check_objects(x, y)
@@ -344,6 +354,50 @@ function check_objects(x, y)
                obj.crashed = true
                ring_streak = 0
                sfx(7)
+               animate(function()
+                     local orig_x = obj.x
+                     local orig_s = cam_speed
+                     for f=1,49 do
+                        if f % 10 == 0 then
+                           obj.x = obj.x > 0 and -1 or orig_x
+                        end
+                        yield()
+                     end
+                     obj.x = -1
+               end)
+               return g_min_speed
+            end
+         elseif obj.type == o_seed and not obj.collected and not obj.crashed then
+            if claw.extended then
+               local cx1 = px1+8+claw.length
+               local cy0 = py0+4
+               local cy1 = cy0+4
+               if  (cx1 >= obj.x and cx1 < obj.x+8)
+               and (cy0 >= obj.y and cy1 <= (obj.y+8)) then
+                  obj.collected = true
+                  obj.cur_spr = 31
+                  sfx(11)
+                  collected_seeds += 1
+                  animate(function()
+                        while claw.extending do
+                           obj.x = flr(player_x + cam_x) + 11 + claw.length
+                           yield()
+                        end
+                        obj.x = -1
+                  end)
+                  return
+               end
+            end
+            local sx0 = obj.x
+            local sx1 = sx0 + 8
+            local sy0 = obj.y
+            local sy1 = sy0 + 8
+            if  ((px0 > sx0 and px0 < sx1) or (px1 > sx0 and px1 < sx1))
+            and ((py0 > sy0 and py0 < sy1) or (py1 > sy0 and py1 < sy1)) then
+               consume_fuel(4)
+               obj.crashed = true
+               ring_streak = 0
+               if(not obj.apogee) sfx(12)
                animate(function()
                      local orig_x = obj.x
                      local orig_s = cam_speed
@@ -444,6 +498,49 @@ function extend_claw()
    animate(anim)
 end
 
+function animate_seed(obj)
+   local function launch()
+      obj.cur_spr+=1
+      wait(7)
+      obj.cur_spr+=1
+      wait(4)
+      obj.cur_spr+=1
+      wait(2)
+      animate_move(obj)
+      obj.apogee = true
+      if not obj.collected and on_screen(obj.x) then
+         sfx(12)
+         obj.circ_colour = white
+         obj.circ_size = 2
+         wait(1)
+
+         obj.circ_size = 3
+         wait(2)
+
+         obj.circ_colour = azure
+         obj.circ_size = 4
+
+         wait(3)
+         obj.circ_size = 5
+
+         wait(3)
+         obj.circ_colour = violet
+         obj.circ_size = 6
+         wait(2)
+         obj.circ_size = 7
+         wait(3)
+         obj.circ_colour = magenta
+         obj.circ_size = 8
+         wait(10)
+         obj.x = -1
+         obj.alive = false
+      end
+   end
+   if not obj.animating and not obj.apogee then
+      animate_obj(obj, launch)
+   end
+end
+
 function set_collided(c)
    if c != nil then
       collided = merge(collided, c)
@@ -476,7 +573,7 @@ function crash_judder()
       set_collided()
       player_crashing = false
    end)
-end
+   end
 
 function update_level()
    if btnp(b_x) and not claw.extending and not player_crashing then
@@ -505,7 +602,6 @@ function update_level()
       else
          player_speed_horiz *= g_friction
       end
-
 
       if btn(b_up) then
          player_speed_vert = player_speed_vert == 0 and -1 or (player_speed_vert - g_accel_vert)
@@ -558,7 +654,9 @@ function update_level()
    for obj in all(objects) do
       if not obj.animating and obj.alive and on_screen(obj.x) then
          if obj.type == o_stalactite and not obj.crashed and obj.x - (cam_x+player_x) < 60 then
-            animate_move(obj)
+            animate_obj(obj, animate_move)
+         elseif obj.type == o_seed and not obj.apogee and obj.x - (cam_x+player_x) < 80 then
+            animate_seed(obj)
          elseif obj.type == o_fuel_ring and not(obj.fuel_used or obj.crashed) then
             animate_obj(obj, function(r) animate_ring(r) end)
          end
@@ -844,8 +942,14 @@ out of the allegorical cave!
     print('escaped in '..rt..'s', msg_x, 96, white)
     rt = count(objects, function(o) return o.type == o_fuel_ring end)
     print(
-       dumper('collected fuel rings ', collected_rings, '/', rt), msg_x, 102
+       dumper('fuel rings flown through ', collected_rings, '/', rt), msg_x, 102
     )
+    if collected_seeds > 0 then
+       rt = count(objects, function(o) return o.type == o_fuel_ring end)
+       print(
+          dumper('socraseeds grabbed ', collected_seeds, '/', rt), msg_x, 108
+       )
+    end
 end
 
 function draw_level()
@@ -880,6 +984,12 @@ function draw_level()
          if obj.type == o_stalactite then
             local s = obj.crashed and 4 or (obj.alive and 2 or 3)
             spr(s, obj.x, obj.y)
+         elseif obj.type == o_seed then
+            if not obj.apogee then
+               spr(obj.cur_spr, obj.x, obj.y)
+            elseif not obj.collected then
+               circfill(obj.x+4, obj.y+4, obj.circ_size, obj.circ_colour)
+            end
          elseif obj.type == o_fuel_ring then
             draw_ring_half(obj, 'back')
             add(ring_halves, obj)
@@ -981,12 +1091,12 @@ __gfx__
 0000000065aaaa56000770000115711000005000a0000000a900000009900000009a0000000a000000000000000000000b0000000bb000000bb000000bb33000
 0000000006666660000000000000001100000000a0000000aa00000009900000009a0000000a0000000000000000000000000000000000000000000000000000
 0000000006666660000000000000000000000000a0000000aa00000009900000009a0000000a0000000000000000000000000000000000000000000000000000
-0000000065aaaa56000000000000000000000000a0000000aa00000009900000009a0000000a0000000000000000000000000000000000000000000000000000
-000000806aacaca6000000000000000000000000a0000000aa0000000990000000a90000000a0000000000000000000000000000000000000000000000000000
-000008a06aacaca60000000000000000000000000a00000900a00000900a00000a00900000a00000000000000000000000000000000000000000000000000000
-00008a706a9aaaa60000000000000000000000000a00000900a00000900a00000a00900000a00000000000000000000000000000000000000000000000000000
-000008a06aa99aa600000000000000000000000000a00090000a000a0000a000a00009000a000000000000000000000000000000000000000000000000000000
-0000008065aaaa56000000000000000000000000000aa9000000aaa000000aaa00000099a0000000000000000000000000000000000000000000000000000000
+0000000065aaaa56000000000000000000000000a0000000aa00000009900000009a0000000a0000000000000000000000000000000000000022220000222200
+000000806aacaca6000000000000000000000000a0000000aa0000000990000000a90000000a000000000000000000000000000000222200002ee200007ee700
+000008a06aacaca60000000000000000000000000a00000900a00000900a00000a00900000a00000000000000000000000222200002ee20002eeee2002eeee20
+00008a706a9aaaa60000000000000000000000000a00000900a00000900a00000a00900000a000000000000000222200002ee20002eeee2002eeee2002feef20
+000008a06aa99aa600000000000000000000000000a00090000a000a0000a000a00009000a00000000000000112ee21112eeee2102eeee20002ee200002ff200
+0000008065aaaa56000000000000000000000000000aa9000000aaa000000aaa00000099a0000000000000001111111111111111111111110022220000222200
 00000000066666600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000aaaa00000000000000000000000000000aa00000000999777777779990099977777777999009997777777799900999777777779990
@@ -1226,3 +1336,5 @@ __sfx__
 c30500000463607124071310912109135000000000000000000000000009110000001510000000000000000000000000000000009710151051510500000000000000000000000000000009715000000000015105
 490600001a5241c5111d5111f5111f525000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 010600001f5241d5111d5111c5111a5250000000000000001a5001c5001d5001f5001f50000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+530c00001053610530135301353015540000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+7b0800001f6441f63113544105310e5310e5310c5210c5210c5250000000000095010211000000045000410004110000000410500000041150000000000000000000000000000000000000000000000000000000

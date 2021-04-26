@@ -96,7 +96,7 @@ function start_escape()
    frame_count = 0
    last_transition = 0
 
-   started_at = 0
+   started_at = t()
    finished_at = 0
 
    set_collided()

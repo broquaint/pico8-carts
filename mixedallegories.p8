@@ -56,7 +56,7 @@ function animate_move(obj)
    end
 end
 
-g_fuel_max = 50
+g_fuel_max = 55.5
 
 game_state_menu       = 'menu'
 game_state_gaming     = 'gaming'
@@ -145,8 +145,8 @@ function generate_terrain()
    local towards={
       {{16,32}, {120, 96}},
       {{32,48}, {96, 120}},
-      {{48,16}, {120, 48}},
-      {{16,32}, {48,  96}},
+      {{48,16}, {120, 64}},
+      {{16,32}, {64,  96}},
       {{32,24}, {96, 108}},
    }
 
@@ -269,7 +269,7 @@ function generate_terrain()
             elseif x % 144 == 0 then -- and randx(5) > 3 then
                local ring = make_obj({
                      type=o_fuel_ring,
-                     y=up_y+randx(gap),
+                     y=up_y+randx(gap-g_td),
                      x=x,
                      anim_at=1,
                      fuel_used=false,
@@ -320,7 +320,7 @@ g_accel_back = 0.4
 g_accel_vert = 0.3
 
 -- td = terrain_depth
-g_td = 15
+g_td = 10
 
 function did_collide(terr, x, y, test)
    local px0 = x + cam_x
@@ -340,7 +340,7 @@ end
 
 function did_collide_up(x, y)
    local function coll_test(pos, px0, px1, py0, py1)
-      local pos_top = max(1, pos.y)
+      local pos_top = max(1, pos.y - 2)
       return ((px0 >= pos.x and px0 <= (pos.x+2))
            or (px1 >= pos.x and px1 <= (pos.x+2)))
          and py0 < pos_top
@@ -612,7 +612,7 @@ function update_level()
       return
    end
 
-   if btnp(b_x) and not claw.extending and not player_crashing then
+   if current_state != game_state_level_done and btnp(b_x) and not claw.extending and not player_crashing then
       extend_claw()
    end
 
@@ -760,17 +760,24 @@ function _update()
          animate_obj(bobbing, bob_ship)
       end
    elseif current_state == game_state_splaining then
-      if btnp(b_x) and frame_count - last_transition > 15 then
+      if btnp(b_x) and (frame_count - last_transition) > 15 then
          set_state(game_state_gaming)
          started_at = t()
       end
    elseif current_state == game_state_level_fail then
-      if btnp(b_x) and frame_count - last_transition > 15 then
+      if btnp(b_x) and (frame_count - last_transition) > 15 then
          _init()
          current_state = game_state_gaming
          -- sfx?
       end
    else
+      if current_state == game_state_level_done then
+         if btnp(b_x) and frame_count - last_transition > 60 then
+            _init()
+            return
+            -- sfx?
+         end
+      end
       update_level()
    end
 end
@@ -846,7 +853,7 @@ function draw_form_warning()
    local rhs = flr(screen_width + cam_x)
 
    for obj in all(objects) do
-      if obj.type == o_form and obj.x > rhs and (obj.x - rhs) < 160 then
+      if obj.type == o_form and obj.x > rhs and (obj.x - rhs) < 220 then
          if frame_count % 30 > 15 then
             line(cam_x+127, obj.y - 4, cam_x+127, obj.y + 16, yellow)
             line(cam_x+126, obj.y - 4, cam_x+126, obj.y + 16, orange)
@@ -1414,11 +1421,11 @@ __label__
 00000000000000000000000000000000b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
 __sfx__
-4905000000520005220f5220f51111511115111252112521135201353118510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+490500001d520005220f5220f51111511115111252112521135201353118510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4904000000530005320f5320f52111521115211253112531135301354118510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4903000000530005320f5320f52111521115211253112531135301354118510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4902000000530005320f5320f52111521115211253112531135301354118510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-510a000018534185311853118531185311f5411f5411f5411f5472154721547215472154500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+510a000018524185211852118521185211f5311f5311f5311f5372153721537215372153500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 490400001572415726135261353110731107310073500300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 87060000136341362121621216201c6301c5211d5211f521000000000018200135241352115521105001c7001c700105001050018514185111a51100000000000000000000000000000000000000000000000000
 870700000a6440a637096270461310510105250000000000000000000010520000000000010505105001071000000105051050510505107250000000000000000000000000000000000010505000000000000000

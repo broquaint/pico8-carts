@@ -383,7 +383,7 @@ function check_objects(x, y)
                consume_fuel(7)
                obj.crashed = true
                ring_streak = 0
-               sfx(7)
+               crash_judder({sfx=7})
                animate(function()
                      local orig_x = obj.x
                      local orig_s = cam_speed
@@ -579,7 +579,7 @@ function set_collided(c)
    end
 end
 
-function crash_judder()
+function crash_judder(attr)
    if(player_crashing) return
 
    consume_fuel(4)
@@ -588,7 +588,7 @@ function crash_judder()
    player_speed_horiz = 0
    player_speed_vert = 0
    cam_speed = g_min_speed
-   sfx(6)
+   sfx((attr and attr.sfx) or 6)
 
    animate(function()
       local offset = (collided.up and 1 or -1) * 0.25

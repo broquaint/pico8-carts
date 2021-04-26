@@ -79,13 +79,14 @@ function start_escape()
    player_speed_horiz = 0
 
    player_fuel = g_fuel_max
+   player_crashing = false
 
    frame_count = 0
 
    started_at = 0
    finished_at = 0
 
-   collided = { up = false, down = false}
+   set_collided()
 end
 
 o_stalactite = 'stalactite'
@@ -440,8 +441,34 @@ function extend_claw()
    animate(anim)
 end
 
+function set_collided(c)
+   if c != nil then
+      collided = merge(collided, c)
+      collided.t = true
+   else
+      collided = { up = false, down = false, t = false }
+   end
+end
+
+function crash_judder()
+   if(player_crashing) return
+   player_crashing = true
+   local offset = (collided.up and 1 or -1) * 0.25
+   local judder = -1
+   for i = 1, 25 do
+      player_y += offset
+      if i % 5 == 0 then
+         player_x += judder
+         judder = -judder
+      end
+      yield()
+   end
+   set_collided()
+   player_crashing = false
+end
+
 function update_level()
-   if btnp(b_x) and not claw.extending then
+   if btnp(b_x) and not claw.extending and not player_crashing then
       extend_claw()
    end
 
@@ -454,7 +481,7 @@ function update_level()
    local next_y = player_y
    local next_s = cam_speed
 
-   if not collecting_form then
+   if not collecting_form and not player_crashing then
       if btn(b_right) then
          player_speed_horiz = min(g_max_speed, player_speed_horiz == 0 and 1 or player_speed_horiz + g_accel_fwd)
          next_s = min(g_max_speed, max(0.2, cam_speed) * 1.1)
@@ -481,17 +508,21 @@ function update_level()
    next_y = player_speed_vert > 0 and flr(player_speed_vert + next_y) or -flr(-player_speed_vert) + next_y
 
    if did_collide_up(next_x, next_y) then
-      collided = { up = true,  down = false }
+      set_collided({ up = true })
       player_speed_horiz = 0
+      player_speed_vert = 0
       cam_speed = g_min_speed
+      animate(crash_judder)
    elseif did_collide_down(next_x, next_y) then
-      collided = { up = false, down = true }
+      set_collided({ down = true })
       player_speed_horiz = 0
+      player_speed_vert = 0
       cam_speed = g_min_speed
+      animate(crash_judder)
    else
       local new_s = check_objects(next_x, next_y)
       if(new_s) next_s = min(g_max_speed, new_s)
-      collided = { up = false, down = false }
+      set_collided()
    end
 
    if (not collided.up and next_y < player_y)
@@ -499,7 +530,7 @@ function update_level()
       player_y = flr(next_y)
    end
 
-   if not collided.up and not collided.down then
+   if not collided.t then
       next_x += player_speed_horiz
       if next_x > 16 and next_x < 64 then
          player_x = flr(next_x)
@@ -515,7 +546,7 @@ function update_level()
          consume_fuel(max(1, cam_speed * 0.5))
       end
    else
-      consume_fuel(0.5)
+      consume_fuel(3)
       ring_streak = 0
    end
 
@@ -875,7 +906,7 @@ function draw_level()
       line(px-1, player_y+2, px-1,player_y+6, silver)
 
       -- "exhaust" from thruster
-      if not collided.up and not collided.down then
+      if not collided.t then
          sspr(4, 10, 3, 5, px - (3+flr(cam_speed)), player_y+2, 2+cam_speed, 5)
          local vert_thrust_cols = {[0]=red,[1]=orange,[2]=yellow,[3]=white}
          local col = vert_thrust_cols[flr(abs(player_speed_vert))]

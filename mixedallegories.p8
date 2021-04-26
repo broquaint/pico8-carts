@@ -767,7 +767,7 @@ function _update()
    elseif current_state == game_state_level_fail then
       if btnp(b_x) and frame_count - last_transition > 15 then
          _init()
-         current_state = game_state_menu
+         current_state = game_state_gaming
          -- sfx?
       end
    else
@@ -909,7 +909,12 @@ the cave
 end
 
 function draw_fail()
-   print('game over', cam_x+32, 64, white)
+   rectfill(cam_x+6, 14, cam_x+112, 38, black)
+   print("cave over", cam_x+8, 16, white)
+   print("kallipolis isn't to be ...", cam_x+8, 22, white)
+   if (frame_count - last_transition) > 30 then
+      print('press ❎ to retry', cam_x+8, 32, white)
+   end
 end
 
 function animate_star_twinkle(star)

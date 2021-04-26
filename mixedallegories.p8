@@ -26,7 +26,6 @@ function animate(f)
    animate_obj({}, f)
 end
 
-anims={}
 function animate_obj(obj, animation)
    obj.co = cocreate(function()
          obj.animating = true
@@ -63,7 +62,22 @@ game_state_menu       = 'menu'
 game_state_gaming     = 'gaming'
 game_state_splaining  = 'exposition'
 game_state_level_done = 'lvldone'
+game_state_level_fail = 'lvlfail'
 game_state_complete   = 'complete'
+
+function in_state(...)
+   for v in all({...}) do
+      if v == current_state then
+         return true
+      end
+   end
+   return false
+end
+
+function set_state(s)
+   last_transition = frame_count
+   current_state = s
+end
 
 function start_escape()
    current_state = game_state_menu
@@ -80,11 +94,20 @@ function start_escape()
    player_crashing = false
 
    frame_count = 0
+   last_transition = 0
 
    started_at = 0
    finished_at = 0
 
    set_collided()
+
+   ring_streak     = 0
+   collected_rings = 0
+   collected_seeds = 0
+   collected_forms = {}
+   collecting_form = false
+
+   claw = make_obj({length=0,anim_at=18,extending=false,extended=false})
 end
 
 o_stalactite = 'stalactite'
@@ -262,7 +285,18 @@ function generate_terrain()
    end
 end
 
+function init_globals()
+   anims={}
+   exit_stars={}
+   for i = 1,16 do
+      add(exit_stars, make_obj({x=randx(128), y=randx(128), idx=i,colour=black,trail={}}))
+   end
+   bobbing = make_obj({})
+end
+
 function _init()
+   camera()
+   init_globals()
    start_escape()
    generate_terrain()
 end
@@ -326,15 +360,11 @@ function did_collide_down(x, y)
 end
 
 function consume_fuel(n)
+   if(current_state == game_state_level_done) return
    local next_f = player_fuel - n
    player_fuel = next_f >= 0 and next_f or 0
 end
 
-ring_streak     = 0
-collected_rings = 0
-collected_seeds = 0
-collected_forms = {}
-collecting_form = false
 function check_objects(x, y)
    local px0 = x + cam_x + 1
    local px1 = px0 + 6
@@ -463,7 +493,6 @@ function check_objects(x, y)
    end
 end
 
-claw = make_obj({length=0,anim_at=18,extending=false,extended=false})
 function extend_claw()
    local function anim()
       for f=1,10 do
@@ -553,6 +582,8 @@ end
 function crash_judder()
    if(player_crashing) return
 
+   consume_fuel(4)
+   ring_streak = 0
    player_crashing = true
    player_speed_horiz = 0
    player_speed_vert = 0
@@ -576,12 +607,17 @@ function crash_judder()
    end
 
 function update_level()
+   if current_state != game_state_level_done and player_fuel == 0 and (player_crashing or collided.t) then
+      set_state(game_state_level_fail)
+      return
+   end
+
    if btnp(b_x) and not claw.extending and not player_crashing then
       extend_claw()
    end
 
    if current_state != game_state_level_done and (cam_x+player_x) > terrain.up[#terrain.up].x then
-      current_state = game_state_level_done
+      set_state(game_state_level_done)
       finished_at = t()
    end
 
@@ -590,17 +626,19 @@ function update_level()
    local next_s = cam_speed
 
    if not collecting_form and not player_crashing then
-      if btn(b_right) then
-         player_speed_horiz = min(g_max_speed, player_speed_horiz == 0 and 1 or player_speed_horiz + g_accel_fwd)
-         next_s = min(g_max_speed, max(0.2, cam_speed) * 1.1)
-      elseif btn(b_left) then
-         player_speed_horiz = max(-2.5, player_speed_horiz == 0 and -1 or player_speed_horiz - g_accel_back)
-         next_s = max(g_min_speed, cam_speed * 0.95)
-         if flr(cam_speed) > g_min_speed then
-            consume_fuel(max(0.05, cam_speed * 0.1))
+      if player_fuel > 0 then
+         if btn(b_right) then
+            player_speed_horiz = min(g_max_speed, player_speed_horiz == 0 and 1 or player_speed_horiz + g_accel_fwd)
+            next_s = min(g_max_speed, max(0.2, cam_speed) * 1.1)
+         elseif btn(b_left) then
+            player_speed_horiz = max(-2.5, player_speed_horiz == 0 and -1 or player_speed_horiz - g_accel_back)
+            next_s = max(g_min_speed, cam_speed * 0.95)
+            if flr(cam_speed) > g_min_speed then
+               consume_fuel(max(0.05, cam_speed * 0.1))
+            end
+         else
+            player_speed_horiz *= g_friction
          end
-      else
-         player_speed_horiz *= g_friction
       end
 
       if btn(b_up) then
@@ -646,9 +684,6 @@ function update_level()
       if frame_count % 30 == 0 then
          consume_fuel(max(1, cam_speed * 0.5))
       end
-   else
-      consume_fuel(4)
-      ring_streak = 0
    end
 
    for obj in all(objects) do
@@ -694,7 +729,6 @@ function animate_ring_crash(r)
    r.x = -1
 end
 
-bobbing = make_obj({})
 function bob_ship()
    local orig_y = player_y
    local offset = 5
@@ -712,7 +746,6 @@ function bob_ship()
    end
 end
 
-last_transition = 0
 function _update()
    frame_count += 1
 
@@ -720,18 +753,22 @@ function _update()
 
    if current_state == game_state_menu then
       if btnp(b_x) then
-         current_state = game_state_splaining
-         last_transition = frame_count
+         set_state(game_state_splaining)
          -- sfx?
       end
       if not bobbing.animating then
          animate_obj(bobbing, bob_ship)
       end
    elseif current_state == game_state_splaining then
-      if btnp(b_x) and frame_count - last_transition > 45 then
-         current_state = game_state_gaming
-         last_transition = frame_count
+      if btnp(b_x) and frame_count - last_transition > 15 then
+         set_state(game_state_gaming)
          started_at = t()
+      end
+   elseif current_state == game_state_level_fail then
+      if btnp(b_x) and frame_count - last_transition > 15 then
+         _init()
+         current_state = game_state_menu
+         -- sfx?
       end
    else
       update_level()
@@ -871,9 +908,8 @@ the cave
    print(msg, 8, 48, white)
 end
 
-exit_stars={}
-for i = 1,16 do
-   add(exit_stars, make_obj({x=randx(128), y=randx(128), idx=i,colour=black,trail={}}))
+function draw_fail()
+   print('game over', cam_x+32, 64, white)
 end
 
 function animate_star_twinkle(star)
@@ -882,6 +918,9 @@ function animate_star_twinkle(star)
    while current_state != game_state_menu do
       local rem = frame_count - start_frame
       star.colour = rem < 30 and black or rem < 45 and navy or rem < 70 and dim_grey or rem < 85 and silver or white
+      if rem > 100 then
+         star.colour = rem % 100 < 50 and yellow or white
+      end
       yield()
    end
 end
@@ -953,7 +992,7 @@ out of the allegorical cave!
 end
 
 function draw_level()
-   if current_state == game_state_gaming then
+   if in_state(game_state_gaming, game_state_level_fail) then
       draw_terrain(terrain.up, function(t)
                       local from_y = t.y - 4
                       rectfill(t.x, from_y, t.x+2, t.y, brown)
@@ -1016,7 +1055,7 @@ function draw_level()
       end
    end
 
-   if not player_crashing and (current_state == game_state_gaming or current_state == game_state_level_done) then
+   if not player_crashing and in_state(game_state_gaming, game_state_level_done) and player_fuel > 0 then
       -- "thruster" on ship
       line(px-1, player_y+2, px-1,player_y+6, silver)
 
@@ -1078,6 +1117,9 @@ function _draw()
       draw_exposition()
    else
       draw_ui()
+      if current_state == game_state_level_fail then
+         draw_fail()
+      end
    end
 end
 

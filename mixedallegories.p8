@@ -136,8 +136,6 @@ all_forms = {
    },
 }
 
-forms = all_forms[randx(#all_forms)]
-
 function generate_terrain()
    terrain={up={},down={}}
    objects={}
@@ -292,6 +290,8 @@ function init_globals()
       add(exit_stars, make_obj({x=randx(128), y=randx(128), idx=i,colour=black,trail={}}))
    end
    bobbing = make_obj({})
+   form_show = make_obj({forms={}})
+   forms = all_forms[randx(#all_forms)]
 end
 
 function _init()
@@ -855,10 +855,55 @@ function draw_form_warning()
    end
 end
 
+function animate_form_show(fs)
+   while current_state == game_state_menu do
+      for af in all(all_forms) do
+         local offset = 0
+         fs.forms = {}
+         local fx = 128
+         for i, f in pairs(af) do
+            add(fs.forms, make_obj(merge(copy_table(f), {
+                                             y=42,
+                                             x=fx+offset,
+                                             collected=false
+            })))
+            offset += 19
+         end
+         while fx > -80 do
+            if(current_state != game_state_menu) return
+            for f in all(fs.forms) do
+               f.x -= 1
+            end
+            fx -= 1
+
+            yield()
+         end
+      end
+   end
+end
+
+function draw_form(obj)
+   local s = copy_table(obj.spr)
+   add(s, obj.x)
+   add(s, obj.y)
+   add(s, obj.dw or s[3])
+   add(s, obj.dh or s[4])
+   sspr(unpack(s))
+end
+
 function draw_menu()
    sspr(2, 97, 81, 15, 20, 2)
 
-   print('press ❎ to begin', 32, 32, white)
+   print('press ❎ to begin', 32, 80, white)
+
+   print('the forms', 32, 32, white)
+   if not form_show.animating then
+      animate_obj(form_show, animate_form_show)
+   else
+      for f in all(form_show.forms) do
+         draw_form(f)
+      end
+   end
 end
 
 dazzling = {
@@ -897,15 +942,17 @@ and establish
     msg = [[
 grab the forms with your claw
 by pressing ❎ when they are
-within reach.
+in reach.
 
 pass through fuel rings to
 top up your rapidly depleting
 fuel and avoid the dangers of
-the cave
+the cave.
+
+press ❎ to start
 ]]
 
-   print(msg, 8, 48, white)
+   print(msg, 8, 46, white)
 end
 
 function draw_fail()
@@ -1038,12 +1085,7 @@ function draw_level()
             draw_ring_half(obj, 'back')
             add(ring_halves, obj)
          elseif obj.type == o_form then
-            local s = copy_table(obj.spr)
-            add(s, obj.x)
-            add(s, obj.y)
-            add(s, obj.dw or s[3])
-            add(s, obj.dh or s[4])
-            sspr(unpack(s))
+            draw_form(obj)
          end
       end
    end

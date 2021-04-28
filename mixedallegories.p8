@@ -106,6 +106,7 @@ function start_escape()
    collected_seeds = 0
    collected_forms = {}
    collecting_form = false
+   collected_eggplant = false
 
    claw = make_obj({length=0,anim_at=18,extending=false,extended=false})
 end
@@ -114,6 +115,7 @@ o_stalactite = 'stalactite'
 o_seed       = 'seed'
 o_fuel_ring  = 'fuel_ring'
 o_form       = 'platonic_form'
+o_eggplant   = 'eggplant'
 
 all_forms = {
    {
@@ -134,6 +136,12 @@ all_forms = {
       { name = 'three', spr = {64, 48, 17, 17}, icon_spr = 74 },
       { name = 'four',  spr = {80, 48, 17, 17}, icon_spr = 75 },
    },
+}
+
+eggplant = {
+   type = o_eggplant,
+   collected = false,
+   spr = { 2, 50, 13, 13 }
 }
 
 function generate_terrain()
@@ -281,6 +289,8 @@ function generate_terrain()
          end
       end
    end
+
+   add(objects, make_obj(merge({x=terrain.up[#terrain.up-20].x,y=64}, eggplant)))
 end
 
 function init_globals()
@@ -460,6 +470,31 @@ function check_objects(x, y)
                   ring_streak = 0
                   sfx(5)
                end
+            end
+         elseif obj.type == o_eggplant and not obj.collected and claw.extended then
+            local cx1 = px1+8+claw.length
+            local cy0 = py0+4
+            local cy1 = cy0+4
+            if  (cx1 >= obj.x and cx1 < obj.x+8)
+            and (cy0 >= obj.y and cy1 <= (obj.y+obj.spr[4]+4)) then
+               obj.collected = true
+               sfx(4)
+               collecting_form = obj
+               animate(function()
+                     obj.dw = obj.spr[3]
+                     obj.dh = obj.spr[4]
+                     while claw.extending do
+                        obj.x = flr(player_x + cam_x) + 11 + claw.length
+                        obj.dw = max(0, obj.dw - 0.25)
+                        obj.dh = max(0, obj.dw - 0.25)
+                        obj.y += 0.15
+                        yield()
+                     end
+                     obj.x = -1
+                     collecting_form = false
+                     collected_eggplant = true
+               end)
+               return g_min_speed
             end
          elseif obj.type == o_form and not obj.collected and claw.extended then
             local cx1 = px1+8+claw.length
@@ -849,7 +884,8 @@ function draw_ring_half(ring, side)
    add(rs, ring.y)
    sspr(unpack(rs))
 
-   pal()
+   pal(orange, orange)
+   pal(yellow, yellow)
 end
 
 function draw_form_warning()
@@ -993,6 +1029,7 @@ win_states = {
    [2] = {'oligarchy',   coral},
    [3] = {'timocracy',   orange},
    [4] = {'aristocracy', yellow},
+   [5] = {'melitzancy',  magenta}
 }
 
 function draw_exit()
@@ -1027,7 +1064,7 @@ out of the allegorical cave!
     print(msg, msg_x, 32, white)
     print('kallipolis', msg_x, 48, dazzling.colour)
     print('can be established', msg_x+43, 48, white)
-    local cf = #collected_forms
+    local cf = collected_eggplant and 5 or #collected_forms
     local ws = win_states[cf]
     local indefinite = (cf == 4 or cf == 2) and 'an' or 'a'
     local offset     = (cf == 4 or cf == 2) and 24   or 20
@@ -1096,6 +1133,13 @@ function draw_level()
             add(ring_halves, obj)
          elseif obj.type == o_form then
             draw_form(obj)
+         elseif obj.type == o_eggplant then
+            if on_screen(obj.x) and collected_seeds >= 2 then
+               -- Change brown to "eggplant purple" for intended colours.
+               pal(brown, 130)
+               draw_form(obj)
+               pal(brown, brown)
+            end
          end
       end
    end

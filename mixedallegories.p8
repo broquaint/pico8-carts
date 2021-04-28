@@ -720,7 +720,7 @@ function update_level()
       camera(flr(cam_x))
 
       if frame_count % 30 == 0 then
-         consume_fuel(max(1, cam_speed * 0.5))
+         consume_fuel(max(0.75, cam_speed * 0.5))
       end
    end
 
@@ -988,8 +988,8 @@ and establish
 
     msg = [[
 grab the forms with your claw
-by pressing ❎ when they are
-in reach.
+by holding ❎, when they are
+approaching a sign will show.
 
 pass through fuel rings to
 top up your rapidly depleting
@@ -1092,7 +1092,7 @@ out of the allegorical cave!
 end
 
 function draw_level()
-   if in_state(game_state_gaming, game_state_level_fail) then
+   if in_state(game_state_gaming, game_state_level_fail, game_state_level_done) then
       draw_terrain(terrain.up, function(t)
                       local from_y = t.y - 4
                       rectfill(t.x, from_y, t.x+2, t.y, brown)

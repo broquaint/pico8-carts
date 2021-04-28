@@ -391,7 +391,7 @@ function check_objects(x, y)
             local sy1 = sy0 + 8
             if  ((px0 > sx0 and px0 < sx1) or (px1 > sx0 and px1 < sx1))
             and ((py0 > sy0 and py0 < sy1) or (py1 > sy0 and py1 < sy1)) then
-               consume_fuel(7)
+               consume_fuel(4)
                obj.crashed = true
                ring_streak = 0
                crash_judder({sfx=7})
@@ -413,8 +413,8 @@ function check_objects(x, y)
                local cx1 = px1+8+claw.length
                local cy0 = py0+4
                local cy1 = cy0+4
-               if  (cx1 >= obj.x and cx1 < obj.x+8)
-               and (cy0 >= obj.y and cy1 <= (obj.y+8)) then
+               if  (cx1 >= obj.x and cx1 < obj.x+10)
+               and (cy0 >= obj.y and cy1 <= (obj.y+10)) then
                   obj.collected = true
                   obj.cur_spr = 31
                   sfx(11)
@@ -457,7 +457,7 @@ function check_objects(x, y)
                local ry0 = obj.y
                local ry1 = ry0 + 14
                if py0 > ry0 and py1 < ry1 then
-                  player_fuel = min(g_fuel_max, player_fuel + 4)
+                  player_fuel = min(g_fuel_max, player_fuel + 8)
                   obj.fuel_used = frame_count
                   delay(function() obj.x = -1 end, 45)
                   sfx(ring_streak)
@@ -466,7 +466,6 @@ function check_objects(x, y)
                   return cam_speed * 1.5
                elseif (py0 < ry0 and py1 > ry0) or (py0 < ry1 and py1 > ry1) then
                   obj.crashed = true
-                  consume_fuel(2)
                   animate_obj(obj, animate_ring_crash)
                   ring_streak = 0
                   sfx(5)
@@ -476,8 +475,8 @@ function check_objects(x, y)
             local cx1 = px1+8+claw.length
             local cy0 = py0+4
             local cy1 = cy0+4
-            if  (cx1 >= obj.x and cx1 < obj.x+8)
-            and (cy0 >= obj.y and cy1 <= (obj.y+obj.spr[4]+4)) then
+            if  (cx1 >= obj.x and cx1 < obj.x+10)
+            and (cy0 >= obj.y and cy1 <= (obj.y+obj.spr[4]+8)) then
                obj.collected = true
                sfx(4)
                collecting_form = obj
@@ -501,8 +500,8 @@ function check_objects(x, y)
             local cx1 = px1+8+claw.length
             local cy0 = py0+4
             local cy1 = cy0+4
-            if  (cx1 >= obj.x and cx1 < obj.x+8)
-            and (cy0 >= obj.y and cy1 <= (obj.y+obj.spr[4]+4)) then
+            if  (cx1 >= obj.x and cx1 < obj.x+10)
+            and (cy0 >= obj.y and cy1 <= (obj.y+obj.spr[4]+8)) then
                obj.collected = true
                sfx(4)
                collecting_form = obj

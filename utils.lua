@@ -19,8 +19,8 @@ b_left  = ⬅️ b_right = ➡️
 b_down  = ⬇️ b_up    = ⬆️
 b_x     = ❎  b_z     = 🅾️
 
-DEBUG_GFX = false
-DEBUG = false
+DEBUG_GFX = IS_DEV_BUILD and false
+DEBUG = IS_DEV_BUILD and true
 
 function dumper(...)
    local res = ''

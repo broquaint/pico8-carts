@@ -26,8 +26,9 @@ grid_sprites={
 --   {9,salmon},
 --   {11,lime}
 }
-tile_size = 12
+tile_size  = 12
 space_size = 13
+
 function _init()
    anims={}
    frame_count = 0
@@ -38,7 +39,13 @@ function _init()
    for i = 1,6 do
       grid[i] = {}
       for j = 1,6 do
-         grid[i][j] = grid_sprites[randx(#grid_sprites)]
+         grid[i][j] = {
+            spr_idx = grid_sprites[randx(#grid_sprites)][1],
+            gx = i,
+            gy = j,
+            x = i*tile_size+i,
+            y = j*tile_size+j
+         }
       end
    end
 end
@@ -71,11 +78,13 @@ function animate_obj_move(a)
 end
 
 function animate_player_move(direction)
+   local frame_count = 15
    local anim_args = {
-      frames = 15,
+      frames = frame_count,
       obj = player,
       cb = function() set_play_state('idle') end
    }
+
    if direction.x != nil then
       local from_x = player.x
       local to_x   = from_x + direction.x
@@ -84,7 +93,34 @@ function animate_player_move(direction)
             to     = to_x,
             slot   = 'x'
       })
+
+      local orig_gx = player.gx
+      player.gx += sgn(direction.x) * 1
+
+      if player.held then
+         local other_tile = grid[player.gx][player.gy]
+         local to_x = other_tile.x
+         animate_object_with({
+               obj  = other_tile,
+               from = other_tile.x,
+               to   = player.tile_held.x,
+               slot = 'x',
+               frames = frame_count,
+         }, animate_obj_move)
+         animate_object_with({
+               obj  = player.tile_held,
+               from = player.tile_held.x,
+               to   = to_x,
+               slot = 'x',
+               frames = frame_count,
+               cb = function()
+                  grid[player.gx][player.gy] = player.tile_held
+                  grid[orig_gx][player.gy]   = other_tile
+               end
+         }, animate_obj_move)
+      end
    end
+
    if direction.y != nil then
       local from_y = player.y
       local to_y   = from_y + direction.y
@@ -93,6 +129,32 @@ function animate_player_move(direction)
             to     = to_y,
             slot   = 'y'
       })
+
+      local orig_gy = player.gy
+      player.gy += sgn(direction.y) * 1
+
+      if player.held then
+         local other_tile = grid[player.gx][player.gy]
+         local to_y = other_tile.y
+         animate_object_with({
+               obj  = other_tile,
+               from = other_tile.y,
+               to   = player.tile_held.y,
+               slot = 'y',
+               frames = frame_count,
+         }, animate_obj_move)
+         animate_object_with({
+               obj  = player.tile_held,
+               from = player.tile_held.y,
+               to   = to_y,
+               slot = 'y',
+               frames = frame_count,
+               cb = function()
+                  grid[player.gx][player.gy] = player.tile_held
+                  grid[player.gx][orig_gy]   = other_tile
+               end
+         }, animate_obj_move)
+      end
    end
 
    animate_object_with(anim_args, animate_obj_move)
@@ -101,6 +163,9 @@ end
 player = {
    x = 3*space_size,
    y = 3*space_size,
+   gx = 3,
+   gy = 3,
+   held = false
 }
 move = {
    left  = { x = -space_size },
@@ -110,21 +175,26 @@ move = {
 }
 
 function _update()
-   if btnp(b_left) and in_play_state('idle') then
+   local can_move = in_play_state('idle')
+   if btnp(b_left) and can_move then
       set_play_state('switch')
       animate_player_move(move.left)
    end
-   if btnp(b_right) and in_play_state('idle') then
+   if btnp(b_right) and can_move then
       set_play_state('switch')
       animate_player_move(move.right)
    end
-   if btnp(b_up) and in_play_state('idle') then
+   if btnp(b_up) and can_move then
       set_play_state('switch')
       animate_player_move(move.up)
    end
-   if btnp(b_down) and in_play_state('idle') then
+   if btnp(b_down) and can_move then
       set_play_state('switch')
       animate_player_move(move.down)
+   end
+   if btnp(b_x) and can_move then
+      player.held = not player.held
+      player.tile_held = player.held and grid[player.gx][player.gy] or nil
    end
 
    frame_count += 1
@@ -133,21 +203,24 @@ end
 
 function _draw()
    cls(black)
+
    -- Draw grid
    rectfill(tile_size+1, tile_size+1, 7 * tile_size + 9, 7 * tile_size + 9, silver)
+
    -- Draw tiles
    for i = 1,6 do
       for j = 1,6 do
          local gs = grid[i][j]
-         spr(gs[1], i*tile_size+i, j*tile_size+j, 2, 2)
+         spr(gs.spr_idx, gs.x, gs.y, 2, 2)
       end
    end
+
    -- Draw player cursor
    local px0 = player.x + 1
    local py0 = player.y + 1
    local px1 = (px0 + space_size)
    local py1 = (py0 + space_size)
-   rect(px0-1, py0-1, px1+1, py1+1, yellow)
+   rect(px0-1, py0-1, px1+1, py1+1, player.held and red or yellow)
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

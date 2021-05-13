@@ -77,12 +77,46 @@ function animate_obj_move(a)
    end    
 end
 
+function swap_grid_tiles(a, b)
+   local ax, ay = a.gx, a.gy
+   local bx, by = b.gx, b.gy
+
+   grid[ax][ay] = b
+   grid[bx][by] = a
+
+   a.gx = bx
+   a.gy = by
+   b.gx = ax
+   b.gy = ay
+end
+
+swap_frame_count = 10
+function animate_tile_swap(ta, tb, slot)
+   local to = tb[slot]
+   animate_object_with({
+         obj  = tb,
+         from = tb[slot],
+         to   = ta[slot],
+         slot = slot,
+         frames = swap_frame_count,
+   }, animate_obj_move)
+   animate_object_with({
+         obj  = ta,
+         from = ta[slot],
+         to   = to,
+         slot = slot,
+         frames = swap_frame_count,
+         cb = function()
+            swap_grid_tiles(ta, tb)
+         end
+   }, animate_obj_move)
+end
+
 function animate_player_move(direction)
-   local frame_count = 15
    local anim_args = {
-      frames = frame_count,
+      frames = swap_frame_count,
       obj = player,
-      cb = function() set_play_state('idle') end
+      cb = finish_swap
    }
 
    if direction.x != nil then
@@ -94,30 +128,11 @@ function animate_player_move(direction)
             slot   = 'x'
       })
 
-      local orig_gx = player.gx
       player.gx += sgn(direction.x) * 1
 
       if player.held then
          local other_tile = grid[player.gx][player.gy]
-         local to_x = other_tile.x
-         animate_object_with({
-               obj  = other_tile,
-               from = other_tile.x,
-               to   = player.tile_held.x,
-               slot = 'x',
-               frames = frame_count,
-         }, animate_obj_move)
-         animate_object_with({
-               obj  = player.tile_held,
-               from = player.tile_held.x,
-               to   = to_x,
-               slot = 'x',
-               frames = frame_count,
-               cb = function()
-                  grid[player.gx][player.gy] = player.tile_held
-                  grid[orig_gx][player.gy]   = other_tile
-               end
-         }, animate_obj_move)
+         animate_tile_swap(player.tile_held, other_tile, 'x')
       end
    end
 
@@ -130,34 +145,26 @@ function animate_player_move(direction)
             slot   = 'y'
       })
 
-      local orig_gy = player.gy
       player.gy += sgn(direction.y) * 1
 
       if player.held then
          local other_tile = grid[player.gx][player.gy]
-         local to_y = other_tile.y
-         animate_object_with({
-               obj  = other_tile,
-               from = other_tile.y,
-               to   = player.tile_held.y,
-               slot = 'y',
-               frames = frame_count,
-         }, animate_obj_move)
-         animate_object_with({
-               obj  = player.tile_held,
-               from = player.tile_held.y,
-               to   = to_y,
-               slot = 'y',
-               frames = frame_count,
-               cb = function()
-                  grid[player.gx][player.gy] = player.tile_held
-                  grid[player.gx][orig_gy]   = other_tile
-               end
-         }, animate_obj_move)
+         animate_tile_swap(player.tile_held, other_tile, 'y')
       end
    end
 
    animate_object_with(anim_args, animate_obj_move)
+end
+
+function check_for_patterns(tile)
+end
+
+function finish_swap(args)
+   if check_for_patterns(player.tile_held) then
+      set_play_state('matched')
+   else
+      set_play_state('idle')
+   end
 end
 
 player = {

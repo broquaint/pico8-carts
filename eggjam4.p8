@@ -18,10 +18,17 @@ game_state_complete   = 'complete'
 play_state_idle = 'idle'
 play_state_switch = 'switch'
 
-   -- br = 'bottom right',
-   -- bl = 'bottom left',
-   -- tr = 'top right',
-   -- tl = 'top left',
+-- br = 'bottom right',
+-- bl = 'bottom left',
+-- tr = 'top right',
+-- tl = 'top left',
+
+-- tl      tr      bl      br
+-- oo xx # xx oo # xx xx # xx xx
+-- oo xx # xx oo # xx xx # xx xx
+--
+-- xx xx # xx xx # oo xx # xx oo
+-- xx xx # xx xx # oo xx # xx oo
 
 grid_tiles={
    {idx=1, colour=azure,  matches={bl=true}},
@@ -55,6 +62,12 @@ function _init()
          }
       end
    end
+end
+
+function gt(gx, gy)
+   local row = grid[gx]
+   if(row == nil) return nil
+   return row[gy]
 end
 
 function set_game_state(s)
@@ -165,26 +178,67 @@ end
 
 function check_for_patterns(tile)
    function diamond_match(a)
-      local b = grid[a.gx+1][a.gy]
-      local c = grid[a.gx][a.gy+1]
-      local d = grid[a.gx+1][a.gy+1]
-      dump('checking ',a)
+      if(not a) return false
 
-      if a.matches.br and b.matches.bl and c.matches.tr and d.matches.tl then
-         dump('matched! ',a)
-         return {a,b,c,d}
-      else
-         dump('nay :( ',a)
-         return false
+      -- xx xx
+      -- xo @x
+      -- xo ox
+      -- xx xx
+      if a.matches.bl then
+         local b = gt(a.gx - 1, a.gy)
+         local c = gt(a.gx - 1, a.gy + 1)
+         local d = gt(a.gx,     a.gy + 1)
+
+         if (b and c and d) and b.matches.br and c.matches.tr and d.matches.tl then
+            return {b,a,c,d}
+         end
       end
+
+      -- xx xx
+      -- x@ ox
+      -- xo ox
+      -- xx xx
+      if a.matches.br then
+         local b = gt(a.gx + 1, a.gy)
+         local c = gt(a.gx,     a.gy + 1)
+         local d = gt(a.gx + 1, a.gy + 1)
+
+         if (b and c and d) and b.matches.bl and c.matches.tr and d.matches.tl then
+            return {a,b,c,d}
+         end
+      end
+
+      -- xx xx
+      -- xo ox
+      -- x@ ox
+      -- xx xx
+      if a.matches.tr then
+         local b = gt(a.gx,     a.gy - 1)
+         local c = gt(a.gx + 1, a.gy - 1)
+         local d = gt(a.gx + 1, a.gy)
+
+         if (b and c and d) and b.matches.br and c.matches.bl and d.matches.tl then
+            return {b,c,a,d}
+         end
+      end
+      
+      -- xx xx
+      -- xo ox
+      -- xo @x
+      -- xx xx
+      if a.matches.tl then
+         local b = gt(a.gx - 1, a.gy - 1)
+         local c = gt(a.gx,     a.gy - 1)
+         local d = gt(a.gx - 1, a.gy)
+
+         if (b and c and d) and b.matches.br and c.matches.bl and d.matches.tr then
+            return {b,c,d,a}
+         end
+      end
+
+      return false
    end
 
-   -- oo xx
-   -- oo xx
-   --
-   -- xx xx
-   -- xx xx
-   local tx, ty = tile.gx, tile.gy
    return diamond_match(tile)
 end
 
@@ -195,10 +249,12 @@ function finish_swap(args)
       local matched = check_for_patterns(player.tile_held)
       if matched then
          dump('matched: ',matched)
+         for t in all(matched) do t.matched = true end
          animate(function()
                current_match = matched
                wait(60)
                current_match = nil
+               for t in all(matched) do t.matched = false end
                set_play_state('idle')
          end)
          state = 'matched'
@@ -259,15 +315,19 @@ function _draw()
       for j = 1,6 do
          local gs = grid[i][j]
          spr(gs.spr_idx, gs.x, gs.y, 2, 2)
+         if gs.matched then
+            circ(gs.x+8, gs.y+8,3, orange)
+            circfill(gs.x+8, gs.y+8,2, yellow)
+         end
       end
    end
 
    if in_play_state('matched') then
-      local mx0 = current_match[1].x
-      local my0 = current_match[1].y
-      local mx1 = current_match[#current_match].x + space_size + 1
-      local my1 = current_match[#current_match].y + space_size + 1
-      rect(mx0, my0, mx1, my1, lime)
+      local mx0 = current_match[1].x + 2
+      local my0 = current_match[1].y + 2
+      local mx1 = current_match[#current_match].x + space_size
+      local my1 = current_match[#current_match].y + space_size
+      rect(mx0, my0, mx1, my1, yellow)
    else
       -- Draw player cursor
       local px0 = player.x + 1

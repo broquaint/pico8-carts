@@ -31,10 +31,10 @@ play_state_switch = 'switch'
 -- xx xx # xx xx # oo xx # xx oo
 
 grid_tiles={
-   {idx=1, colour=azure,  matches={bl=true}},
-   {idx=3, colour=coral,  matches={br=true}},
-   {idx=5, colour=orange, matches={tl=true, br=true}},
-   {idx=7, colour=lime,   matches={tr=true, bl=true}},
+   {idx=1, colour=azure,  matches={bl=17}},
+   {idx=3, colour=coral,  matches={br=20}},
+   {idx=5, colour=orange, matches={tl=5, br=22}},
+   {idx=7, colour=lime,   matches={tr=8, bl=23}},
 --   {9,salmon},
 --   {11,lime}
 }
@@ -190,7 +190,7 @@ function check_for_patterns(tile)
          local d = gt(a.gx,     a.gy + 1)
 
          if (b and c and d) and b.matches.br and c.matches.tr and d.matches.tl then
-            return {b,a,c,d}
+            return {bl=a,br=b,tr=c,tl=d}
          end
       end
 
@@ -204,7 +204,7 @@ function check_for_patterns(tile)
          local d = gt(a.gx + 1, a.gy + 1)
 
          if (b and c and d) and b.matches.bl and c.matches.tr and d.matches.tl then
-            return {a,b,c,d}
+            return {br=a,bl=b,tr=c,tl=d}
          end
       end
 
@@ -218,7 +218,7 @@ function check_for_patterns(tile)
          local d = gt(a.gx + 1, a.gy)
 
          if (b and c and d) and b.matches.br and c.matches.bl and d.matches.tl then
-            return {b,c,a,d}
+            return {tr=a,br=b,bl=c,tl=d}
          end
       end
       
@@ -232,7 +232,7 @@ function check_for_patterns(tile)
          local d = gt(a.gx - 1, a.gy)
 
          if (b and c and d) and b.matches.br and c.matches.bl and d.matches.tr then
-            return {b,c,d,a}
+            return {tl=a,br=b,bl=c,tr=d}
          end
       end
 
@@ -248,13 +248,12 @@ function finish_swap(args)
    if player.tile_held then
       local matched = check_for_patterns(player.tile_held)
       if matched then
-         dump('matched: ',matched)
-         for t in all(matched) do t.matched = true end
          animate(function()
+               for m, t in pairs(matched) do t.matched = m end
                current_match = matched
                wait(60)
                current_match = nil
-               for t in all(matched) do t.matched = false end
+               for _,t in pairs(matched) do t.matched = nil end
                set_play_state('idle')
          end)
          state = 'matched'
@@ -304,6 +303,14 @@ function _update()
    run_animations()   
 end
 
+-- diamond match offsets
+dmo = {
+   br = { x = 8, y = 8 },
+   bl = { x = 0, y = 8 },
+   tr = { x = 8, y = 0 },
+   tl = { x = 0, y = 0 },
+}
+
 function _draw()
    cls(black)
 
@@ -314,22 +321,17 @@ function _draw()
    for i = 1,6 do
       for j = 1,6 do
          local gs = grid[i][j]
-         spr(gs.spr_idx, gs.x, gs.y, 2, 2)
          if gs.matched then
-            circ(gs.x+8, gs.y+8,3, orange)
-            circfill(gs.x+8, gs.y+8,2, yellow)
+            rectfill(gs.x+2, gs.y+2, gs.x+space_size, gs.y+space_size, white)
+            local xo, yo = dmo[gs.matched].x, dmo[gs.matched].y
+            spr(gs.matches[gs.matched], gs.x + xo, gs.y + yo)
+         else
+            spr(gs.spr_idx, gs.x, gs.y, 2, 2)
          end
       end
    end
 
-   if in_play_state('matched') then
-      local mx0 = current_match[1].x + 2
-      local my0 = current_match[1].y + 2
-      local mx1 = current_match[#current_match].x + space_size
-      local my1 = current_match[#current_match].y + space_size
-      rect(mx0, my0, mx1, my1, yellow)
-   else
-      -- Draw player cursor
+   if not in_play_state('matched') then
       local px0 = player.x + 1
       local py0 = player.y + 1
       local px1 = (px0 + space_size)

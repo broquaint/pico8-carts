@@ -31,15 +31,35 @@ play_state_switch = 'switch'
 -- xx xx # xx xx # oo xx # xx oo
 
 grid_tiles={
-   {idx=1, colour=azure,  matches={bl=17}},
-   {idx=3, colour=coral,  matches={br=20}},
-   {idx=5, colour=orange, matches={tl=5, br=22}},
-   {idx=7, colour=lime,   matches={tr=8, bl=23}},
+   {idx=1,  colour=azure,  matches={bl=17}},
+   {idx=3,  colour=coral,  matches={br=20}},
+   {idx=5,  colour=orange, matches={tl=5, br=22}},
+   {idx=7,  colour=lime,   matches={tr=8, bl=23}},
+   {idx=9,  colour=navy,   matches={tl=9}},
+   {idx=11, colour=green,  matches={tr=12}},
 --   {9,salmon},
 --   {11,lime}
 }
 tile_size  = 12
 space_size = 13
+
+tile_id = 1
+function make_tile(gx, gy, x, y)
+   local tile = grid_tiles[randx(#grid_tiles)]
+   x = x and x or gx*tile_size+gx
+   y = y and y or gy*tile_size+gy
+   local tid = tile_id
+   tile_id += 1
+   return {
+      spr_idx = tile.idx,
+      matches = tile.matches,
+      gx = gx,
+      gy = gy,
+      x = x,
+      y = y,
+      id = tid
+   }
+end
 
 function _init()
    anims={}
@@ -52,14 +72,7 @@ function _init()
       grid[i] = {}
       for j = 1,6 do
          local tile = grid_tiles[randx(#grid_tiles)]
-         grid[i][j] = {
-            spr_idx = tile.idx,
-            matches = tile.matches,
-            gx = i,
-            gy = j,
-            x = i*tile_size+i,
-            y = j*tile_size+j
-         }
+         grid[i][j] = make_tile(i, j)
       end
    end
 end
@@ -108,6 +121,10 @@ function swap_grid_tiles(a, b)
    a.gy = by
    b.gx = ax
    b.gy = ay
+end
+
+function animate_y_move(args)
+   animate_object_with(merge({slot = 'y'}, args), animate_obj_move)
 end
 
 swap_frame_count = 10
@@ -242,7 +259,6 @@ function check_for_patterns(tile)
    return diamond_match(tile)
 end
 
-current_match = nil
 function finish_swap(args)
    local state = 'idle'
    if player.tile_held then
@@ -250,10 +266,57 @@ function finish_swap(args)
       if matched then
          animate(function()
                for m, t in pairs(matched) do t.matched = m end
-               current_match = matched
-               wait(60)
-               current_match = nil
+               wait(10)
                for _,t in pairs(matched) do t.matched = nil end
+               wait(7)
+               for m, t in pairs(matched) do t.matched = m end
+               wait(13)
+               for _,t in pairs(matched) do t.matched = nil end
+               wait(9)
+               for m, t in pairs(matched) do t.matched = m end
+               wait(15)
+               for _,t in pairs(matched) do t.matched = nil end
+
+
+               local br, bl = matched.br, matched.bl
+
+               local moved = {}
+               -- Calculate and create the tiles to move.
+               for i = 1,br.gy + 1 do
+                  if i < 3 then
+                     -- This doesn't look quite right ... but that's fine.
+                     add(moved, {
+                            make_tile(br.gx, i, br.x, -((i+1) * tile_size + i)),
+                            gt(br.gx, i)
+                     })
+                     add(moved, {
+                            make_tile(bl.gx, i, bl.x, -((i+1) * tile_size + i)),
+                            gt(bl.gx, i)
+                     })
+                  else
+                     add(moved, {gt(br.gx, i-2), gt(br.gx, i)})
+                     add(moved, {gt(bl.gx, i-2), gt(bl.gx, i)})
+                  end
+               end
+
+               -- Add the new tiles to the grid and trigger move animation.
+               for t in all(moved) do
+                  local new, old = t[1], t[2]
+                  grid[old.gx][old.gy] = new
+                  animate_y_move({
+                        obj  = new,
+                        from = new.y,
+                        to   = old.y,
+                        frames = 30,
+                        cb = function() new.gx = old.gx new.gy = old.gy end
+                  })
+               end
+
+               -- Lazy hack to wait for animations to finish.
+               wait(30)
+
+               player.held = false
+               -- TODO add matches to a table somewhere ...
                set_play_state('idle')
          end)
          state = 'matched'
@@ -312,7 +375,7 @@ dmo = {
 }
 
 function _draw()
-   cls(black)
+   cls(navy)
 
    -- Draw grid
    rectfill(tile_size+1, tile_size+1, 7 * tile_size + 9, 7 * tile_size + 9, silver)
@@ -321,12 +384,14 @@ function _draw()
    for i = 1,6 do
       for j = 1,6 do
          local gs = grid[i][j]
-         if gs.matched then
-            rectfill(gs.x+2, gs.y+2, gs.x+space_size, gs.y+space_size, white)
-            local xo, yo = dmo[gs.matched].x, dmo[gs.matched].y
-            spr(gs.matches[gs.matched], gs.x + xo, gs.y + yo)
-         else
-            spr(gs.spr_idx, gs.x, gs.y, 2, 2)
+         if gs then
+            if gs.matched then
+               rectfill(gs.x+2, gs.y+2, gs.x+space_size, gs.y+space_size, white)
+               local xo, yo = dmo[gs.matched].x, dmo[gs.matched].y
+               spr(gs.matches[gs.matched], gs.x + xo, gs.y + yo)
+            else
+               spr(gs.spr_idx, gs.x, gs.y, 2, 2)
+            end
          end
       end
    end
@@ -342,15 +407,15 @@ end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0070070000c11111111111000022222222222200009999999994440000333bbbbbbbbb0000f555555555555000b5555555555550000000000000000000000000
-0007700000c77777777771000027777777777e000099999d7777740000377777dbbbbb0000f777777777775000b7777777777750000000000000000000000000
-0007700000c77777777771000027777777777e00009999d777777400003777777dbbbb0000f777777777775000b7777777777750000000000000000000000000
-0070070000c77777777771000027777777777e0000999d777777790000b7777777dbbb0000f777777777775000b7777777777750000000000000000000000000
-0000000000c77777777771000027777777777e000099d7777777790000b77777777dbb0000f777777777775000b7777777777750000000000000000000000000
-0000000000c77777777771000027777777777e00009d77777777790000b777777777db0000f777777777775000b7777777777750000000000000000000000000
-0000000000cd777777777100002777777777de00009777777777d90000bd777777777b0000fa77777777775000ba777777777750000000000000000000000000
-0000000000ccd7777777710000277777777dee0000977777777d990000bbd77777777b0000fdddd77777775000bdddd777777750000000000000000000000000
-0000000000cccd77777771000027777777deee000097777777d9990000bbbd7777777b0000fddfd77777775000bddbd777777750000000000000000000000000
-0000000000ccccd777777100002777777deeee00004777777d99990000bbbbd77777730000fdfdd77777775000bdbdd777777750000000000000000000000000
-0000000000cccccd7777710000277777deeeee0000477777d999990000bbbbbd7777730000fdddda7777775000bdddda77777750000000000000000000000000
-0000000000ccccccccccc10000eeeeeeeeeeee00004449999999990000bbbbbbbbb3330000fffffffffffff000bbbbbbbbbbbbb0000000000000000000000000
+0070070000c11111111111000022222222222200009999999994440000333bbbbbbbbb0000111111111111000022222222222200000000000000000000000000
+0007700000c77777777771000027777777777e000099999477777400003777773bbbbb000011111c77777c0000e77777e2222200000000000000000000000000
+0007700000c77777777771000027777777777e0000999947777774000037777773bbbb00001111c777777c0000e777777e222200000000000000000000000000
+0070070000c77777777771000027777777777e00009994777777790000b77777773bbb0000111c7777777c0000e7777777e22200000000000000000000000000
+0000000000c77777777771000027777777777e00009947777777790000b777777773bb000011c77777777c0000e77777777e2200000000000000000000000000
+0000000000c77777777771000027777777777e00009477777777790000b7777777773b00001c777777777c0000e777777777e200000000000000000000000000
+0000000000c17777777771000027777777772e00009777777777490000b3777777777b000017777777777c0000e7777777777200000000000000000000000000
+0000000000cc177777777100002777777772ee00009777777774990000bb377777777b000017777777777c0000e7777777777200000000000000000000000000
+0000000000ccc1777777710000277777772eee00009777777749990000bbb37777777b000017777777777c0000e7777777777200000000000000000000000000
+0000000000cccc17777771000027777772eeee00004777777499990000bbbb37777773000017777777777c0000e7777777777200000000000000000000000000
+0000000000ccccc177777100002777772eeeee00004777774999990000bbbbb3777773000017777777777c0000e7777777777200000000000000000000000000
+0000000000ccccccccccc10000eeeeeeeeeeee00004449999999990000bbbbbbbbb33300001ccccccccccc0000eeeeeeeeeee200000000000000000000000000

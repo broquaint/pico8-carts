@@ -31,12 +31,12 @@ play_state_switch = 'switch'
 -- xx xx # xx xx # oo xx # xx oo
 
 grid_tiles={
-   {idx=1,  colour=azure,  matches={bl=17}},
-   {idx=3,  colour=coral,  matches={br=20}},
-   {idx=5,  colour=orange, matches={tl=5, br=22}},
-   {idx=7,  colour=lime,   matches={tr=8, bl=23}},
-   {idx=9,  colour=navy,   matches={tl=9}},
-   {idx=11, colour=green,  matches={tr=12}},
+   {idx=1,  colour={azure=1},   matches={bl=17}},
+   {idx=3,  colour={coral=1},   matches={br=20}},
+   {idx=5,  colour={lime=1},    matches={tl=5, br=22, cl=21,cr=6}},
+   {idx=7,  colour={orange=1},  matches={tr=8, bl=23, cl=7,cr=24}},
+   {idx=9,  colour={navy=1},    matches={tl=9}},
+   {idx=11, colour={magenta=1}, matches={tr=12}},
 --   {9,salmon},
 --   {11,lime}
 }
@@ -53,6 +53,7 @@ function make_tile(gx, gy, x, y)
    return {
       spr_idx = tile.idx,
       matches = tile.matches,
+      colour  = tile.colour,
       gx = gx,
       gy = gy,
       x = x,
@@ -256,7 +257,143 @@ function check_for_patterns(tile)
       return false
    end
 
-   return diamond_match(tile)
+   function cross_match(a)
+      if(not a) return false
+
+      -- xx xx
+      -- xo @x
+      -- xo ox
+      -- xx xx
+      if a.colour.lime then
+         local b = gt(a.gx - 1, a.gy)
+         local c = gt(a.gx - 1, a.gy + 1)
+         local d = gt(a.gx,     a.gy + 1)
+
+         if (b and c and d) and b.colour.orange and c.colour.lime and d.colour.orange then
+            return {bl=a,br=b,tr=c,tl=d}
+         end
+      end
+
+      -- xx xx
+      -- x@ ox
+      -- xo ox
+      -- xx xx
+      if a.colour.orange then
+         local b = gt(a.gx + 1, a.gy)
+         local c = gt(a.gx,     a.gy + 1)
+         local d = gt(a.gx + 1, a.gy + 1)
+
+         if (b and c and d) and b.colour.lime and c.colour.lime and d.colour.orange then
+            return {br=a,bl=b,tr=c,tl=d}
+         end
+      end
+
+      -- xx xx
+      -- xo ox
+      -- x@ ox
+      -- xx xx
+      if a.colour.lime then
+         local b = gt(a.gx,     a.gy - 1)
+         local c = gt(a.gx + 1, a.gy - 1)
+         local d = gt(a.gx + 1, a.gy)
+
+         if (b and c and d) and b.colour.orange and c.colour.lime and d.colour.orange then
+            return {tr=a,br=b,bl=c,tl=d}
+         end
+      end
+      
+      -- xx xx
+      -- xo ox
+      -- xo @x
+      -- xx xx
+      if a.colour.orange then
+         local b = gt(a.gx - 1, a.gy - 1)
+         local c = gt(a.gx,     a.gy - 1)
+         local d = gt(a.gx - 1, a.gy)
+
+         if (b and c and d) and b.colour.orange and c.colour.lime and d.colour.lime then
+            return {tl=a,br=b,bl=c,tr=d}
+         end
+      end
+
+      return false
+   end
+
+   function window_match(a)
+      if(not a) return false
+
+      -- @x xo
+      -- xx xx
+      -- xx xx
+      -- ox xo
+      if a.matches.tl then
+         local b = gt(a.gx + 1, a.gy)
+         local c = gt(a.gx,     a.gy + 1)
+         local d = gt(a.gx + 1, a.gy + 1)
+
+         if (b and c and d) and b.matches.tr and c.matches.bl and d.matches.br then
+            return {bl=c,br=d,tr=b,tl=a}
+         end
+      end
+
+      -- ox x@
+      -- xx xx
+      -- xx xx
+      -- ox xo
+      if a.matches.tr then
+         local b = gt(a.gx - 1, a.gy)
+         local c = gt(a.gx - 1, a.gy + 1)
+         local d = gt(a.gx,     a.gy + 1)
+
+         if (b and c and d) and b.matches.tl and c.matches.bl and d.matches.br then
+            return {bl=c,br=d,tr=a,tl=b}
+         end
+      end
+
+      -- ox xo
+      -- xx xx
+      -- xx xx
+      -- @x xo
+      if a.matches.bl then
+         local b = gt(a.gx,     a.gy - 1)
+         local c = gt(a.gx + 1, a.gy - 1)
+         local d = gt(a.gx + 1, a.gy)
+
+         if (b and c and d) and b.matches.tl and c.matches.tr and d.matches.br then
+            return {bl=a,br=d,tr=c,tl=b}
+         end
+      end
+
+      -- ox xo
+      -- xx xx
+      -- xx xx
+      -- ox x@
+      if a.matches.br then
+         local b = gt(a.gx - 1, a.gy - 1)
+         local c = gt(a.gx,     a.gy - 1)
+         local d = gt(a.gx - 1, a.gy)
+
+         if (b and c and d) and b.matches.tl and c.matches.tr and d.matches.bl then
+            return {bl=d,br=a,tr=c,tl=b}
+         end
+      end
+
+      return false
+   end
+
+   local m = diamond_match(tile)
+   if m then
+      return { type = 'diamond', matched = m }
+   end
+   local m = cross_match(tile)
+   if m then
+      return { type = 'cross', matched = m }
+   end
+   local m = window_match(tile)
+   if m then
+      return { type = 'window', matched = m }
+   end
+   return false
 end
 
 function animate_match(matched)
@@ -316,16 +453,18 @@ function animate_match(matched)
 end
 
 tally = {
-   diamonds = 0
+   diamond = 0,
+   window = 0,
+   cross = 0,
 }
 
 function finish_swap(args)
    local state = 'idle'
    if player.tile_held then
-      local matched = check_for_patterns(player.tile_held)
-      if matched then
-         tally.diamonds += 1
-         animate(function() animate_match(matched) end)
+      local match = check_for_patterns(player.tile_held)
+      if match then
+         tally[match.type] += 1
+         animate(function() animate_match(match.matched) end)
          state = 'matched'
       end
    end
@@ -412,8 +551,12 @@ function _draw()
    end
 
    -- draw ui
-   print(tally.diamonds, 18, 100, white)
+   print(tally.diamond, 18, 100, white)
    spr(33, 12, 108, 2, 2)
+   print(tally.window,  38, 100, white)
+   spr(35, 32, 108, 2, 2)
+   print(tally.cross,  58, 100, white)
+   spr(37, 52, 108, 2, 2)
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -434,15 +577,15 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000002ec100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000002eecc10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000002eeeccc1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000002eeeecccc100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000002eeeeeccccc10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000eeeeeecccccc0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000999999bbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000499999bbbbb30000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000049999bbbb300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000004999bbb3000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000499bb30000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000049b300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000002ec1000000001111112222220000777779b7777700000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000002eecc1000000011111ce222220000777779b7777700000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000002eeeccc10000001111c77e22220000777779b7777700000000000000000000000000000000000000000000000000000000000000000000000000
+000000000002eeeecccc100000111c7777e222000077777437777700000000000000000000000000000000000000000000000000000000000000000000000000
+00000000002eeeeeccccc1000011c777777e22000077777437777700000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000eeeeeecccccc00001c77777777e20000999444333bbb00000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000999999bbbbbb0000c1777777772e0000bbb33344499900000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000499999bbbbb30000cc17777772ee000077777347777700000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000049999bbbb300000ccc177772eee000077777347777700000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000004999bbb3000000cccc1772eeee000077777b97777700000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000499bb30000000ccccc12eeeee000077777b97777700000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000049b300000000cccccceeeeee000077777b97777700000000000000000000000000000000000000000000000000000000000000000000000000

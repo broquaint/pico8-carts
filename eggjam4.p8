@@ -93,7 +93,6 @@ function _init()
    tally = {
       diamond = 0,
       window = 0,
-      cross = 0,
    }
 end
 
@@ -224,209 +223,66 @@ function all_shape_of(shape, b, c, d)
    return true
 end
 
+match = {
+   br = 'br',
+   bl = 'bl',
+   tr = 'tr',
+   tl = 'tl'
+}
+-- pos order br -> bl -> tr -> tl
+diamond_matches = {
+   br = { pos = {{ 1,  0}, { 0,  1}, { 1, 1}}, matches = { match.bl, match.tr, match.tl } },
+   bl = { pos = {{-1,  0}, {-1,  1}, { 0, 1}}, matches = { match.br, match.tr, match.tl } },
+   tr = { pos = {{ 0, -1}, { 1, -1}, { 1, 0}}, matches = { match.br, match.bl, match.tl } },
+   tl = { pos = {{-1, -1}, { 0, -1}, {-1, 0}}, matches = { match.br, match.bl, match.tr } },
+}
+
+-- pos order  tr, tl, bl, br
+window_matches = {
+   tl = { pos = {{ 1,  0}, { 0,  1}, { 1, 1}}, matches = { match.tr, match.bl, match.br } },
+   tr = { pos = {{-1,  0}, {-1,  1}, { 0, 1}}, matches = { match.tl, match.bl, match.br } },
+   bl = { pos = {{ 0, -1}, { 1, -1}, { 1, 0}}, matches = { match.tl, match.tr, match.br } },
+   br = { pos = {{-1, -1}, { 0, -1}, {-1, 0}}, matches = { match.tl, match.tr, match.bl } }
+}
+
 function check_for_patterns(tile)
-   function diamond_match(a)
-      if(not a) return false
+   function rel_tile(t, pos)
+      return gt(t.gx + pos[1], t.gy + pos[2])
+   end
 
-      -- xx xx
-      -- xo @x
-      -- xo ox
-      -- xx xx
-      if a.matches.bl then
-         local b = gt(a.gx - 1, a.gy)
-         local c = gt(a.gx - 1, a.gy + 1)
-         local d = gt(a.gx,     a.gy + 1)
-
-         if all_shape_of(a.shape, b, c, d) and b.matches.br and c.matches.tr and d.matches.tl then
-            return {bl=a,br=b,tr=c,tl=d}
+   function check_pattern(pattern, a)
+      for k, v in pairs(pattern) do
+         if(on == 'colour') dump('checking ', k, ' on ', on , ' with ', v)
+         if a.matches[k] then
+            local p = v.pos
+            local b, c, d = rel_tile(a, p[1]), rel_tile(a, p[2]), rel_tile(a, p[3])
+            local m = v.matches
+            if all_shape_of(a.shape, b, c, d) and b.matches[m[1]] and c.matches[m[2]] and d.matches[m[3]] then
+               return {[k]=a,[m[1]]=b,[m[2]]=c,[m[3]]=d}
+            end
          end
       end
-
-      -- xx xx
-      -- x@ ox
-      -- xo ox
-      -- xx xx
-      if a.matches.br then
-         local b = gt(a.gx + 1, a.gy)
-         local c = gt(a.gx,     a.gy + 1)
-         local d = gt(a.gx + 1, a.gy + 1)
-
-         if all_shape_of(a.shape, b, c, d) and b.matches.bl and c.matches.tr and d.matches.tl then
-            return {br=a,bl=b,tr=c,tl=d}
-         end
-      end
-
-      -- xx xx
-      -- xo ox
-      -- x@ ox
-      -- xx xx
-      if a.matches.tr then
-         local b = gt(a.gx,     a.gy - 1)
-         local c = gt(a.gx + 1, a.gy - 1)
-         local d = gt(a.gx + 1, a.gy)
-
-         if all_shape_of(a.shape, b, c, d) and b.matches.br and c.matches.bl and d.matches.tl then
-            return {tr=a,br=b,bl=c,tl=d}
-         end
-      end
-      
-      -- xx xx
-      -- xo ox
-      -- xo @x
-      -- xx xx
-      if a.matches.tl then
-         local b = gt(a.gx - 1, a.gy - 1)
-         local c = gt(a.gx,     a.gy - 1)
-         local d = gt(a.gx - 1, a.gy)
-
-         if all_shape_of(a.shape, b, c, d) and b.matches.br and c.matches.bl and d.matches.tr then
-            return {tl=a,br=b,bl=c,tr=d}
-         end
-      end
-
       return false
    end
 
-   function cross_match(a)
-      if(not a) return false
+   if(tile == nil) return false
 
-      -- xx xx
-      -- xo @x
-      -- xo ox
-      -- xx xx
-      if a.colour.lime then
-         local b = gt(a.gx - 1, a.gy)
-         local c = gt(a.gx - 1, a.gy + 1)
-         local d = gt(a.gx,     a.gy + 1)
-
-         if all_shape_of(a.shape, b, c, d) and b.colour.orange and c.colour.lime and d.colour.orange then
-            return {bl=a,br=b,tr=c,tl=d}
-         end
-      end
-
-      -- xx xx
-      -- x@ ox
-      -- xo ox
-      -- xx xx
-      if a.colour.orange then
-         local b = gt(a.gx + 1, a.gy)
-         local c = gt(a.gx,     a.gy + 1)
-         local d = gt(a.gx + 1, a.gy + 1)
-
-         if all_shape_of(a.shape, b, c, d) and b.colour.lime and c.colour.lime and d.colour.orange then
-            return {br=a,bl=b,tr=c,tl=d}
-         end
-      end
-
-      -- xx xx
-      -- xo ox
-      -- x@ ox
-      -- xx xx
-      if a.colour.lime then
-         local b = gt(a.gx,     a.gy - 1)
-         local c = gt(a.gx + 1, a.gy - 1)
-         local d = gt(a.gx + 1, a.gy)
-
-         if all_shape_of(a.shape, b, c, d) and b.colour.orange and c.colour.lime and d.colour.orange then
-            return {tr=a,br=b,bl=c,tl=d}
-         end
-      end
-      
-      -- xx xx
-      -- xo ox
-      -- xo @x
-      -- xx xx
-      if a.colour.orange then
-         local b = gt(a.gx - 1, a.gy - 1)
-         local c = gt(a.gx,     a.gy - 1)
-         local d = gt(a.gx - 1, a.gy)
-
-         if all_shape_of(a.shape, b, c, d) and b.colour.orange and c.colour.lime and d.colour.lime then
-            return {tl=a,br=b,bl=c,tr=d}
-         end
-      end
-
-      return false
-   end
-
-   function window_match(a)
-      if(not a) return false
-
-      -- @x xo
-      -- xx xx
-      -- xx xx
-      -- ox xo
-      if a.matches.tl then
-         local b = gt(a.gx + 1, a.gy)
-         local c = gt(a.gx,     a.gy + 1)
-         local d = gt(a.gx + 1, a.gy + 1)
-
-         if all_shape_of(a.shape, b, c, d) and b.matches.tr and c.matches.bl and d.matches.br then
-            return {bl=c,br=d,tr=b,tl=a}
-         end
-      end
-
-      -- ox x@
-      -- xx xx
-      -- xx xx
-      -- ox xo
-      if a.matches.tr then
-         local b = gt(a.gx - 1, a.gy)
-         local c = gt(a.gx - 1, a.gy + 1)
-         local d = gt(a.gx,     a.gy + 1)
-
-         if all_shape_of(a.shape, b, c, d) and b.matches.tl and c.matches.bl and d.matches.br then
-            return {bl=c,br=d,tr=a,tl=b}
-         end
-      end
-
-      -- ox xo
-      -- xx xx
-      -- xx xx
-      -- @x xo
-      if a.matches.bl then
-         local b = gt(a.gx,     a.gy - 1)
-         local c = gt(a.gx + 1, a.gy - 1)
-         local d = gt(a.gx + 1, a.gy)
-
-         if all_shape_of(a.shape, b, c, d) and b.matches.tl and c.matches.tr and d.matches.br then
-            return {bl=a,br=d,tr=c,tl=b}
-         end
-      end
-
-      -- ox xo
-      -- xx xx
-      -- xx xx
-      -- ox x@
-      if a.matches.br then
-         local b = gt(a.gx - 1, a.gy - 1)
-         local c = gt(a.gx,     a.gy - 1)
-         local d = gt(a.gx - 1, a.gy)
-
-         if all_shape_of(a.shape, b, c, d) and b.matches.tl and c.matches.tr and d.matches.bl then
-            return {bl=d,br=a,tr=c,tl=b}
-         end
-      end
-
-      return false
-   end
-
-   local m = diamond_match(tile)
+   local m = check_pattern(diamond_matches, tile)
    if m then
       return { type = 'diamond', matched = m }
    end
-   local m = cross_match(tile)
-   if m then
-      return { type = 'cross', matched = m }
-   end
-   local m = window_match(tile)
+
+   local m = check_pattern(window_matches, tile)
    if m then
       return { type = 'window', matched = m }
    end
+
    return false
 end
 
 function animate_match(matched)
+   set_play_state('matched')
+
    for m, t in pairs(matched) do t.matched = m end
    wait(10)
    for _,t in pairs(matched) do t.matched = nil end
@@ -470,7 +326,10 @@ function animate_match(matched)
             from = new.y,
             to   = old.y,
             frames = 30,
-            cb = function() new.gx = old.gx new.gy = old.gy end
+            cb = function()
+               new.gx = old.gx
+               new.gy = old.gy
+            end
       })
    end
 
@@ -580,8 +439,6 @@ function _draw()
    spr(33, 12, 108, 2, 2)
    print(tally.window,  38, 100, white)
    spr(35, 32, 108, 2, 2)
-   print(tally.cross,  58, 100, white)
-   spr(37, 52, 108, 2, 2)
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

@@ -24,6 +24,7 @@ DEBUG = IS_DEV_BUILD and true
 
 function dumper(...)
    local res = ''
+   -- This will elide nulls!
    for v in all({...}) do
       if type(v) == 'table' then
          res = res .. tbl_to_str(v)

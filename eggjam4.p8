@@ -213,9 +213,11 @@ function animate_player_move(direction)
    animate_object_with(anim_args, animate_obj_move)
 end
 
-function all_shape_of(shape, ...)
-   for t in all({...}) do
-      if t and t.shape != shape then
+function all_shape_of(shape, b, c, d)
+   -- It _seems_ that nils are collapsed/skipped in all({...}) >_<
+   if(not b or not c or not d) return false
+   for t in all({b, c, d}) do
+      if t.shape != shape then
          return false
       end
    end

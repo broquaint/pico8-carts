@@ -28,9 +28,9 @@ end
 function run_animations()
    for obj in all(anims) do
       if costatus(obj.co) != 'dead' then
-         coresume(obj.co)
+         local active, ex = coresume(obj.co)
+         if(ex) dump('ERROR coroutine failed: ', ex)
       else
-         if(costatus(obj.co) != 'dead') dump('dropping co in state: ', costatus(obj.co))
          del(anims, obj)
       end
    end

@@ -34,30 +34,36 @@ s_triangle = 'triangle'
 s_circle   = 'circle'
 s_square   = 'square'
 
-grid_tiles={
+stage1_tiles = {
    {spr_idx=1,  shape=s_triangle, colour={azure=1},   matches={bl=17}},
    {spr_idx=3,  shape=s_triangle, colour={coral=1},   matches={br=20}},
    {spr_idx=5,  shape=s_triangle, colour={lime=1},    matches={tl=5, br=22, cl=21,cr=6}},
    {spr_idx=7,  shape=s_triangle, colour={orange=1},  matches={tr=8, bl=23, cl=7,cr=24}},
    {spr_idx=9,  shape=s_triangle, colour={navy=1},    matches={tl=9}},
-   {spr_idx=11, shape=s_triangle, colour={magenta=1}, matches={tr=12}},
+   {spr_idx=11, shape=s_triangle, colour={magenta=1}, matches={tr=12}}
+}
 
+stage2_tiles = merge({
    {spr_idx=65, shape=s_circle, colour={azure=1},  matches={bl=81}},
    {spr_idx=67, shape=s_circle, colour={coral=1},  matches={br=84}},
    {spr_idx=69, shape=s_circle, colour={lime=1},   matches={tl=69}},
-   {spr_idx=71, shape=s_circle, colour={orange=1}, matches={tr=72}},
+   {spr_idx=71, shape=s_circle, colour={orange=1}, matches={tr=72}}
+}, stage1_tiles)
 
+stage3_tiles = merge({
    {spr_idx=129, shape=s_square, colour={azure=1},  matches={bl=145}},
    {spr_idx=131, shape=s_square, colour={coral=1},  matches={br=148}},
    {spr_idx=133, shape=s_square, colour={lime=1},   matches={tl=133}},
    {spr_idx=135, shape=s_square, colour={orange=1}, matches={tr=136}},
-}
+}, stage2_tiles)
+
 tile_size  = 12
 space_size = 13
 
 tile_id = 1
+tally = {}
 function make_tile(gx, gy, x, y)
-   local tile = grid_tiles[randx(#grid_tiles)]
+   local tile = stage1_tiles[randx(#stage1_tiles)]
    x = x and x or gx*tile_size+gx
    y = y and y or gy*tile_size+gy
    local tid = tile_id
@@ -81,10 +87,14 @@ function _init()
    for i = 1,6 do
       grid[i] = {}
       for j = 1,6 do
-         local tile = grid_tiles[randx(#grid_tiles)]
          grid[i][j] = make_tile(i, j)
       end
    end
+   tally = {
+      diamond = 0,
+      window = 0,
+      cross = 0,
+   }
 end
 
 function gt(gx, gy)
@@ -469,12 +479,6 @@ function animate_match(matched)
    -- TODO add matches to a table somewhere ...
    set_play_state('idle')
 end
-
-tally = {
-   diamond = 0,
-   window = 0,
-   cross = 0,
-}
 
 function finish_swap(args)
    local state = 'idle'

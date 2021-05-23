@@ -188,6 +188,7 @@ function animate_player_move(direction)
 
       if player.held then
          local other_tile = grid[player.gx][player.gy]
+         player.other_tile = other_tile
          animate_tile_swap(player.tile_held, other_tile, 'x')
       end
    end
@@ -205,6 +206,7 @@ function animate_player_move(direction)
 
       if player.held then
          local other_tile = grid[player.gx][player.gy]
+         player.other_tile = other_tile
          animate_tile_swap(player.tile_held, other_tile, 'y')
       end
    end
@@ -213,14 +215,12 @@ function animate_player_move(direction)
 end
 
 function all_shape_of(shape, b, c, d)
-   -- It _seems_ that nils are collapsed/skipped in all({...}) >_<
    if(not b or not c or not d) return false
-   for t in all({b, c, d}) do
-      if t.shape != shape then
-         return false
-      end
-   end
-   return true
+   return every({b,c,d}, function(t) return t.shape == shape end)
+end
+
+function not_matched(t)
+   return not t.in_match
 end
 
 match = {
@@ -257,7 +257,9 @@ function check_for_patterns(tile)
             local p = v.pos
             local b, c, d = rel_tile(a, p[1]), rel_tile(a, p[2]), rel_tile(a, p[3])
             local m = v.matches
-            if all_shape_of(a.shape, b, c, d) and b.matches[m[1]] and c.matches[m[2]] and d.matches[m[3]] then
+            if  all_shape_of(a.shape, b, c, d) and every({a,b,c,d}, not_matched)
+            and b.matches[m[1]] and c.matches[m[2]] and d.matches[m[3]] then
+               for t in all({a,b,c,d}) do t.in_match=true end
                return {[k]=a,[m[1]]=b,[m[2]]=c,[m[3]]=d}
             end
          end
@@ -293,8 +295,10 @@ function animate_match(matched)
    wait(9)
    for m, t in pairs(matched) do t.matched = m end
    wait(15)
-   for _,t in pairs(matched) do t.matched = nil end
-
+   for _,t in pairs(matched) do
+      t.matched = nil
+      t.in_match = false
+   end
 
    local br, bl = matched.br, matched.bl
 
@@ -329,6 +333,7 @@ function animate_match(matched)
             cb = function()
                new.gx = old.gx
                new.gy = old.gy
+               t.in_match = false
             end
       })
    end
@@ -341,18 +346,27 @@ function animate_match(matched)
    set_play_state('idle')
 end
 
-function finish_swap(args)
-   local state = 'idle'
-   if player.tile_held then
-      local match = check_for_patterns(player.tile_held)
-      if match then
-         dump('nice match: ', match)
-         tally[match.type] += 1
-         animate(function() animate_match(match.matched) end)
-         state = 'matched'
-      end
+function check_for_matches(tile)
+   local match = check_for_patterns(tile)
+   if match then
+--         dump('nice match: ', match)
+      tally[match.type] += 1
+      animate(function() animate_match(match.matched) end)
    end
-   set_play_state(state)
+   return not not match
+end
+
+function finish_swap(args)
+   local c1 = check_for_matches(player.tile_held)
+   local c2 = check_for_matches(player.other_tile)
+   if not c1 and not c2 then
+      dump('swap finished!')
+      set_play_state('idle')
+   else
+      dump('got a match!')
+      player.tile_held  = nil
+   end
+   player.other_tile = nil
 end
 
 player = {

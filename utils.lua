@@ -100,7 +100,7 @@ function merge(t1, t2)
    return t1
 end
 
--- Test if a value is present in a table.
+-- Test if any value in a table matches a predicate.
 function any(t, f)
    for v in all(t) do
       if f(v) then
@@ -108,6 +108,16 @@ function any(t, f)
       end
    end
    return false
+end
+
+-- Test if every value in a table matches a predicate.
+function every(t, f)
+   for v in all(t) do
+      if not f(v) then
+         return false
+      end
+   end
+   return true
 end
 
 -- Count of occurrences in a table

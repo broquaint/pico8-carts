@@ -357,14 +357,18 @@ function check_for_matches(tile)
 end
 
 function finish_swap(args)
-   local c1 = check_for_matches(player.tile_held)
-   local c2 = check_for_matches(player.other_tile)
-   if not c1 and not c2 then
-      dump('swap finished!')
-      set_play_state('idle')
+   if not player.disable_matches then
+      local c1 = check_for_matches(player.tile_held)
+      local c2 = check_for_matches(player.other_tile)
+      if not c1 and not c2 then
+         set_play_state('idle')
+      else
+         dump('got a match!')
+         player.tile_held  = nil
+      end
    else
-      dump('got a match!')
-      player.tile_held  = nil
+      set_play_state('idle')
+      debug('current tile: ', grid[player.gx][player.gy])
    end
    player.other_tile = nil
 end
@@ -403,6 +407,10 @@ function _update()
    if btnp(b_x) and in_play_state('idle') then
       player.held = not player.held
       player.tile_held = player.held and grid[player.gx][player.gy] or nil
+   end
+
+   if btnp(b_z) then
+      if(DEBUG) player.disable_matches = not player.disable_matches
    end
 
    frame_count += 1
@@ -444,7 +452,8 @@ function _draw()
       local py0 = player.y + 1
       local px1 = (px0 + space_size)
       local py1 = (py0 + space_size)
-      rect(px0-1, py0-1, px1+1, py1+1, player.held and red or yellow)
+      local col = player.disable_matches and lime or player.held and red or yellow
+      rect(px0-1, py0-1, px1+1, py1+1, col)
    end
 
    -- draw ui

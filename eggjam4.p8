@@ -384,30 +384,29 @@ move = {
 }
 
 function _update()
-   local can_move = in_play_state('idle')
-   if btnp(b_left) and can_move then
+   if btnp(b_left) and in_play_state('idle') then
       set_play_state('switch')
       animate_player_move(move.left)
    end
-   if btnp(b_right) and can_move then
+   if btnp(b_right) and in_play_state('idle') then
       set_play_state('switch')
       animate_player_move(move.right)
    end
-   if btnp(b_up) and can_move then
+   if btnp(b_up) and in_play_state('idle') then
       set_play_state('switch')
       animate_player_move(move.up)
    end
-   if btnp(b_down) and can_move then
+   if btnp(b_down) and in_play_state('idle') then
       set_play_state('switch')
       animate_player_move(move.down)
    end
-   if btnp(b_x) and can_move then
+   if btnp(b_x) and in_play_state('idle') then
       player.held = not player.held
       player.tile_held = player.held and grid[player.gx][player.gy] or nil
    end
 
    frame_count += 1
-   run_animations()   
+   run_animations()
 end
 
 -- diamond match offsets

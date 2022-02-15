@@ -15,7 +15,7 @@ C_trig_step = 1 / 360
 
 -- Global game state
 -- hex length
-g_hex_length = 16
+g_hex_length = 14
 g_hex_grid = {}
 
 function _setup_hexagon(col, row, x1, y1)
@@ -31,9 +31,9 @@ function _setup_hexagon(col, row, x1, y1)
 end
 
 function _setup_grid()
-   for col = 0, 5 do
-      for row = 0, 5 do
-         local x1, y1 = col * 24, row * 27 + (col % 2 * 14)
+   for col = 1, 5 do
+      for row = 1, 5 do
+         local x1, y1 = (col-1) * 21, (row-1) * 25 + (col % 2 * 13)
          add(g_hex_grid, _setup_hexagon(col, row, x1, y1))
       end
    end
@@ -51,7 +51,7 @@ function _draw()
    for hexagon in all(g_hex_grid) do
       print(hexagon.column .. "x" .. hexagon.row, hexagon.lines[1].x1 + 8, hexagon.lines[1].y1)
       for hl in all(hexagon.lines) do
-         line(hl.x1, hl.y1, hl.x2, hl.y2, white)
+         line(hl.x1, hl.y1, hl.x2, hl.y2, white + hexagon.column)
       end
    end
 end

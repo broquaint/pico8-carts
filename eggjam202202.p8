@@ -20,7 +20,7 @@ g_hex_grid = {}
 
 function _setup_hexagon(col, row, x1, y1)
    local angle = C_hex_angle
-   local hexagon = { column = col, row = row, lines = {} }
+   local hexagon = { column = col, row = row, id = col .. "x" .. row, lines = {} }
    for _ = 1,6 do
       local x2, y2 = x1 + (g_hex_length * cos(angle * C_trig_step)), y1 + (g_hex_length * sin(angle * C_trig_step))
       add(hexagon.lines, { x1 = x1, y1 = y1, x2 = x2, y2 = y2, column = col, row = row })
@@ -33,8 +33,13 @@ end
 function _setup_grid()
    for col = 1, 5 do
       for row = 1, 5 do
-         local x1, y1 = (col-1) * 21, (row-1) * 25 + (col % 2 * 13)
-         add(g_hex_grid, _setup_hexagon(col, row, x1, y1))
+         if not((col == 2 or col == 4) and row == 1) then
+            local x1, y1 = 7 + ((col-1) * 21), 1 + ((row-1) * 25 + (col % 2 * 13))
+            add(g_hex_grid, _setup_hexagon(col, row, x1, y1))
+            debug("added ", col, "x", row)
+         else
+            debug("skipped ", col, "x", row)
+         end
       end
    end
 end
@@ -47,9 +52,9 @@ function _update()
 end
 
 function _draw()
-   cls()
+   cls(navy)
    for hexagon in all(g_hex_grid) do
-      print(hexagon.column .. "x" .. hexagon.row, hexagon.lines[1].x1 + 8, hexagon.lines[1].y1)
+      print(hexagon.id, hexagon.lines[1].x1 + 9, hexagon.lines[1].y1 - 2, white)
       for hl in all(hexagon.lines) do
          line(hl.x1, hl.y1, hl.x2, hl.y2, white + hexagon.column)
       end

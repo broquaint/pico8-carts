@@ -20,10 +20,10 @@ g_hex_grid = {}
 
 function _setup_hexagon(col, row, x1, y1)
    local angle = C_hex_angle
-   local hexagon = {}
+   local hexagon = { column = col, row = row, lines = {} }
    for _ = 1,6 do
       local x2, y2 = x1 + (g_hex_length * cos(angle * C_trig_step)), y1 + (g_hex_length * sin(angle * C_trig_step))
-      add(hexagon, { x1 = x1, y1 = y1, x2 = x2, y2 = y2, column = col, row = row })
+      add(hexagon.lines, { x1 = x1, y1 = y1, x2 = x2, y2 = y2, column = col, row = row })
       x1, y1 = x2, y2
       angle -= C_hex_angle
    end
@@ -49,7 +49,8 @@ end
 function _draw()
    cls()
    for hexagon in all(g_hex_grid) do
-      for hl in all(hexagon) do
+      print(hexagon.column .. "x" .. hexagon.row, hexagon.lines[1].x1 + 8, hexagon.lines[1].y1)
+      for hl in all(hexagon.lines) do
          line(hl.x1, hl.y1, hl.x2, hl.y2, white)
       end
    end

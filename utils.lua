@@ -22,6 +22,10 @@ b_x     = ❎  b_z     = 🅾️
 DEBUG_GFX = IS_DEV_BUILD and false
 DEBUG = IS_DEV_BUILD and true
 
+if DEBUG then
+   printh("-- Started at " .. t())
+end
+
 function dumper(...)
    local res = ''
    for v in all({...}) do
@@ -58,7 +62,7 @@ end
 function tbl_to_str(a)
    local res = '{'
    for k, v in pairs(a) do
-      local lhs = type(k) != 'number' and k .. ' => ' or ''
+      local lhs = type(k) != 'number' and k .. ' = ' or ''
       res = res .. lhs .. dumper(v) .. ', '
    end
    return sub(res, 0, #res - 2) .. "}"

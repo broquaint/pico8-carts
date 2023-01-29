@@ -2,7 +2,7 @@
 -- UTILITY functions and constants --
 ----------------------
 
-IS_DEV_BUILD = false
+IS_DEV_BUILD = true
 
 -- Brain won't map colours to numbers so get computer to do it
 black    = 0 navy     = 1 magenta  = 2 green    = 3
@@ -24,6 +24,15 @@ DEBUG = IS_DEV_BUILD and true
 
 if DEBUG then
    printh("-- Started at " .. t())
+end
+
+function make_obj(attr)
+   return merge({
+      x = nil, y = nil,
+      from = nil, to = nil,
+      frames = nil,
+      animating = false,
+      }, attr)
 end
 
 function dumper(...)

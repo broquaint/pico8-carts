@@ -329,7 +329,7 @@ end
 function _draw()
    cls(navy)
    for id, hexagon in pairs(g_hex_grid) do
-      print(hexagon.id, hexagon.lines[1].x1 + 9, hexagon.lines[1].y1 + 4, white)
+      --print(hexagon.id, hexagon.lines[1].x1 + 9, hexagon.lines[1].y1 + 4, white)
       spr(1 + hexagon.score, hexagon.lines[1].x1 + 11, hexagon.lines[1].y1 - 4)
       for hl in all(hexagon.lines) do
          line(hl.x1, hl.y1, hl.x2, hl.y2, white + hexagon.column)

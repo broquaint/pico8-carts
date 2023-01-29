@@ -62,8 +62,14 @@ end
 function tbl_to_str(a)
    local res = '{'
    for k, v in pairs(a) do
-      local lhs = type(k) != 'number' and k .. ' = ' or ''
-      res = res .. lhs .. dumper(v) .. ', '
+      -- XXX This fails when the keys _are_ numbers (not just indices)
+      local lhs = type(k) != 'number' and (k .. ' = ') or ''
+      -- Special case strings so the data can easily be round tripped/formatted.
+      if type(v) == 'string' then
+         res = res .. lhs .. '"' .. v .. '"' .. ', '
+      else
+         res = res .. lhs .. dumper(v) .. ', '
+      end
    end
    return sub(res, 0, #res - 2) .. "}"
 end

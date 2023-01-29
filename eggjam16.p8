@@ -27,7 +27,7 @@ function run_animations()
    end
 end
 
-rock_frequency = {1, 2, 3, 4}
+rock_frequency = {1, 2, 3, 3, 4, 4, 5, 5, 5, 5}
 
 function rand_tile_x()
    local x = randx(127)
@@ -51,20 +51,27 @@ function _update()
       player.x = next_x > 0 and next_x or player.x
    end
 
-   if #obstacles == 0 then
+   if #obstacles == 0 and #rock_frequency > 0 then
       local rock_count = deli(rock_frequency, 1)
       for n = 1, rock_count do
+         local rock_x  = rand_tile_x(x)
+         local angle_x = rock_x < 65 and rnd() or -rnd()
          local rock = make_obj({
-               x = rand_tile_x(x),
-               y = 128 + 8 * n,
-               sprite = 16
+               x = rock_x,
+               y = 128 + (8 + n * 3) * n,
+               angle = angle_x,
+               sprite = 16,
+               speed = 1 + n/3
          })
+         dump_once(rock)
          add(obstacles, rock)
       end
    end
 
    for obstacle in all(obstacles) do
-      obstacle.y = obstacle.y - 1.5
+      obstacle.y = obstacle.y - obstacle.speed
+      -- debug('angle', obstacle.angle, ' adds ', next_x)
+      obstacle.x += obstacle.angle
    end
 
    for idx,obstacle in pairs(obstacles) do

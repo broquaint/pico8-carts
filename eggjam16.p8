@@ -23,6 +23,7 @@ friction = 0.8
 max_speed = 4
 
 obstacles = {}
+heat_particles = {}
 
 game_state_playing = 'playing'
 game_state_crashed = 'crashed'
@@ -94,6 +95,30 @@ function populate_obstacles()
          -- dump_once(rock)
          add(obstacles, rock)
       end
+   end
+end
+
+function rising_particles()
+   if frame_count % 30 == 0 then
+      local orig_x = 16 + randx(112)
+      local p = make_obj({
+            x = 16 + orig_x,
+            y = 128,
+            orig_x = orig_x,
+            frames = 128,
+            freq = 10 + randx(15),
+            speed = 1 + rnd(),
+            colour = silver
+      })
+      add(heat_particles, p)
+      animate_obj(p, function(p)
+                     for f = 1, p.frames do
+                        p.x = p.orig_x+sin(p.y/127)*p.freq
+                        p.y -= p.speed
+                        yield()
+                     end
+                     obj.alive = false
+      end)
    end
 end
 
@@ -179,7 +204,6 @@ function _update()
       return
    end
 
-
    if frame_count % 30 == 0 then
       depth_count += 1
    end
@@ -189,6 +213,8 @@ function _update()
    move_player()
 
    populate_obstacles()
+
+   rising_particles()
 
    handle_obstacle_collision()
 
@@ -215,11 +241,14 @@ function _draw()
       bg_y -= 1
    end
 
+   for p in all(heat_particles) do
+      pset(p.x, p.y, p.colour)
+   end
+
    for obstacle in all(obstacles) do
       spr(obstacle.sprite, obstacle.x, obstacle.y)
       -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
    end
-
    
    print(depth_count .. 'M' .. ' | ' .. tostr(player.speed_x), 1, 1, white)
    -- print('cool', 16, 16, frame_count % 16)

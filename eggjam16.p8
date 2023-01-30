@@ -38,13 +38,6 @@ function run_animations()
    end
 end
 
-rock_frequency = {1, 2, 3, 3, 4, 4, 5, 5, 5, 5}
-
-function rand_tile_x()
-   local x = randx(127)
-   return x - (x % 8)
-end
-
 function calc_player_speed(dir)
    -- player.speed_x *= player.move_dir * friction
    player.speed_x += dir * acceleration
@@ -73,16 +66,14 @@ function move_player()
    end
 end
 
-function _update()
-   frame_count += 1
-   if frame_count % 30 == 0 then
-      depth_count += 1
-   end
+rock_frequency = {1, 2, 3, 3, 4, 4, 5, 5, 5, 5}
 
-   run_animations()
+function rand_tile_x()
+   local x = randx(127)
+   return x - (x % 8)
+end
 
-   move_player()
-
+function populate_obstacles()
    if #obstacles == 0 and #rock_frequency > 0 then
       local rock_count = deli(rock_frequency, 1)
       for n = 1, rock_count do
@@ -100,7 +91,9 @@ function _update()
          add(obstacles, rock)
       end
    end
+end
 
+function handle_obstacle_collision()
    for obstacle in all(obstacles) do
       obstacle.y = obstacle.y - obstacle.speed
       -- debug('angle', obstacle.angle, ' adds ', next_x)
@@ -128,12 +121,31 @@ function _update()
          end
       end
    end
+end
 
+function drop_off_screen_obstacles()
    for idx,obstacle in pairs(obstacles) do
       if obstacle.y < -8 then
          deli(obstacles, idx)
       end
    end
+end
+
+function _update()
+   frame_count += 1
+   if frame_count % 30 == 0 then
+      depth_count += 1
+   end
+
+   run_animations()
+
+   move_player()
+
+   populate_obstacles()
+
+   handle_obstacle_collision()
+
+   drop_off_screen_obstacles()
 end
 
 bg_y = 120

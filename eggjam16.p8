@@ -23,6 +23,10 @@ friction = 0.8
 max_speed = 4
 
 obstacles = {}
+
+game_state_playing = 'playing'
+game_state_crashed = 'crashed'
+current_game_state = game_state_playing
    
 function _init()
    camera()
@@ -87,7 +91,7 @@ function populate_obstacles()
                speed = 1 + n/3,
                last_collide = rnd() -- make equality check easier
          })
-         dump_once(rock)
+         -- dump_once(rock)
          add(obstacles, rock)
       end
    end
@@ -123,6 +127,43 @@ function handle_obstacle_collision()
    end
 end
 
+function detect_player_collision()
+   -- Make bounding box small than sprite
+   local px1 = player.x + 1
+   local px2 = player.x + 6
+   local py1 = player.y + 1
+   local py2 = player.y + 6
+   for obstacle in all(obstacles) do
+      local ox1 = obstacle.x + 1
+      local ox2 = obstacle.x + 6
+      local oy1 = obstacle.y + 1
+      local oy2 = obstacle.y + 6
+
+      -- If the player is above the obstacle detect stuff.
+      if py1 < oy2 then
+         -- bottom line intersection with top line
+         if py2 >= oy1 and py2 <= oy2
+            and ((px1 >= ox1 and px1 <= ox2) or (px2 >= ox1 and px2 <= ox2))
+         then
+            debug('bottom of ', player, ' collided with ', obstacle)
+            return true
+         -- left line intersects with top line
+         elseif px1 >= ox1 and px1 <= ox2
+            and ((py1 >= oy1 and py1 <= oy2) or (py2 >= oy1 and py2 <= oy2))
+         then
+            debug('left of ', player, ' collided with ', obstacle)
+            return true
+         -- right line intersects with top line
+         elseif px2 >= ox1 and px2 <= ox2
+            and ((py1 >= oy1 and py1 <= oy2) or (py2 >= oy1 and py2 <= oy2))
+         then
+            dump_once('right of ', player, ' collided with ', obstacle)
+            return true
+         end
+      end
+   end
+end
+
 function drop_off_screen_obstacles()
    for idx,obstacle in pairs(obstacles) do
       if obstacle.y < -8 then
@@ -133,6 +174,12 @@ end
 
 function _update()
    frame_count += 1
+
+   if current_game_state != game_state_playing then
+      return
+   end
+
+
    if frame_count % 30 == 0 then
       depth_count += 1
    end
@@ -144,6 +191,10 @@ function _update()
    populate_obstacles()
 
    handle_obstacle_collision()
+
+   if detect_player_collision() then
+      current_game_state = game_state_crashed
+   end
 
    drop_off_screen_obstacles()
 end
@@ -166,13 +217,19 @@ function _draw()
 
    for obstacle in all(obstacles) do
       spr(obstacle.sprite, obstacle.x, obstacle.y)
+      -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
    end
 
    
    print(depth_count .. 'M' .. ' | ' .. tostr(player.speed_x), 1, 1, white)
    -- print('cool', 16, 16, frame_count % 16)
    spr(player.sprite, player.x, player.y)
+   -- rect(player.x + 1, player.y + 1, player.x + 6, player.y + 6, lime)
 
+   if current_game_state != game_state_playing then
+      rectfill(32, 24, 96, 48, white)
+      print('science over', 36, 42, red)
+   end
 end
 
 __gfx__

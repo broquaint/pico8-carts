@@ -126,28 +126,34 @@ end
 
 function make_rock_particles()
    for ob in all(obstacles) do
-      if ob.type == 'rock' and frame_count % 3 == 0 then
+      if ob.type == 'rock' then
          local p = make_obj({
                x = ob.x + randx(8),
                y = ob.y + randx(8) + 4,
-               frames = 100,
-               colour = yellow
+               frames = 50 + randx(50),
+               colour = white
          })
          add(rock_particles, p)
          animate_obj(p, function()
-                  for f = 1, p.frames do
-                     if f > 50 then
-                        p.colour = white
-                     elseif f > 30 then
-                        p.colour = silver
-                     elseif f > 20 then
-                        p.colour = red
-                     elseif f > 10 then
-                        p.colour = orange
-                     end
-                     yield()
-                  end
-                  p.alive = false
+                        for f = 1, p.frames do
+                           if f > 85 then
+                              p.colour = dim_grey
+                           elseif f > 65 then
+                              p.colour = silver
+                           elseif f > 50 then
+                              p.colour = white
+                           elseif f > 20 then
+                              p.colour = silver
+                           elseif f > 15 then
+                              p.colour = red
+                           elseif f > 10 then
+                              p.colour = orange
+                           elseif f > 5 then
+                              p.colour = yellow
+                           end
+                           yield()
+                        end
+                        p.alive = false
          end)
       end
    end

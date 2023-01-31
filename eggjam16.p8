@@ -31,9 +31,12 @@ function _init()
    player = make_obj({
       x = 32,
       y = 12,
+      default_y = 12,
+      frames = 22,
       sprite = 1,
       speed_x = 0,
       move_dir = 0,
+      diving = false,
    })
 
    current_game_state = game_state_playing
@@ -74,6 +77,28 @@ function move_player()
       end
       local next_x = player.x + player.speed_x
       player.x = (next_x < 120 and next_x > 0) and next_x or player.x
+   end
+
+   if btnp(b_x) then
+      if not player.diving then
+         player.diving = true
+         animate_obj(player, function()
+                        player.from = player.y
+                        player.to   = player.y + 24
+                        -- debug('player pre dive ', player)
+                        animate_move_y(player)
+
+                        -- debug('player mid dive ', player)
+                        player.from = player.y
+                        player.to   = player.default_y
+                        animate_move_y(player)
+
+                        -- debug('player fin dive ', player)
+                        player.diving = false
+         end)
+      else
+         -- todo ?
+      end
    end
 end
 

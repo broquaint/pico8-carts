@@ -33,10 +33,12 @@ function lerp(a,b,t)
    return a+(b-a)*t
 end
 
-function animate_move(obj)
+function animate_move_y(obj)
    for f = 1, obj.frames do
-      if(obj.crashed or obj.collected) return
-      obj.y = lerp(obj.from, obj.to, easein(f/obj.frames))
+      -- if(obj.crashed or obj.collected) return
+      local was_y = obj.y
+      obj.y = lerp(obj.from, obj.to, easeoutquad(f/obj.frames))
+      -- debug('moved ', was_y - obj.y, ' was ', was_y, ' now ', obj.y)
       yield()
    end
 end

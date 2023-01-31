@@ -37,6 +37,9 @@ function _init()
       speed_x = 0,
       move_dir = 0,
       diving = false,
+      health = 3,
+      default_health = 3,
+      iframes = false,
    })
 
    current_game_state = game_state_playing

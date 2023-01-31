@@ -24,6 +24,7 @@ max_speed = 4
 
 obstacles = {}
 heat_particles = {}
+rock_particles = {}
 
 game_state_playing = 'playing'
 game_state_crashed = 'crashed'
@@ -85,6 +86,7 @@ function populate_obstacles()
          local rock_x  = rand_tile_x(x)
          local angle_x = rock_x < 65 and rnd() or -rnd()
          local rock = make_obj({
+               type = 'rock',
                x = rock_x,
                y = 128 + (8 + n * 3) * n,
                angle = angle_x,
@@ -117,8 +119,37 @@ function rising_particles()
                         p.y -= p.speed
                         yield()
                      end
-                     obj.alive = false
+                     p.alive = false
       end)
+   end
+end
+
+function make_rock_particles()
+   for ob in all(obstacles) do
+      if ob.type == 'rock' and frame_count % 3 == 0 then
+         local p = make_obj({
+               x = ob.x + randx(8),
+               y = ob.y + randx(8) + 4,
+               frames = 100,
+               colour = yellow
+         })
+         add(rock_particles, p)
+         animate_obj(p, function()
+                  for f = 1, p.frames do
+                     if f > 50 then
+                        p.colour = white
+                     elseif f > 30 then
+                        p.colour = silver
+                     elseif f > 20 then
+                        p.colour = red
+                     elseif f > 10 then
+                        p.colour = orange
+                     end
+                     yield()
+                  end
+                  p.alive = false
+         end)
+      end
    end
 end
 
@@ -197,6 +228,19 @@ function drop_off_screen_obstacles()
    end
 end
 
+function drop_dead_particles()
+   for idx, p in pairs(heat_particles) do
+      if not p.alive then
+         deli(heat_particles, idx)
+      end
+   end
+   for idx, p in pairs(rock_particles) do
+      if not p.alive then
+         deli(rock_particles, idx)
+      end
+   end
+end
+
 function _update()
    frame_count += 1
 
@@ -216,6 +260,8 @@ function _update()
 
    rising_particles()
 
+   make_rock_particles()
+
    handle_obstacle_collision()
 
    if detect_player_collision() then
@@ -223,6 +269,8 @@ function _update()
    end
 
    drop_off_screen_obstacles()
+
+   drop_dead_particles()
 end
 
 bg_y = 120
@@ -245,12 +293,17 @@ function _draw()
       pset(p.x, p.y, p.colour)
    end
 
+   for p in all(rock_particles) do
+      pset(p.x, p.y, p.colour)
+   end
+
+
    for obstacle in all(obstacles) do
       spr(obstacle.sprite, obstacle.x, obstacle.y)
       -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
    end
    
-   print(depth_count .. 'M' .. ' | ' .. tostr(player.speed_x), 1, 1, white)
+   print(depth_count .. 'M', 1, 1, white)
    -- print('cool', 16, 16, frame_count % 16)
    spr(player.sprite, player.x, player.y)
    -- rect(player.x + 1, player.y + 1, player.x + 6, player.y + 6, lime)

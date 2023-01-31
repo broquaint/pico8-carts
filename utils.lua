@@ -32,6 +32,7 @@ function make_obj(attr)
       from = nil, to = nil,
       frames = nil,
       animating = false,
+      alive = true,
       }, attr)
 end
 

@@ -112,10 +112,10 @@ function rising_particles()
             x = 16 + orig_x,
             y = 128,
             orig_x = orig_x,
-            frames = 128,
+            frames = 32 + randx(96),
             freq = 10 + randx(15),
             speed = 1 + rnd(),
-            colour = silver
+            colour = ({silver, silver, white, dim_grey})[randx(4)]
       })
       add(heat_particles, p)
       animate_obj(p, function(p)
@@ -307,7 +307,6 @@ function _draw()
    for p in all(rock_particles) do
       pset(p.x, p.y, p.colour)
    end
-
 
    for obstacle in all(obstacles) do
       spr(obstacle.sprite, obstacle.x, obstacle.y)

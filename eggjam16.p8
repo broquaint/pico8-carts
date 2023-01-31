@@ -131,59 +131,86 @@ function rand_tile_x()
    return x - (x % 8)
 end
 
+function make_rock()
+   local rock_x  = rand_tile_x(x)
+   local angle_x = rock_x < 65 and rnd() or -rnd()
+   local depth_speed = depth_count / 30
+   return make_obj({
+         type = 'rock',
+         x = rock_x,
+         y = 128,
+         angle = angle_x,
+         sprite = 15+randx(3),
+         speed = depth_speed + 1,
+         last_collide = rnd() -- make equality check easier
+   })
+end
+
+function make_missile()
+   local rock_x  = rand_tile_x(x)
+   local angle_x = rock_x < 65 and rnd() or -rnd()
+   local depth_speed = depth_count / 30
+   return make_obj({
+         type = 'missile',
+         x = rock_x,
+         y = 160,
+         angle = angle_x,
+         sprite = 21,
+         speed = depth_speed + 3,
+         last_collide = rnd() -- make equality check easier
+   })
+end
+
+function make_lump()
+   local rock_x  = rand_tile_x(x)
+   local angle_x = rock_x < 65 and rnd() or -rnd()
+   local depth_speed = depth_count / 30
+   return make_obj({
+         type = 'lump',
+         x = rock_x,
+         y = 128,
+         angle = angle_x,
+         sprite = {24,25,40,41},
+         speed = depth_speed + 0.7,
+         last_collide = rnd() -- make equality check easier
+   })
+end
+
 function populate_obstacles()
-   if #obstacles == 0 and #obstacle_frequency > 0 then
+   if #obstacle_frequency > 0 and frame_count % 80 == 0 then
       local next_obstacles = deli(obstacle_frequency, 1)
 
       local depth_speed = depth_count / 30
       for n = 1, (next_obstacles.rock or 0) do
-         local rock_x  = rand_tile_x(x)
-         local angle_x = rock_x < 65 and rnd() or -rnd()
-         local rock = make_obj({
-               type = 'rock',
-               x = rock_x,
-               y = 128 + (8 + n * 3) * n,
-               angle = angle_x,
-               sprite = 15+randx(3),
-               speed = depth_speed + 1 + n/3,
-               last_collide = rnd() -- make equality check easier
-         })
+         local rock = make_rock()
+         rock.y     += (8 + n * 3) * n
+         rock.speed += n / 3
          -- dump_once(rock)
          add(obstacles, rock)
       end
 
       for n = 1, (next_obstacles.missile or 0) do
-         local rock_x  = rand_tile_x(x)
-         local angle_x = rock_x < 65 and rnd() or -rnd()
-         local missile = make_obj({
-               type = 'missile',
-               x = rock_x,
-               y = 160 + (n * 30) * n,
-               angle = angle_x,
-               sprite = 21,
-               speed = depth_speed + 3 + n/3,
-               last_collide = rnd() -- make equality check easier
-         })
+         local missile = make_missile()
+         missile.y     += (n * 30) * n
+         missile.speed += n / 3
          -- dump_once(rock)
          add(obstacles, missile)
       end
-
 
       for n = 1, (next_obstacles.lump or 0) do
-         local rock_x  = rand_tile_x(x)
-         local angle_x = rock_x < 65 and rnd() or -rnd()
-         local missile = make_obj({
-               type = 'lump',
-               x = rock_x,
-               y = 128 + (n * 30) * n,
-               angle = angle_x,
-               sprite = {24,25,40,41},
-               speed = depth_speed + 0.7 + n/3,
-               last_collide = rnd() -- make equality check easier
-         })
+         local lump = make_lump()
+         lump.y     += (n * 30) * n
+         lump.speed += n / 3
          -- dump_once(rock)
-         add(obstacles, missile)
+         add(obstacles, lump)
       end
+   end
+
+   if frame_count % 90 == 0 then
+      local obstacle = ({make_rock, make_missile, make_lump})[randx(3)]()
+      obstacle.y += 30
+      obstacle.speed += depth_count / 20
+      add(obstacles, obstacle)
    end
 end
 
@@ -298,7 +325,7 @@ function make_rock_particles()
    end
 end
 
-function handle_obstacle_collision()
+function move_obstacles()
    for obstacle in all(obstacles) do
       obstacle.y = obstacle.y - obstacle.speed
       -- debug('angle', obstacle.angle, ' adds ', next_x)
@@ -310,6 +337,11 @@ function handle_obstacle_collision()
       else
          obstacle.x += obstacle.angle
       end
+   end
+end
+
+function handle_obstacle_collision()
+   for obstacle in all(obstacles) do
       for ob2 in all(obstacles) do
          if obstacle != ob2 and obstacle.last_collide != ob2.last_collide then
             local o1x1 = obstacle.x + 8
@@ -413,20 +445,20 @@ function _update()
 
    if frame_count % 30 == 0 then
       depth_count += 1
+      -- help find weird memory bug hopefully
+      debug('memory usage: ', stat(0))
    end
 
    run_animations()
 
-   move_player()
-
-   populate_obstacles()
-
    rising_particles()
-
    make_rock_particles()
 
+   populate_obstacles()
+   move_obstacles()
    handle_obstacle_collision()
 
+   move_player()
    handle_player_collision()
 
    if player.health == 0 then
@@ -449,7 +481,9 @@ function _draw()
          spr(33, 9 +  offset, bg_y)
          spr(34, 17 + offset, bg_y)
       end
+      fillp(∧)
       rectfill(0, bg_y+8, 127, 127, dim_grey)
+      fillp()
       -- This is gross but effective
       bg_y -= 1
    end
@@ -484,7 +518,7 @@ function _draw()
 
    if current_game_state != game_state_playing then
       rectfill(32, 24, 96, 48, white)
-      print('science over', 36, 42, red)
+      print('science over', 42, 36, red)
    end
 end
 

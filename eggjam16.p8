@@ -8,30 +8,35 @@ __lua__
 #include animation.lua
 
 g_anims = {}
-frame_count = 0
-depth_count = 0
-player = make_obj({
-      x = 32,
-      y = 12,
-      sprite = 1,
-      speed_x = 0,
-      move_dir = 0,
-})
 
 acceleration = 0.7
 friction = 0.8
 max_speed = 4
 
-obstacles = {}
-heat_particles = {}
-rock_particles = {}
-
 game_state_playing = 'playing'
 game_state_crashed = 'crashed'
-current_game_state = game_state_playing
    
 function _init()
    camera()
+
+   g_anims = {}
+
+   obstacles = {}
+   heat_particles = {}
+   rock_particles = {}
+
+   frame_count = 0
+   depth_count = 0
+
+   player = make_obj({
+      x = 32,
+      y = 12,
+      sprite = 1,
+      speed_x = 0,
+      move_dir = 0,
+   })
+
+   current_game_state = game_state_playing
 end
 
 function run_animations()

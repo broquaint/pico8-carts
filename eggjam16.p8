@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 39
 __lua__
--- eggjam16
+-- tephra toil
 -- by broquaint
 
 #include utils.lua
@@ -22,6 +22,7 @@ function _init()
    g_anims = {}
 
    obstacles = {}
+   air_streaks = {}
    heat_particles = {}
    rock_particles = {}
 
@@ -40,6 +41,7 @@ function _init()
       health = 3,
       default_health = 3,
       iframes = false,
+      scanned = 0
    })
 
    current_game_state = game_state_playing
@@ -65,21 +67,24 @@ function calc_player_speed(dir)
 end
 
 function move_player()
-   if btn(b_right) then
-      local next_x = player.x + calc_player_speed(1)
-      player.x = next_x < 120 and next_x or player.x
-      player.move_dir = 1
-   elseif btn(b_left) then
-      local next_x = player.x + calc_player_speed(-1)
-      player.x = next_x > 0 and next_x or player.x
-      player.move_dir = -1
-   elseif player.move_dir != 0 and abs(player.speed_x) > 0 then
-      -- Apply friction slowly, make it feel slidey
-      if (frame_count%3==0) then
-         player.speed_x = player.speed_x * friction
+   -- A judder or slow down or something would be better.
+   if not player.iframes then
+      if btn(b_right) then
+         local next_x = player.x + calc_player_speed(1)
+         player.x = next_x < 120 and next_x or player.x
+         player.move_dir = 1
+      elseif btn(b_left) then
+         local next_x = player.x + calc_player_speed(-1)
+         player.x = next_x > 0 and next_x or player.x
+         player.move_dir = -1
+      elseif player.move_dir != 0 and abs(player.speed_x) > 0 then
+         -- Apply friction slowly, make it feel slidey
+         if (frame_count%3==0) then
+            player.speed_x = player.speed_x * friction
+         end
+         local next_x = player.x + player.speed_x
+         player.x = (next_x < 120 and next_x > 0) and next_x or player.x
       end
-      local next_x = player.x + player.speed_x
-      player.x = (next_x < 120 and next_x > 0) and next_x or player.x
    end
 
    if btnp(b_x) then
@@ -124,6 +129,14 @@ obstacle_frequency = {
    {rock=6, missile=2, lump=2},
    {rock=7, lump=1},
    {rock=7, missile=2},
+   {rock=7, missile=2},
+   {rock=7, missile=2},
+   {rock=7, missile=2, lump=2},
+   {rock=4, missile=3},
+   {rock=4, missile=3, lump=1},
+   {rock=4, missile=4},
+   {rock=4, missile=4},
+   {rock=3, missile=5},
 }
 
 function rand_tile_x()
@@ -131,48 +144,60 @@ function rand_tile_x()
    return x - (x % 8)
 end
 
+function make_obstacle(obj)
+   return make_obj(merge({
+                         closest = false,
+                         scan_time = 0,
+                         distance_from_pp = 128,
+                         data_scanned = false,
+                         }, obj))
+end
+
 function make_rock()
-   local rock_x  = rand_tile_x(x)
+   local rock_x  = rand_tile_x()
    local angle_x = rock_x < 65 and rnd() or -rnd()
    local depth_speed = depth_count / 30
-   return make_obj({
+   return make_obstacle({
          type = 'rock',
          x = rock_x,
          y = 128,
          angle = angle_x,
          sprite = 15+randx(3),
          speed = depth_speed + 1,
-         last_collide = rnd() -- make equality check easier
+         last_collide = rnd(), -- make equality check easier
+         scan_length = 25,
    })
 end
 
 function make_missile()
-   local rock_x  = rand_tile_x(x)
+   local rock_x  = rand_tile_x()
    local angle_x = rock_x < 65 and rnd() or -rnd()
    local depth_speed = depth_count / 30
-   return make_obj({
+   return make_obstacle({
          type = 'missile',
          x = rock_x,
          y = 160,
          angle = angle_x,
          sprite = 21,
          speed = depth_speed + 3,
-         last_collide = rnd() -- make equality check easier
+         last_collide = rnd(), -- make equality check easier
+         scan_length = 15,
    })
 end
 
 function make_lump()
-   local rock_x  = rand_tile_x(x)
+   local rock_x  = rand_tile_x()
    local angle_x = rock_x < 65 and rnd() or -rnd()
    local depth_speed = depth_count / 30
-   return make_obj({
+   return make_obstacle({
          type = 'lump',
          x = rock_x,
          y = 128,
          angle = angle_x,
          sprite = {24,25,40,41},
          speed = depth_speed + 0.7,
-         last_collide = rnd() -- make equality check easier
+         last_collide = rnd(), -- make equality check easier
+         scan_length = 45
    })
 end
 
@@ -214,7 +239,28 @@ function populate_obstacles()
    end
 end
 
-function rising_particles()
+function falling_air_streaks()
+   if frame_count % 30 == 0 then
+      local streak = make_obj({
+            x = rand_tile_x(),
+            y = 128,
+            length = 12,
+            frames = 141,
+            speed = 2 + rnd(),
+            colour = silver,
+      })
+      add(air_streaks, streak)
+      animate_obj(streak, function(s)
+                     for f = 1, s.frames do
+                        s.y -= s.speed
+                        yield()
+                     end
+                     s.alive = false
+      end)
+   end
+end
+
+function rising_heat_particles()
    if frame_count % 30 == 0 then
       local orig_x = 16 + randx(112)
       local p = make_obj({
@@ -332,7 +378,7 @@ function move_obstacles()
       local next_x = obstacle.x + obstacle.angle
       if next_x < 0 then
          obstacle.angle = abs(obstacle.angle)
-      elseif next_x > 120 then
+      elseif next_x > 120 or (obstacle.type == 'lump' and next_x > 112) then
          obstacle.angle = -obstacle.angle
       else
          obstacle.x += obstacle.angle
@@ -344,8 +390,8 @@ function handle_obstacle_collision()
    for obstacle in all(obstacles) do
       for ob2 in all(obstacles) do
          if obstacle != ob2 and obstacle.last_collide != ob2.last_collide then
-            local o1x1 = obstacle.x + 8
-            local o2x1 = ob2.x + 8
+            local o1x1 = obstacle.x + (obstacle.type == 'lump' and 16 or 8)
+            local o2x1 = ob2.x + (ob2.type == 'lump' and 16 or 8)
             if obstacle.y > ob2.y and obstacle.y<(ob2.y+8) then
                if obstacle.x > ob2.x and obstacle.x < o2x1 then
                   obstacle.angle = -obstacle.angle
@@ -379,21 +425,46 @@ function detect_player_collision()
          if py2 >= oy1 and py2 <= oy2
             and ((px1 >= ox1 and px1 <= ox2) or (px2 >= ox1 and px2 <= ox2))
          then
-            debug('bottom of ', player, ' collided with ', obstacle)
+            -- debug('bottom of ', player, ' collided with ', obstacle)
             return true
          -- left line intersects with top line
          elseif px1 >= ox1 and px1 <= ox2
             and ((py1 >= oy1 and py1 <= oy2) or (py2 >= oy1 and py2 <= oy2))
          then
-            debug('left of ', player, ' collided with ', obstacle)
+            -- debug('left of ', player, ' collided with ', obstacle)
             return true
          -- right line intersects with top line
          elseif px2 >= ox1 and px2 <= ox2
             and ((py1 >= oy1 and py1 <= oy2) or (py2 >= oy1 and py2 <= oy2))
          then
-            dump_once('right of ', player, ' collided with ', obstacle)
+            -- dump_once('right of ', player, ' collided with ', obstacle)
             return true
          end
+      end
+   end
+end
+
+function detect_proximity()
+   local prox = 128
+   local nearest = nil
+   for o in all(obstacles) do
+      o.closest = false
+      local a = abs(o.y - player.y)
+      local b = abs(o.x - player.x)
+      local d = sqrt((a * a) + (b * b))
+
+      if o.y > player.y and d < prox then
+         nearest = o
+         o.distance_from_pp = d
+         prox = d
+      end
+   end
+   if nearest then
+      nearest.closest = true
+      nearest.scan_time += 1
+      if not nearest.data_scanned and nearest.scan_time >= nearest.scan_length then
+         player.scanned += 1
+         nearest.data_scanned = true
       end
    end
 end
@@ -402,6 +473,7 @@ function handle_player_collision()
    if not player.iframes and detect_player_collision() then
       player.health = max(0, player.health - 1)
       player.iframes = true
+      player.speed_x = 0
       animate(function()
             for i = 1,44 do
                if i % 5 == 0 then
@@ -424,6 +496,11 @@ function drop_off_screen_obstacles()
 end
 
 function drop_dead_particles()
+   for idx, p in pairs(air_streaks) do
+      if not p.alive then
+         deli(air_streaks, idx)
+      end
+   end
    for idx, p in pairs(heat_particles) do
       if not p.alive then
          deli(heat_particles, idx)
@@ -447,11 +524,14 @@ function _update()
       depth_count += 1
       -- help find weird memory bug hopefully
       debug('memory usage: ', stat(0))
+   elseif stat(0) > 800 then
+      debug('BAD memory usage: ', stat(0))
    end
 
    run_animations()
 
-   rising_particles()
+   falling_air_streaks()
+   rising_heat_particles()
    make_rock_particles()
 
    populate_obstacles()
@@ -460,9 +540,11 @@ function _update()
 
    move_player()
    handle_player_collision()
+   detect_proximity()
 
    if player.health == 0 then
       current_game_state = game_state_crashed
+      debug('end game memory usage: ', stat(0))
    end
 
    drop_off_screen_obstacles()
@@ -481,11 +563,15 @@ function _draw()
          spr(33, 9 +  offset, bg_y)
          spr(34, 17 + offset, bg_y)
       end
-      fillp(∧)
+      --fillp(∧)
       rectfill(0, bg_y+8, 127, 127, dim_grey)
-      fillp()
+      --fillp()
       -- This is gross but effective
       bg_y -= 1
+   end
+
+   for s in all(air_streaks) do
+      line(s.x, s.y, s.x, s.y - s.length, s.colour)
    end
 
    for p in all(heat_particles) do
@@ -496,6 +582,7 @@ function _draw()
       pset(p.x, p.y, p.colour)
    end
 
+   local closest = nil
    for obstacle in all(obstacles) do
       if obstacle.type == 'lump' then
          sspr(8*8, 8, 16, 16, obstacle.x, obstacle.y)
@@ -503,7 +590,18 @@ function _draw()
          spr(obstacle.sprite, obstacle.x, obstacle.y)
          -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
       end
+      if obstacle.closest then
+         closest = obstacle
+         -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
+         line(obstacle.x + 4, obstacle.y + 4, player.x + 4, player.y + 4, white)
+         print('dist ' .. tostr(obstacle.distance_from_pp), 1, 60, white)
+      end
    end
+
+   -- print('cool', 16, 16, frame_count % 16)
+   spr(player.sprite, player.x, player.y)
+   -- sspr(3*8, 0, 16, 8, player.x-8, player.y+8, 32, 24)
+   -- rect(player.x + 1, player.y + 1, player.x + 6, player.y + 6, lime)
 
    --rectfill(0, 0, 128, 7, dim_grey)
    print('depth ' .. depth_count .. 'M', 1, 1, white)
@@ -512,9 +610,11 @@ function _draw()
       print('♥', 36 + (i*6), 1, (player.health >= i and red or navy))
    end
 
-   -- print('cool', 16, 16, frame_count % 16)
-   spr(player.sprite, player.x, player.y)
-   -- rect(player.x + 1, player.y + 1, player.x + 6, player.y + 6, lime)
+   print('scanned ' .. tostr(player.scanned), 64, 1, white)
+   if closest then
+      local pct = min(closest.scan_time, closest.scan_length) / closest.scan_length
+      rectfill(105, 1, 105 + (20 * pct), 6, white)
+   end
 
    if current_game_state != game_state_playing then
       rectfill(32, 24, 96, 48, white)

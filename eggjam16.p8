@@ -156,7 +156,7 @@ end
 function make_rock()
    local rock_x  = rand_tile_x()
    local angle_x = rock_x < 65 and rnd() or -rnd()
-   local depth_speed = depth_count / 30
+   local depth_speed = depth_count / 60
    return make_obstacle({
          type = 'rock',
          x = rock_x,
@@ -165,14 +165,14 @@ function make_rock()
          sprite = 15+randx(3),
          speed = depth_speed + 1,
          last_collide = rnd(), -- make equality check easier
-         scan_length = 25,
+         scan_length = 15,
    })
 end
 
 function make_missile()
    local rock_x  = rand_tile_x()
    local angle_x = rock_x < 65 and rnd() or -rnd()
-   local depth_speed = depth_count / 30
+   local depth_speed = depth_count / 75
    return make_obstacle({
          type = 'missile',
          x = rock_x,
@@ -181,14 +181,14 @@ function make_missile()
          sprite = 21,
          speed = depth_speed + 3,
          last_collide = rnd(), -- make equality check easier
-         scan_length = 15,
+         scan_length = 8,
    })
 end
 
 function make_lump()
    local rock_x  = rand_tile_x()
    local angle_x = rock_x < 65 and rnd() or -rnd()
-   local depth_speed = depth_count / 30
+   local depth_speed = depth_count / 90
    return make_obstacle({
          type = 'lump',
          x = rock_x,
@@ -197,7 +197,7 @@ function make_lump()
          sprite = {24,25,40,41},
          speed = depth_speed + 0.7,
          last_collide = rnd(), -- make equality check easier
-         scan_length = 45
+         scan_length = 25
    })
 end
 
@@ -205,10 +205,9 @@ function populate_obstacles()
    if #obstacle_frequency > 0 and frame_count % 80 == 0 then
       local next_obstacles = deli(obstacle_frequency, 1)
 
-      local depth_speed = depth_count / 30
       for n = 1, (next_obstacles.rock or 0) do
          local rock = make_rock()
-         rock.y     += (8 + n * 3) * n
+         rock.y     += (16 + n * 3) * n
          rock.speed += n / 3
          -- dump_once(rock)
          add(obstacles, rock)
@@ -448,20 +447,29 @@ function detect_proximity()
    local prox = 128
    local nearest = nil
    for o in all(obstacles) do
-      o.closest = false
-      local a = abs(o.y - player.y)
-      local b = abs(o.x - player.x)
-      local d = sqrt((a * a) + (b * b))
+      if not o.data_scanned then
+         o.closest = false
+         local a = abs(o.y - player.y)
+         local b = abs(o.x - player.x)
+         local d = sqrt((a * a) + (b * b))
 
-      if o.y > player.y and d < prox then
-         nearest = o
-         o.distance_from_pp = d
-         prox = d
+         if o.y < 45 and d < 40 and o.y > (player.y-2) and d < prox then
+            nearest = o
+            o.distance_from_pp = d
+            prox = d
+         end
       end
    end
    if nearest then
       nearest.closest = true
-      nearest.scan_time += 1
+      local dist = nearest.distance_from_pp
+      if dist >= 10 then
+         nearest.scan_time += (dist < 15 and 3 or dist < 25 and 1.5 or 1)
+      else
+         -- Full scan at close proximity
+         nearest.scan_time = nearest.scan_length
+      end
+      local sl = max(3, nearest.scan_length - (depth_count \ 10))
       if not nearest.data_scanned and nearest.scan_time >= nearest.scan_length then
          player.scanned += 1
          nearest.data_scanned = true
@@ -570,6 +578,10 @@ function _draw()
       bg_y -= 1
    end
 
+   fillp(∧)
+   rectfill(0, 11, 127, 44, violet)
+   fillp()
+
    for s in all(air_streaks) do
       line(s.x, s.y, s.x, s.y - s.length, s.colour)
    end
@@ -590,10 +602,12 @@ function _draw()
          spr(obstacle.sprite, obstacle.x, obstacle.y)
          -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
       end
-      if obstacle.closest then
+      if obstacle.closest and not obstacle.data_scanned then
          closest = obstacle
+         local dist = closest.distance_from_pp
          -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
-         line(obstacle.x + 4, obstacle.y + 4, player.x + 4, player.y + 4, white)
+         local scan_colour = (dist < 15 and lime or dist < 25 and green or azure)
+         line(obstacle.x + 4, obstacle.y + 4, player.x + 4, player.y + 4, scan_colour)
          print('dist ' .. tostr(obstacle.distance_from_pp), 1, 60, white)
       end
    end
@@ -613,7 +627,8 @@ function _draw()
    print('scanned ' .. tostr(player.scanned), 64, 1, white)
    if closest then
       local pct = min(closest.scan_time, closest.scan_length) / closest.scan_length
-      rectfill(105, 1, 105 + (20 * pct), 6, white)
+      rectfill(105, 1, 125, 5, black)
+      rectfill(105, 1, 105 + (20 * pct), 5, white)
    end
 
    if current_game_state != game_state_playing then

@@ -7,16 +7,17 @@ __lua__
 #include utils.lua
 #include animation.lua
 
-g_anims = {}
+ACCELERATION = 0.7
+FRICTION = 0.8
+MAX_SPEED = 4
 
-acceleration = 0.7
-friction = 0.8
-max_speed = 4
+HIGH_SCORE_DEPTH   = 0
+HIGH_SCORE_SCANNED = 1
 
 game_state_playing = 'playing'
 game_state_crashed = 'crashed'
-   
-function _init()
+
+function init_playing()
    camera()
 
    g_anims = {}
@@ -41,10 +42,48 @@ function _init()
       health = 3,
       default_health = 3,
       iframes = false,
-      scanned = 0
+      scanned = {},
+      scanned_count = 0,
    })
 
+   obstacle_frequency = {
+      {rock=1},
+      {lump=1},
+      {rock=2},
+      {missile=1},
+      {rock=3},
+      {rock=3, missile=1},
+      {rock=3, missile=1, lump=1},
+      {rock=4, lump=2},
+      {rock=4, missile=1},
+      {rock=5},
+      {rock=5, lump=2},
+      {rock=5, missile=1},
+      {rock=5, missile=2, lump=1},
+      {rock=6, missile=1, lump=1},
+      {rock=6},
+      {rock=6, missile=2, lump=2},
+      {rock=7, lump=1},
+      {rock=7, missile=2},
+      {rock=7, missile=2},
+      {rock=7, missile=2},
+      {rock=7, missile=2, lump=2},
+      {rock=4, missile=3},
+      {rock=4, missile=3, lump=1},
+      {rock=4, missile=4},
+      {rock=4, missile=4},
+      {rock=3, missile=5},
+   }
+
+   showing = { missile = {}, rock = {}, lump = {} }
    current_game_state = game_state_playing
+end
+
+function _init()
+   cartdata("broquaint_tephra_toil")
+   init_playing()
+--   dset(0,10)
+--   dset(1,10)
 end
 
 function run_animations()
@@ -58,10 +97,10 @@ function run_animations()
 end
 
 function calc_player_speed(dir)
-   -- player.speed_x *= player.move_dir * friction
-   player.speed_x += dir * acceleration
-   if abs(player.speed_x) > max_speed then
-      player.speed_x = dir * max_speed
+   -- player.speed_x *= player.move_dir * FRICTION
+   player.speed_x += dir * ACCELERATION
+   if abs(player.speed_x) > MAX_SPEED then
+      player.speed_x = dir * MAX_SPEED
    end
    return player.speed_x
 end
@@ -80,14 +119,14 @@ function move_player()
       elseif player.move_dir != 0 and abs(player.speed_x) > 0 then
          -- Apply friction slowly, make it feel slidey
          if (frame_count%3==0) then
-            player.speed_x = player.speed_x * friction
+            player.speed_x = player.speed_x * FRICTION
          end
          local next_x = player.x + player.speed_x
          player.x = (next_x < 120 and next_x > 0) and next_x or player.x
       end
    end
 
-   if btnp(b_x) then
+   if btnp(b_down) then
       if not player.diving then
          player.diving = true
          animate_obj(player, function()
@@ -109,35 +148,6 @@ function move_player()
       end
    end
 end
-
-obstacle_frequency = {
-   {rock=1},
-   {lump=1},
-   {rock=2},
-   {missile=1},
-   {rock=3},
-   {rock=3, missile=1},
-   {rock=3, missile=1, lump=1},
-   {rock=4, lump=2},
-   {rock=4, missile=1},
-   {rock=5},
-   {rock=5, lump=2},
-   {rock=5, missile=1},
-   {rock=5, missile=2, lump=1},
-   {rock=6, missile=1, lump=1},
-   {rock=6},
-   {rock=6, missile=2, lump=2},
-   {rock=7, lump=1},
-   {rock=7, missile=2},
-   {rock=7, missile=2},
-   {rock=7, missile=2},
-   {rock=7, missile=2, lump=2},
-   {rock=4, missile=3},
-   {rock=4, missile=3, lump=1},
-   {rock=4, missile=4},
-   {rock=4, missile=4},
-   {rock=3, missile=5},
-}
 
 function rand_tile_x()
    local x = randx(127)
@@ -471,7 +481,9 @@ function detect_proximity()
       end
       local sl = max(3, nearest.scan_length - (depth_count \ 10))
       if not nearest.data_scanned and nearest.scan_time >= nearest.scan_length then
-         player.scanned += 1
+         add(player.scanned, nearest)
+         -- Keep count of total so the UI remains static on death screen.
+         player.scanned_count += 1
          nearest.data_scanned = true
       end
    end
@@ -493,6 +505,16 @@ function handle_player_collision()
             player.iframes = false
       end)
    end
+end
+
+function animate_death_screen()
+   animate(function ()
+      while #player.scanned > 0 do
+         local o = deli(player.scanned, 1)
+         add(showing[o.type], o)
+         wait(8)
+      end
+   end)
 end
 
 function drop_off_screen_obstacles()
@@ -524,19 +546,22 @@ end
 function _update()
    frame_count += 1
 
+   run_animations()
+
    if current_game_state != game_state_playing then
+      if btnp(b_x) then
+         init_playing()
+      end
       return
    end
 
    if frame_count % 30 == 0 then
       depth_count += 1
       -- help find weird memory bug hopefully
-      debug('memory usage: ', stat(0))
+      -- debug('memory usage: ', stat(0))
    elseif stat(0) > 800 then
       debug('BAD memory usage: ', stat(0))
    end
-
-   run_animations()
 
    falling_air_streaks()
    rising_heat_particles()
@@ -552,7 +577,16 @@ function _update()
 
    if player.health == 0 then
       current_game_state = game_state_crashed
-      debug('end game memory usage: ', stat(0))
+      animate_death_screen()
+      if depth_count > dget(HIGH_SCORE_DEPTH) then
+         dset(HIGH_SCORE_DEPTH, depth_count)
+         player.new_depth_hs = true
+      end
+      if player.scanned_count > dget(HIGH_SCORE_SCANNED) then
+         dset(HIGH_SCORE_SCANNED, player.scanned_count)
+         player.new_scanned_hs = true
+      end
+      -- debug('end game memory usage: ', stat(0))
    end
 
    drop_off_screen_obstacles()
@@ -578,6 +612,7 @@ function _draw()
       bg_y -= 1
    end
 
+   -- scan area
    fillp(∧)
    rectfill(0, 11, 127, 44, violet)
    fillp()
@@ -608,7 +643,7 @@ function _draw()
          -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
          local scan_colour = (dist < 15 and lime or dist < 25 and green or azure)
          line(obstacle.x + 4, obstacle.y + 4, player.x + 4, player.y + 4, scan_colour)
-         print('dist ' .. tostr(obstacle.distance_from_pp), 1, 60, white)
+         -- print('dist ' .. tostr(obstacle.distance_from_pp), 1, 60, white)
       end
    end
 
@@ -624,7 +659,7 @@ function _draw()
       print('♥', 36 + (i*6), 1, (player.health >= i and red or navy))
    end
 
-   print('scanned ' .. tostr(player.scanned), 64, 1, white)
+   print('scanned ' .. tostr(player.scanned_count), 64, 1, white)
    if closest then
       local pct = min(closest.scan_time, closest.scan_length) / closest.scan_length
       rectfill(105, 1, 125, 5, black)
@@ -632,8 +667,43 @@ function _draw()
    end
 
    if current_game_state != game_state_playing then
-      rectfill(32, 24, 96, 48, white)
-      print('science over', 42, 36, red)
+      rectfill(18, 47, 114, 117, navy)
+      rectfill(16, 45, 112, 115, violet)
+      print('science over! scanned:', 18, 47, navy)
+
+      if(#showing.missile > 0) print(#showing.missile, 18, 57, navy)
+      for idx,o in pairs(showing.missile) do
+         local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
+         local sy = idx > 45 and 60 or 56
+         spr(o.sprite, sx, sy)
+      end
+
+      if(#showing.rock > 0) print(#showing.rock, 18, 67, navy)
+      for idx,o in pairs(showing.rock) do
+         local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
+         local sy = idx > 45 and 70 or 66
+         spr(o.sprite, sx, sy)
+      end
+
+      if(#showing.lump > 0) print(#showing.lump, 18, 77, navy)
+      for idx,o in pairs(showing.lump) do
+         local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
+         local sy = idx > 45 and 80 or 76
+         sspr(8*8, 8, 16, 16, sx, sy)
+      end
+      print('deepest depth ' .. dget(HIGH_SCORE_DEPTH) .. 'M', 18, 98, navy)
+      if(player.new_depth_hs) then
+         print('new★', 90, 98, yellow)
+      else
+         print('> ' .. depth_count .. 'M', 90, 98, navy)
+      end
+
+      print('most scanned  ' .. dget(HIGH_SCORE_SCANNED), 18, 107, navy)
+      if(player.new_scanned_hs) then
+         print('new★', 90, 107, yellow)
+      else
+         print(' > ' .. player.scanned_count, 86, 107, navy)
+      end
    end
 end
 

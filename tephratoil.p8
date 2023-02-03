@@ -75,6 +75,7 @@ function init_playing()
       {rock=3, missile=5},
    }
 
+   bg_y = 120
    showing = { missile = {}, rock = {}, lump = {} }
    current_game_state = game_state_playing
 end
@@ -105,6 +106,19 @@ function calc_player_speed(dir)
    return player.speed_x
 end
 
+
+function animate_player_dive(obj)
+   for f = 1, obj.frames do
+      if current_game_state == game_state_playing then
+         -- if(obj.crashed or obj.collected) return
+         local was_y = obj.y
+         obj.y = lerp(obj.from, obj.to, easeoutquad(f/obj.frames))
+         -- debug('moved ', was_y - obj.y, ' was ', was_y, ' now ', obj.y)
+         yield()
+      end
+   end
+end
+
 function move_player()
    -- A judder or slow down or something would be better.
    if not player.iframes then
@@ -133,12 +147,12 @@ function move_player()
                         player.from = player.y
                         player.to   = player.y + 24
                         -- debug('player pre dive ', player)
-                        animate_move_y(player)
+                        animate_player_dive(player)
 
                         -- debug('player mid dive ', player)
                         player.from = player.y
                         player.to   = player.default_y
-                        animate_move_y(player)
+                        animate_player_dive(player)
 
                         -- debug('player fin dive ', player)
                         player.diving = false
@@ -496,10 +510,12 @@ function handle_player_collision()
       player.speed_x = 0
       animate(function()
             for i = 1,44 do
-               if i % 5 == 0 then
-                  player.sprite = player.sprite == 1 and 2 or 1
+               if current_game_state == game_state_playing then
+                  if i % 5 == 0 then
+                     player.sprite = player.sprite == 1 and 2 or 1
+                  end
+                  yield()
                end
-               yield()
             end
             player.sprite = 1
             player.iframes = false
@@ -594,7 +610,76 @@ function _update()
    drop_dead_particles()
 end
 
-bg_y = 120
+function display_obstacle_scan(obstacle, colour, scan_pct)
+   line(obstacle.x - 2, obstacle.y - 1, obstacle.x + (10 * scan_pct), obstacle.y - 1, colour)
+   line(obstacle.x - 2, obstacle.y - 2, obstacle.x + (10 * scan_pct), obstacle.y - 2, colour)
+end
+
+function display_end_game_summary()
+   rectfill(18, 47, 114, 117, navy)
+   rectfill(16, 45, 112, 115, violet)
+   print('science over! scanned:', 18, 47, navy)
+
+   if(#showing.missile > 0) print(#showing.missile, 18, 57, navy)
+   for idx,o in pairs(showing.missile) do
+      local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
+      local sy = idx > 45 and 60 or 56
+      spr(o.sprite, sx, sy)
+   end
+
+   if(#showing.rock > 0) print(#showing.rock, 18, 67, navy)
+   for idx,o in pairs(showing.rock) do
+      local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
+      local sy = idx > 45 and 70 or 66
+      spr(o.sprite, sx, sy)
+   end
+
+   if(#showing.lump > 0) print(#showing.lump, 18, 77, navy)
+   for idx,o in pairs(showing.lump) do
+      local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
+      local sy = idx > 45 and 80 or 76
+      sspr(8*8, 8, 16, 16, sx, sy)
+   end
+
+   print('deepest depth ' .. dget(HIGH_SCORE_DEPTH) .. 'M', 18, 98, navy)
+   if(player.new_depth_hs) then
+      print('new★', 90, 98, yellow)
+   else
+      local sign = depth_count == dget(HIGH_SCORE_DEPTH) and '=' or '>'
+      print(sign .. ' ' .. depth_count .. 'M', 90, 98, navy)
+   end
+
+   print('most scanned  ' .. dget(HIGH_SCORE_SCANNED), 18, 107, navy)
+   if(player.new_scanned_hs) then
+      print('new★', 90, 107, yellow)
+   else
+      local sign = player.scanned_count == dget(HIGH_SCORE_SCANNED) and '=' or '>'
+      print(' ' .. sign .. ' ' .. player.scanned_count, 86, 107, navy)
+   end
+end
+
+function draw_obstacle_scan(obstacle)
+   local dist = obstacle.distance_from_pp
+   -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
+
+   local scan_colour  = nil
+   local scan_pattern = nil
+   if dist < 15 then
+      scan_colour = yellow
+      scan_pattern = 0b0000000000000000
+   elseif dist < 25 then
+      scan_colour = lime
+      scan_pattern = 0b0000010101000000.1
+   else
+      scan_colour = azure
+      scan_pattern = 0b1010101010101010.1
+   end
+   fillp(scan_pattern)
+   line(obstacle.x + 4, obstacle.y + 4, player.x + 4, player.y + 4, scan_colour)
+   fillp()
+   return scan_colour
+end
+
 function _draw()
    cls(black)
 
@@ -629,6 +714,7 @@ function _draw()
       pset(p.x, p.y, p.colour)
    end
 
+   local scan_pct = 0
    local closest = nil
    for obstacle in all(obstacles) do
       if obstacle.type == 'lump' then
@@ -639,11 +725,16 @@ function _draw()
       end
       if obstacle.closest and not obstacle.data_scanned then
          closest = obstacle
-         local dist = closest.distance_from_pp
-         -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
-         local scan_colour = (dist < 15 and lime or dist < 25 and green or azure)
-         line(obstacle.x + 4, obstacle.y + 4, player.x + 4, player.y + 4, scan_colour)
+         local scan_colour = draw_obstacle_scan(obstacle)
+         scan_pct = min(closest.scan_time, closest.scan_length) / closest.scan_length
+         -- Should prolly rectfill
+         display_obstacle_scan(obstacle, scan_colour, scan_pct)
          -- print('dist ' .. tostr(obstacle.distance_from_pp), 1, 60, white)
+      elseif obstacle.data_scanned then
+         display_obstacle_scan(obstacle, yellow, 1)
+      elseif obstacle.scan_time > 0 then
+         scan_pct = obstacle.scan_time / obstacle.scan_length
+         display_obstacle_scan(obstacle, navy, scan_pct)
       end
    end
 
@@ -661,49 +752,14 @@ function _draw()
 
    print('scanned ' .. tostr(player.scanned_count), 64, 1, white)
    if closest then
-      local pct = min(closest.scan_time, closest.scan_length) / closest.scan_length
       rectfill(105, 1, 125, 5, black)
-      rectfill(105, 1, 105 + (20 * pct), 5, white)
+      rectfill(105, 1, 105 + (20 * scan_pct), 5, white)
    end
 
    if current_game_state != game_state_playing then
-      rectfill(18, 47, 114, 117, navy)
-      rectfill(16, 45, 112, 115, violet)
-      print('science over! scanned:', 18, 47, navy)
-
-      if(#showing.missile > 0) print(#showing.missile, 18, 57, navy)
-      for idx,o in pairs(showing.missile) do
-         local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
-         local sy = idx > 45 and 60 or 56
-         spr(o.sprite, sx, sy)
-      end
-
-      if(#showing.rock > 0) print(#showing.rock, 18, 67, navy)
-      for idx,o in pairs(showing.rock) do
-         local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
-         local sy = idx > 45 and 70 or 66
-         spr(o.sprite, sx, sy)
-      end
-
-      if(#showing.lump > 0) print(#showing.lump, 18, 77, navy)
-      for idx,o in pairs(showing.lump) do
-         local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
-         local sy = idx > 45 and 80 or 76
-         sspr(8*8, 8, 16, 16, sx, sy)
-      end
-      print('deepest depth ' .. dget(HIGH_SCORE_DEPTH) .. 'M', 18, 98, navy)
-      if(player.new_depth_hs) then
-         print('new★', 90, 98, yellow)
-      else
-         print('> ' .. depth_count .. 'M', 90, 98, navy)
-      end
-
-      print('most scanned  ' .. dget(HIGH_SCORE_SCANNED), 18, 107, navy)
-      if(player.new_scanned_hs) then
-         print('new★', 90, 107, yellow)
-      else
-         print(' > ' .. player.scanned_count, 86, 107, navy)
-      end
+      display_end_game_summary()
+      print('press ❎ to try again!', 23, 121, navy)
+      print('press ❎ to try again!', 22, 120, white)
    end
 end
 

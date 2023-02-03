@@ -177,87 +177,77 @@ function make_obstacle(obj)
                          }, obj))
 end
 
-function make_rock()
+function make_rock(n)
    local rock_x  = rand_tile_x()
    local angle_x = rock_x < 65 and rnd() or -rnd()
-   local depth_speed = depth_count / 60
+   local speed = 1+ depth_count / 120
    return make_obstacle({
          type = 'rock',
          x = rock_x,
-         y = 128,
+         y = 128 + (n * 32) + randx(32),
          angle = angle_x,
          sprite = 15+randx(3),
-         speed = depth_speed + 1,
+         speed = min(3.3, speed + n / 6),
          last_collide = rnd(), -- make equality check easier
          scan_length = 15,
    })
 end
 
-function make_missile()
+function make_missile(n)
    local rock_x  = rand_tile_x()
-   local angle_x = rock_x < 65 and rnd() or -rnd()
-   local depth_speed = depth_count / 75
+   local angle_x = rock_x < 65 and min(0.6, rnd()) or max(-0.6, -rnd())
+   local speed = 2.25 + depth_count / 100
    return make_obstacle({
          type = 'missile',
          x = rock_x,
-         y = 160,
+         y = 160 + (n * 50) + randx(64),
          angle = angle_x,
          sprite = 21,
-         speed = depth_speed + 3,
+         speed = min(4, speed + n / 4),
          last_collide = rnd(), -- make equality check easier
          scan_length = 8,
    })
 end
 
-function make_lump()
+function make_lump(n)
    local rock_x  = rand_tile_x()
-   local angle_x = rock_x < 65 and rnd() or -rnd()
-   local depth_speed = depth_count / 90
+   local angle_x = rock_x < 65 and (rnd()+rnd()) or -(rnd()+rnd())
+   local speed = 0.6 + depth_count / 150
    return make_obstacle({
          type = 'lump',
          x = rock_x,
-         y = 128,
+         y = 128 + (n * 60) + randx(96),
          angle = angle_x,
          sprite = {24,25,40,41},
-         speed = depth_speed + 0.7,
+         speed = min(2.5, speed + n / 3),
          last_collide = rnd(), -- make equality check easier
          scan_length = 25
    })
 end
 
 function populate_obstacles()
-   if #obstacle_frequency > 0 and frame_count % 80 == 0 then
+   if #obstacle_frequency > 0 and frame_count % 120 == 0 then
       local next_obstacles = deli(obstacle_frequency, 1)
 
       for n = 1, (next_obstacles.rock or 0) do
-         local rock = make_rock()
-         rock.y     += (16 + n * 3) * n
-         rock.speed += n / 3
-         -- dump_once(rock)
-         add(obstacles, rock)
+         local rock = make_rock(n)
+         add(obstacles, make_rock(n))
       end
 
       for n = 1, (next_obstacles.missile or 0) do
-         local missile = make_missile()
-         missile.y     += (n * 30) * n
-         missile.speed += n / 3
-         -- dump_once(rock)
+         local missile = make_missile(n)
          add(obstacles, missile)
       end
 
       for n = 1, (next_obstacles.lump or 0) do
-         local lump = make_lump()
-         lump.y     += (n * 30) * n
-         lump.speed += n / 3
-         -- dump_once(rock)
+         local lump = make_lump(n)
          add(obstacles, lump)
       end
    end
 
-   if frame_count % 90 == 0 then
-      local obstacle = ({make_rock, make_missile, make_lump})[randx(3)]()
-      obstacle.y += 30
-      obstacle.speed += depth_count / 20
+   if frame_count % 200 == 0 then
+      local obstacle = ({make_rock, make_missile, make_lump})[randx(3)](1)
+      obstacle.y     += 30
       add(obstacles, obstacle)
    end
 end
@@ -725,6 +715,7 @@ function _draw()
          spr(obstacle.sprite, obstacle.x, obstacle.y)
          -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
       end
+      -- print(nice_pos(obstacle.speed), obstacle.x - 3, obstacle.y, white)
       if obstacle.closest and not obstacle.data_scanned then
          closest = obstacle
          local scan_colour = draw_obstacle_scan(obstacle)

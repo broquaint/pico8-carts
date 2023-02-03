@@ -517,8 +517,10 @@ function handle_player_collision()
                   yield()
                end
             end
-            player.sprite = 1
-            player.iframes = false
+            if current_game_state == game_state_playing then
+               player.sprite = 1
+               player.iframes = false
+            end
       end)
    end
 end
@@ -593,6 +595,7 @@ function _update()
 
    if player.health == 0 then
       current_game_state = game_state_crashed
+      player.sprite = 2
       animate_death_screen()
       if depth_count > dget(HIGH_SCORE_DEPTH) then
          dset(HIGH_SCORE_DEPTH, depth_count)
@@ -606,7 +609,6 @@ function _update()
    end
 
    drop_off_screen_obstacles()
-
    drop_dead_particles()
 end
 

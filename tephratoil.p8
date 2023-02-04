@@ -611,27 +611,27 @@ end
 
 function display_end_game_summary()
    rectfill(18, 47, 114, 117, navy)
-   rectfill(16, 45, 112, 115, violet)
+   rectfill(16, 45, 112, 115, silver)
    print('science over! scanned:', 18, 47, navy)
 
    if(#showing.missile > 0) print(#showing.missile, 18, 57, navy)
    for idx,o in pairs(showing.missile) do
       local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
-      local sy = idx > 45 and 60 or 56
+      local sy = idx > 45 and 58 or 56
       spr(o.sprite, sx, sy)
    end
 
-   if(#showing.rock > 0) print(#showing.rock, 18, 67, navy)
+   if(#showing.rock > 0) print(#showing.rock, 18, 68, navy)
    for idx,o in pairs(showing.rock) do
-      local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
-      local sy = idx > 45 and 70 or 66
+      local sx = idx > 40 and (29 + (idx - 40) * 2) or (25 + idx * 2)
+      local sy = idx > 40 and 70 or 66
       spr(o.sprite, sx, sy)
    end
 
-   if(#showing.lump > 0) print(#showing.lump, 18, 77, navy)
+   if(#showing.lump > 0) print(#showing.lump, 18, 81, navy)
    for idx,o in pairs(showing.lump) do
-      local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
-      local sy = idx > 45 and 80 or 76
+      local dx = idx > 32 and (29 + (idx - 32) * 2) or (25 + idx * 2)
+      local dy = idx > 32 and 82 or 78
       local os = o.sprite
       sspr(os.sx, os.sy, os.sw, os.sh, dx, dy)
    end

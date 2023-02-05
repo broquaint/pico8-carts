@@ -295,7 +295,7 @@ end
 function falling_air_streaks()
    if frame_count % 30 == 0 then
       local streak = make_obj({
-            x = rand_tile_x(),
+            x = rand_tile_x()+2+randx(4),
             y = 128,
             length = 12,
             frames = 141,

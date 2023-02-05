@@ -323,13 +323,18 @@ function rising_heat_particles()
             frames = 32 + randx(96),
             freq = 10 + randx(15),
             speed = 1 + rnd(),
-            colour = ({silver, silver, white, dim_grey})[randx(4)]
+            colour = red,
       })
       add(heat_particles, p)
       animate_obj(p, function(p)
                      for f = 1, p.frames do
                         p.x = p.orig_x+sin(p.y/127)*p.freq
                         p.y -= p.speed
+                        if p.colour == red and f / p.frames > 0.33 then
+                           p.colour = white
+                        elseif p.colour == white and f / p.frames > 0.66 then
+                           p.colour = silver
+                        end
                         yield()
                      end
                      p.alive = false

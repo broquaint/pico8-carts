@@ -101,9 +101,11 @@ end
 
 function calc_player_speed(dir)
    -- player.speed_x *= player.move_dir * FRICTION
-   player.speed_x += dir * ACCELERATION
-   if abs(player.speed_x) > MAX_SPEED then
-      player.speed_x = dir * MAX_SPEED
+   local accel     = ACCELERATION * (player.iframes and 0.3 or 1)
+   local max_speed = MAX_SPEED    * (player.iframes and 0.3 or 1)
+   player.speed_x += dir * accel
+   if abs(player.speed_x) > max_speed then
+      player.speed_x = dir * max_speed
    end
    return player.speed_x
 end
@@ -123,23 +125,21 @@ end
 
 function move_player()
    -- A judder or slow down or something would be better.
-   if not player.iframes then
-      if btn(b_right) then
-         local next_x = player.x + calc_player_speed(1)
-         player.x = next_x < 120 and next_x or player.x
-         player.move_dir = 1
-      elseif btn(b_left) then
-         local next_x = player.x + calc_player_speed(-1)
-         player.x = next_x > 0 and next_x or player.x
-         player.move_dir = -1
-      elseif player.move_dir != 0 and abs(player.speed_x) > 0 then
-         -- Apply friction slowly, make it feel slidey
-         if (frame_count%3==0) then
-            player.speed_x = player.speed_x * FRICTION
-         end
-         local next_x = player.x + player.speed_x
-         player.x = (next_x < 120 and next_x > 0) and next_x or player.x
+   if btn(b_right) then
+      local next_x = player.x + calc_player_speed(1)
+      player.x = next_x < 120 and next_x or player.x
+      player.move_dir = 1
+   elseif btn(b_left) then
+      local next_x = player.x + calc_player_speed(-1)
+      player.x = next_x > 0 and next_x or player.x
+      player.move_dir = -1
+   elseif player.move_dir != 0 and abs(player.speed_x) > 0 then
+      -- Apply friction slowly, make it feel slidey
+      if (frame_count%3==0) then
+         player.speed_x = player.speed_x * FRICTION
       end
+      local next_x = player.x + player.speed_x
+      player.x = (next_x < 120 and next_x > 0) and next_x or player.x
    end
 
    if btnp(b_down) then

@@ -22,12 +22,20 @@ function animate_obj(obj, animation)
    add(g_anims, obj)
 end
 
-function easein(t)
+function easeinquad(t)
    return t*t
 end
 function easeoutquad(t)
   t-=1
   return 1-t*t
+end
+function easeinoutovershoot(t)
+  if t<.5 then
+    return (2.7*8*t*t*t-1.7*4*t*t)/2
+  else
+    t-=1
+    return 1+(2.7*8*t*t*t+1.7*4*t*t)/2
+  end
 end
 function lerp(a,b,t)
    return a+(b-a)*t

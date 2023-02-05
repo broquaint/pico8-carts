@@ -181,6 +181,7 @@ function make_geyser(n)
    return make_obj({
          x = gx,
          y = 128,
+         height = 8+(16*6),
    })
 end
 
@@ -484,12 +485,37 @@ function handle_obstacle_collision()
    end
 end
 
-function detect_player_collision()
-   -- Make bounding box small than sprite
+function detect_line_intersection(ox1, ox2, oy1, oy2)
+   -- Make bounding box smaller than sprite
    local px1 = player.x + 1
    local px2 = player.x + 6
    local py1 = player.y + 1
    local py2 = player.y + 6
+
+   -- If the player is above the obstacle detect stuff.
+   if py1 < oy2 then
+      -- bottom line intersection with top line
+      if py2 >= oy1 and py2 <= oy2
+         and ((px1 >= ox1 and px1 <= ox2) or (px2 >= ox1 and px2 <= ox2))
+      then
+         -- debug('bottom of ', player, ' collided with ', obstacle)
+         return true
+         -- left line intersects with top line
+      elseif px1 >= ox1 and px1 <= ox2
+         and ((py1 >= oy1 and py1 <= oy2) or (py2 >= oy1 and py2 <= oy2))
+      then
+         -- debug('left of ', player, ' collided with ', obstacle)
+         return true
+         -- right line intersects with top line
+      elseif px2 >= ox1 and px2 <= ox2
+         and ((py1 >= oy1 and py1 <= oy2) or (py2 >= oy1 and py2 <= oy2))
+      then
+         -- dump_once('right of ', player, ' collided with ', obstacle)
+         return true
+      end
+   end
+end
+function detect_player_collision()
    for obstacle in all(obstacles) do
       local is_lump = obstacle.type == 'lump'
       local ox1 = obstacle.x + 1
@@ -497,27 +523,19 @@ function detect_player_collision()
       local oy1 = obstacle.y + 1
       local oy2 = obstacle.y + (is_lump and 14 or 6)
 
-      -- If the player is above the obstacle detect stuff.
-      if py1 < oy2 then
-         -- bottom line intersection with top line
-         if py2 >= oy1 and py2 <= oy2
-            and ((px1 >= ox1 and px1 <= ox2) or (px2 >= ox1 and px2 <= ox2))
-         then
-            -- debug('bottom of ', player, ' collided with ', obstacle)
-            return true
-         -- left line intersects with top line
-         elseif px1 >= ox1 and px1 <= ox2
-            and ((py1 >= oy1 and py1 <= oy2) or (py2 >= oy1 and py2 <= oy2))
-         then
-            -- debug('left of ', player, ' collided with ', obstacle)
-            return true
-         -- right line intersects with top line
-         elseif px2 >= ox1 and px2 <= ox2
-            and ((py1 >= oy1 and py1 <= oy2) or (py2 >= oy1 and py2 <= oy2))
-         then
-            -- dump_once('right of ', player, ' collided with ', obstacle)
-            return true
-         end
+      if detect_line_intersection(ox1, ox2, oy1, oy2) then
+         return true
+      end
+   end
+
+   for geyser in all(geysers) do
+      local ox1 = geyser.x + 1
+      local ox2 = geyser.x + 6
+      local oy1 = geyser.y - 2
+      local oy2 = geyser.y + geyser.height - 6
+
+      if detect_line_intersection(ox1, ox2, oy1, oy2) then
+         return true
       end
    end
 end
@@ -808,7 +826,7 @@ function _draw()
       for i = 0,5 do
          sspr(14*8, 8, 16, 16, g.x, g.y+8+(i*16))
       end
-      sspr(14*8, 24, 16, 8, g.x, g.y+8+(16*6))
+      sspr(14*8, 24, 16, 8, g.x, g.y+g.height)
       --sspr(14*8, 0, 16, 8, g.x, g.y)
       --rectfill(g.x, g.y, g.x+16,g.y+32, red)
    end

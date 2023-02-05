@@ -22,14 +22,33 @@ function init_playing()
 
    g_anims = {}
 
+   frame_count = 0
+   depth_count = 0
+
    obstacles = {}
    geysers   = {}
+
    air_streaks = {}
    heat_particles = {}
    rock_particles = {}
 
-   frame_count = 0
-   depth_count = 0
+   volcano_rim_y = 127
+   stars = {}
+   for i = 1,10 do
+      local star = make_obj({x=randx(127), y=randx(127), blink=2+randx(4),colour=white})
+      debug(star)
+      animate_obj(star, function(obj)
+                     local alt_colour = obj.blink % 2 == 0 and sky or lemon
+                     while depth_count < 10 do
+                        if frame_count % obj.blink == 0 then
+                           obj.colour = obj.colour == white and alt_colour or white
+                        end
+                        wait(obj.blink*3)
+                        yield()
+                     end
+      end)
+      add(stars, star)
+   end
 
    player = make_obj({
       x = 32,
@@ -77,7 +96,6 @@ function init_playing()
    }
    obstacle_level = 1
 
-   bg_y = 120
    showing = { missile = {}, rock = {}, lump = {} }
    current_game_state = game_state_playing
 end
@@ -651,6 +669,12 @@ function _update()
       return
    end
 
+   if depth_count > 2 and depth_count < 8 then
+      volcano_rim_y -= 1
+   elseif depth_count > 8 then
+      rising_heat_particles()
+   end
+
    if frame_count % 30 == 0 then
       depth_count += 1
       -- help find weird memory bug hopefully
@@ -660,7 +684,6 @@ function _update()
    end
 
    falling_air_streaks()
-   rising_heat_particles()
    make_rock_particles()
 
    populate_obstacles()
@@ -762,20 +785,23 @@ function draw_obstacle_scan(obstacle)
 end
 
 function _draw()
-   cls(black)
+   cls(depth_count > 7 and black or storm)
 
-   if depth_count > 2 then
-      for n = 0, 7 do
-         local offset = n*17
-         spr(32, 1 +  offset, bg_y)
-         spr(33, 9 +  offset, bg_y)
-         spr(34, 17 + offset, bg_y)
+   if depth_count < 8 then
+      for star in all(stars) do
+         pset(star.x, star.y, star.colour)
       end
-      --fillp(∧)
-      rectfill(0, bg_y+8, 127, 127, slate)
-      --fillp()
-      -- This is gross but effective
-      bg_y -= 1
+
+      if depth_count > 2 then
+         pal(slate, black)
+         for n = 0, 7 do
+            local offset = n*17
+            spr(32, 1 +  offset, volcano_rim_y)
+            spr(33, 9 +  offset, volcano_rim_y)
+            spr(34, 17 + offset, volcano_rim_y)
+         end
+         rectfill(0, volcano_rim_y+8, 127, 127, black)
+      end
    end
 
    -- scan area

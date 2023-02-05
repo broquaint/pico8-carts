@@ -75,6 +75,7 @@ function init_playing()
       {rock=4, missile=4},
       {rock=3, missile=5},
    }
+   obstacle_level = 1
 
    bg_y = 120
    showing = { missile = {}, rock = {}, lump = {} }
@@ -242,9 +243,24 @@ function make_lump(n)
    })
 end
 
+function get_obstacles()
+   if obstacle_level <= #obstacle_frequency then
+      local obstacles = obstacle_frequency[obstacle_level]
+      obstacle_level += 1
+      return obstacles
+   else
+      local obstacles = {
+         rock = 5 + randx(4),
+         missile = 3 + randx(3),
+         lump = 2 + randx(2)
+      }
+      return obstacles;
+   end
+end
+
 function populate_obstacles()
-   if #obstacle_frequency > 0 and frame_count % 120 == 0 then
-      local next_obstacles = deli(obstacle_frequency, 1)
+   if frame_count % 120 == 0 then
+      local next_obstacles = get_obstacles()
 
       for n = 1, (next_obstacles.rock or 0) do
          local rock = make_rock(n)

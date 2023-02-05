@@ -352,14 +352,14 @@ function rising_heat_particles()
             frames = 32 + randx(96),
             freq = 10 + randx(15),
             speed = 1 + rnd(),
-            colour = red,
+            colour = ember,
       })
       add(heat_particles, p)
       animate_obj(p, function(p)
                      for f = 1, p.frames do
                         p.x = p.orig_x+sin(p.y/127)*p.freq
                         p.y -= p.speed
-                        if p.colour == red and f / p.frames > 0.33 then
+                        if p.colour == ember and f / p.frames > 0.33 then
                            p.colour = white
                         elseif p.colour == white and f / p.frames > 0.66 then
                            p.colour = silver
@@ -389,29 +389,29 @@ function animate_rock_particle(p, decay_table)
 end
 
 rock_decay_table = {
-  { bound = 5,  colour = yellow },
+  { bound = 5,  colour = lemon },
   { bound = 10, colour = orange },
-  { bound = 15, colour = red    },
+  { bound = 15, colour = ember    },
   { bound = 20, colour = silver },
   { bound = 50, colour = white  },
   { bound = 65, colour = silver },
-  { bound = 85, colour = dim_grey },
+  { bound = 85, colour = slate },
 }
 
 missile_decay_table = {
-   { bound = 7,  colour = yellow },
+   { bound = 7,  colour = lemon },
    { bound = 10, colour = orange },
-   { bound = 13, colour = red    },
+   { bound = 13, colour = ember    },
    { bound = 18, colour = silver },
    { bound = 23, colour = white  },
    { bound = 29, colour = silver },
 }
 
 lump_decay_table = {
-   { bound = 5,  colour = yellow   },
+   { bound = 5,  colour = lemon   },
    { bound = 10, colour = silver   },
    { bound = 15, colour = white    },
-   { bound = 20, colour = dim_grey },
+   { bound = 20, colour = slate },
 }
 
 function make_rock_particle(obj)
@@ -696,25 +696,25 @@ function display_obstacle_scan(obstacle, colour, scan_pct)
 end
 
 function display_end_game_summary()
-   rectfill(18, 47, 114, 117, navy)
+   rectfill(18, 47, 114, 117, storm)
    rectfill(16, 45, 112, 115, silver)
-   print('science over! scanned:', 18, 47, navy)
+   print('science over! scanned:', 18, 47, storm)
 
-   if(#showing.missile > 0) print(#showing.missile, 18, 57, navy)
+   if(#showing.missile > 0) print(#showing.missile, 18, 57, storm)
    for idx,o in pairs(showing.missile) do
       local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
       local sy = idx > 45 and 58 or 56
       spr(o.sprite, sx, sy)
    end
 
-   if(#showing.rock > 0) print(#showing.rock, 18, 68, navy)
+   if(#showing.rock > 0) print(#showing.rock, 18, 68, storm)
    for idx,o in pairs(showing.rock) do
       local sx = idx > 40 and (29 + (idx - 40) * 2) or (25 + idx * 2)
       local sy = idx > 40 and 70 or 66
       spr(o.sprite, sx, sy)
    end
 
-   if(#showing.lump > 0) print(#showing.lump, 18, 81, navy)
+   if(#showing.lump > 0) print(#showing.lump, 18, 81, storm)
    for idx,o in pairs(showing.lump) do
       local dx = idx > 32 and (29 + (idx - 32) * 2) or (25 + idx * 2)
       local dy = idx > 32 and 82 or 78
@@ -722,20 +722,20 @@ function display_end_game_summary()
       sspr(os.sx, os.sy, os.sw, os.sh, dx, dy)
    end
 
-   print('deepest depth ' .. dget(HIGH_SCORE_DEPTH) .. 'M', 18, 98, navy)
+   print('deepest depth ' .. dget(HIGH_SCORE_DEPTH) .. 'M', 18, 98, storm)
    if(player.new_depth_hs) then
-      print('new★', 90, 98, yellow)
+      print('new★', 90, 98, lemon)
    else
       local sign = depth_count == dget(HIGH_SCORE_DEPTH) and '=' or '>'
-      print(sign .. ' ' .. depth_count .. 'M', 90, 98, navy)
+      print(sign .. ' ' .. depth_count .. 'M', 90, 98, storm)
    end
 
-   print('most scanned  ' .. dget(HIGH_SCORE_SCANNED), 18, 107, navy)
+   print('most scanned  ' .. dget(HIGH_SCORE_SCANNED), 18, 107, storm)
    if(player.new_scanned_hs) then
-      print('new★', 90, 107, yellow)
+      print('new★', 90, 107, lemon)
    else
       local sign = player.scanned_count == dget(HIGH_SCORE_SCANNED) and '=' or '>'
-      print(' ' .. sign .. ' ' .. player.scanned_count, 86, 107, navy)
+      print(' ' .. sign .. ' ' .. player.scanned_count, 86, 107, storm)
    end
 end
 
@@ -746,13 +746,13 @@ function draw_obstacle_scan(obstacle)
    local scan_colour  = nil
    local scan_pattern = nil
    if dist < 15 then
-      scan_colour = yellow
+      scan_colour = lemon
       scan_pattern = 0b0000000000000000
    elseif dist < 25 then
       scan_colour = lime
       scan_pattern = 0b0000010101000000.1
    else
-      scan_colour = azure
+      scan_colour = sky
       scan_pattern = 0b1010101010101010.1
    end
    fillp(scan_pattern)
@@ -772,7 +772,7 @@ function _draw()
          spr(34, 17 + offset, bg_y)
       end
       --fillp(∧)
-      rectfill(0, bg_y+8, 127, 127, dim_grey)
+      rectfill(0, bg_y+8, 127, 127, slate)
       --fillp()
       -- This is gross but effective
       bg_y -= 1
@@ -780,7 +780,7 @@ function _draw()
 
    -- scan area
    fillp(∧)
-   rectfill(0, 11, 127, 44, violet)
+   rectfill(0, 11, 127, 44, dusk)
    fillp()
 
    for s in all(air_streaks) do
@@ -814,10 +814,10 @@ function _draw()
          display_obstacle_scan(obstacle, scan_colour, scan_pct)
          -- print('dist ' .. tostr(obstacle.distance_from_pp), 1, 60, white)
       elseif obstacle.data_scanned then
-         display_obstacle_scan(obstacle, yellow, 1)
+         display_obstacle_scan(obstacle, lemon, 1)
       elseif obstacle.scan_time > 0 then
          scan_pct = obstacle.scan_time / obstacle.scan_length
-         display_obstacle_scan(obstacle, navy, scan_pct)
+         display_obstacle_scan(obstacle, storm, scan_pct)
       end
    end
 
@@ -828,7 +828,7 @@ function _draw()
       end
       sspr(14*8, 24, 16, 8, g.x, g.y+g.height)
       --sspr(14*8, 0, 16, 8, g.x, g.y)
-      --rectfill(g.x, g.y, g.x+16,g.y+32, red)
+      --rectfill(g.x, g.y, g.x+16,g.y+32, ember)
    end
 
    -- print('cool', 16, 16, frame_count % 16)
@@ -836,11 +836,11 @@ function _draw()
    -- sspr(3*8, 0, 16, 8, player.x-8, player.y+8, 32, 24)
    -- rect(player.x + 1, player.y + 1, player.x + 6, player.y + 6, lime)
 
-   --rectfill(0, 0, 128, 7, dim_grey)
+   --rectfill(0, 0, 128, 7, slate)
    print('depth ' .. depth_count .. 'M', 1, 1, white)
    -- print('health ', 36, 1, white)
    for i = 1,player.default_health do
-      print('♥', 36 + (i*6), 1, (player.health >= i and red or navy))
+      print('♥', 36 + (i*6), 1, (player.health >= i and ember or storm))
    end
 
    print('scanned ' .. tostr(player.scanned_count), 64, 1, white)
@@ -851,7 +851,7 @@ function _draw()
 
    if current_game_state != game_state_playing then
       display_end_game_summary()
-      print('press ❎ to try again!', 23, 121, navy)
+      print('press ❎ to try again!', 23, 121, storm)
       print('press ❎ to try again!', 22, 120, white)
    end
 end

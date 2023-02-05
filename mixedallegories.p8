@@ -197,7 +197,7 @@ function generate_terrain()
       local step = -(from-to) / 8
       local y    = from
       for j = 1,8 do
-         local tex_col = ({azure,lime,red,yellow})[randx(4)]
+         local tex_col = ({sky,lime,ember,lemon})[randx(4)]
          local texture = make_obj({c=tex_col,offset=randx(20),colours={}})
          add(terr, {
                 x=x, y=y, colour=tc,
@@ -210,7 +210,7 @@ function generate_terrain()
    end
 
    local lvl_forms = shuffle(forms)
-   local colours = {{black,dim_grey},{dim_grey,magenta},{magenta,violet},{violet,silver}}
+   local colours = {{black,slate},{slate,wine},{wine,dusk},{dusk,silver}}
    -- Calculate terrain
    local x = 0
    local n = #lvl.up / 4
@@ -581,19 +581,19 @@ function animate_seed(obj)
          obj.circ_size = 3
          wait(2)
 
-         obj.circ_colour = azure
+         obj.circ_colour = sky
          obj.circ_size = 4
 
          wait(3)
          obj.circ_size = 5
 
          wait(3)
-         obj.circ_colour = violet
+         obj.circ_colour = dusk
          obj.circ_size = 6
          wait(2)
          obj.circ_size = 7
          wait(3)
-         obj.circ_colour = magenta
+         obj.circ_colour = wine
          obj.circ_size = 8
          wait(10)
          obj.x = -1
@@ -848,7 +848,7 @@ function draw_terrain_texture(x, y, t)
    if not t.animating then
       t.animating = true
       delay(function()
-            if(#t.colours == 0) t.colours = {white,silver,dim_grey,silver,white}
+            if(#t.colours == 0) t.colours = {white,silver,slate,silver,white}
             local idx = randx(#t.colours)
             t.wink = t.colours[idx]
             deli(t.colours, idx);
@@ -873,11 +873,11 @@ function draw_ring_half(ring, side)
 
    if ring.fuel_used then
       if frame_count - ring.fuel_used < 30 then
-         pal(orange, brown)
-         pal(yellow, orange)
+         pal(orange, tan)
+         pal(lemon, orange)
       else
-         pal(orange, magenta)
-         pal(yellow, brown)
+         pal(orange, wine)
+         pal(lemon, tan)
       end
    end
 
@@ -885,7 +885,7 @@ function draw_ring_half(ring, side)
    sspr(unpack(rs))
 
    pal(orange, orange)
-   pal(yellow, yellow)
+   pal(lemon, lemon)
 end
 
 function draw_form_warning()
@@ -894,7 +894,7 @@ function draw_form_warning()
    for obj in all(objects) do
       if obj.type == o_form and obj.x > rhs and (obj.x - rhs) < 220 then
          if frame_count % 30 > 15 then
-            line(cam_x+127, obj.y - 4, cam_x+127, obj.y + 16, yellow)
+            line(cam_x+127, obj.y - 4, cam_x+127, obj.y + 16, lemon)
             line(cam_x+126, obj.y - 4, cam_x+126, obj.y + 16, orange)
          end
       end
@@ -957,10 +957,10 @@ dazzling = {
    colour = white
 }
 function anim_dazzle(d)
-   local c = {white,yellow,orange}
+   local c = {white,lemon,orange}
    while current_state != game_state_menu do
       local rem = frame_count % 30
-      d.colour = rem < 10 and white or rem < 20 and yellow or orange
+      d.colour = rem < 10 and white or rem < 20 and lemon or orange
       yield()
    end
    d.on = false
@@ -968,7 +968,7 @@ end
 
 function draw_exposition()
    -- Probably unnecessary.
-   rectfill(0, 0, 128, 96, navy)
+   rectfill(0, 0, 128, 96, storm)
 
    local msg = [[
 you are deep within plato's
@@ -1015,21 +1015,21 @@ function animate_star_twinkle(star)
    local start_frame = frame_count
    while current_state != game_state_menu do
       local rem = frame_count - start_frame
-      star.colour = rem < 30 and black or rem < 45 and navy or rem < 70 and dim_grey or rem < 85 and silver or white
+      star.colour = rem < 30 and black or rem < 45 and storm or rem < 70 and slate or rem < 85 and silver or white
       if rem > 100 then
-         star.colour = rem % 100 < 50 and yellow or white
+         star.colour = rem % 100 < 50 and lemon or white
       end
       yield()
    end
 end
 
 win_states = {
-   [0] = {'tyranny',     red},
-   [1] = {'democracy',   salmon},
-   [2] = {'oligarchy',   coral},
+   [0] = {'tyranny',     ember},
+   [1] = {'democracy',   pink},
+   [2] = {'oligarchy',   peach},
    [3] = {'timocracy',   orange},
-   [4] = {'aristocracy', yellow},
-   [5] = {'melitzancy',  magenta}
+   [4] = {'aristocracy', lemon},
+   [5] = {'melitzancy',  wine}
 }
 
 function draw_exit()
@@ -1039,8 +1039,8 @@ function draw_exit()
    local up_y   = terrain.up[#terrain.up].y
    local down_y = terrain.down[#terrain.down].y
    for i = 0,48 do
-      line(exit_x+5, up_y,   exit_x+i, 0,   i > 36 and violet or navy)
-      line(exit_x+5, down_y, exit_x+i, 127, i > 36 and violet or navy)
+      line(exit_x+5, up_y,   exit_x+i, 0,   i > 36 and dusk or storm)
+      line(exit_x+5, down_y, exit_x+i, 127, i > 36 and dusk or storm)
    end
 
    for idx,star in pairs(exit_stars) do
@@ -1094,7 +1094,7 @@ function draw_level()
    if in_state(game_state_gaming, game_state_level_fail, game_state_level_done) then
       draw_terrain(terrain.up, function(t)
                       local from_y = t.y - 4
-                      rectfill(t.x, from_y, t.x+2, t.y, brown)
+                      rectfill(t.x, from_y, t.x+2, t.y, tan)
                       rectfill(t.x, 0, t.x+2, from_y, black)
                       if t.texture then
                          draw_terrain_texture(t.x, from_y - t.texture.offset, t.texture)
@@ -1135,10 +1135,10 @@ function draw_level()
             draw_form(obj)
          elseif obj.type == o_eggplant then
             if on_screen(obj.x) and collected_seeds >= 2 then
-               -- Change brown to "eggplant purple" for intended colours.
-               pal(brown, 130)
+               -- Change tan to "eggplant purple" for intended colours.
+               pal(tan, 130)
                draw_form(obj)
-               pal(brown, brown)
+               pal(tan, tan)
             end
          end
       end
@@ -1149,7 +1149,7 @@ function draw_level()
       -- Player "ship"
       spr(1, px, player_y)
       if claw.extending then
-         line(px+8, player_y+4, px+8+claw.length, player_y+4, green)
+         line(px+8, player_y+4, px+8+claw.length, player_y+4, moss)
          spr(claw.anim_at, px+8+claw.length, player_y)
       else
          spr(11, px+8, player_y)
@@ -1163,7 +1163,7 @@ function draw_level()
       -- "exhaust" from thruster
       if not collided.t then
          sspr(4, 10, 3, 5, px - (3+flr(cam_speed)), player_y+2, 2+cam_speed, 5)
-         local vert_thrust_cols = {[0]=red,[1]=orange,[2]=yellow,[3]=white}
+         local vert_thrust_cols = {[0]=ember,[1]=orange,[2]=lemon,[3]=white}
          local col = vert_thrust_cols[flr(abs(player_speed_vert))]
          if player_speed_vert > 0 then
             line(px + 2, player_y-1, px+5, player_y-1, col)
@@ -1181,14 +1181,14 @@ function draw_level()
 end
 
 function draw_ui()
-   rectfill(cam_x, 0, cam_x+128, 8, dim_grey)
+   rectfill(cam_x, 0, cam_x+128, 8, slate)
 
    print('fuel ', cam_x+2, 2, white)
    local fuel_bar_width = 70 * (player_fuel/g_fuel_max)
    local fboffset = cam_x+19
    rectfill(fboffset, 1, fboffset+70, 7, silver)
-   rectfill(fboffset, 1, fboffset+fuel_bar_width, 7, player_fuel > 15 and yellow or orange)
-   print(nice_pos(player_fuel), cam_x+22, 2, player_fuel > 30 and orange or red)
+   rectfill(fboffset, 1, fboffset+fuel_bar_width, 7, player_fuel > 15 and lemon or orange)
+   print(nice_pos(player_fuel), cam_x+22, 2, player_fuel > 30 and orange or ember)
 
    local ficon_offset = cam_x+91
    for i = 1, #forms do
@@ -1205,11 +1205,11 @@ function draw_ui()
       ficon_offset += 8
    end
 
-   if(DEBUG) print(dumper('<| ', cam_x, ' -> ', cam_speed, ' @> ', player_speed_horiz, ' @^ ', player_speed_vert, ' F',frame_count), cam_x + 2, 122, yellow)
+   if(DEBUG) print(dumper('<| ', cam_x, ' -> ', cam_speed, ' @> ', player_speed_horiz, ' @^ ', player_speed_vert, ' F',frame_count), cam_x + 2, 122, lemon)
 end
 
 function _draw()
-   cls(navy)
+   cls(storm)
 
    draw_level()
    if current_state == game_state_menu then

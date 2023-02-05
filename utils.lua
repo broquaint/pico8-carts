@@ -4,11 +4,17 @@
 
 IS_DEV_BUILD = true
 
--- Brain won't map colours to numbers so get computer to do it
-black    = 0 navy     = 1 magenta  = 2 green    = 3
-brown    = 4 dim_grey = 5 silver   = 6 white    = 7
-red      = 8 orange   = 9 yellow   = 10 lime    = 11
-azure    = 12 violet  = 13 salmon  = 14 coral   = 15
+-- Default colour palette indices (names from /r/pico8)
+black = 0 storm  = 1 wine   = 2  moss  = 3
+tan   = 4 slate  = 5 silver = 6  white = 7
+ember = 8 orange = 9 lemon  = 10 lime  = 11
+sky   = 12 dusk  = 13 pink  = 14 peach = 15
+
+-- Alternate colour palette indices (names from /r/pico8)
+cocoa   = 128 midnight  = 129 port   = 130 sea   = 131
+leather = 132 charcoal  = 133 olive  = 134 sand  = 135
+crimson = 136 amber     = 137 tea    = 138 jade  = 139
+denim   = 140 aubergine = 141 salmon = 142 coral = 143 
 
 screen_width = 128
 

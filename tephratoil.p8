@@ -342,88 +342,80 @@ function rising_heat_particles()
    end
 end
 
+function animate_rock_particle(p, decay_table)
+   return function()
+      local idx = 1
+      local colour = decay_table[idx].colour
+      for f = 1, p.frames do
+         p.frame = f
+         if idx <= #decay_table and f > decay_table[idx].bound then
+            colour = decay_table[idx].colour
+            idx += 1
+         end
+         p.colour = colour
+         yield()
+      end
+      p.alive = false
+   end
+end
+
+rock_decay_table = {
+  { bound = 5,  colour = yellow },
+  { bound = 10, colour = orange },
+  { bound = 15, colour = red    },
+  { bound = 20, colour = silver },
+  { bound = 50, colour = white  },
+  { bound = 65, colour = silver },
+  { bound = 85, colour = dim_grey },
+}
+
+missile_decay_table = {
+   { bound = 7,  colour = yellow },
+   { bound = 10, colour = orange },
+   { bound = 13, colour = red    },
+   { bound = 18, colour = silver },
+   { bound = 23, colour = white  },
+   { bound = 29, colour = silver },
+}
+
+lump_decay_table = {
+   { bound = 5,  colour = yellow   },
+   { bound = 10, colour = silver   },
+   { bound = 15, colour = white    },
+   { bound = 20, colour = dim_grey },
+}
+
+function make_rock_particle(obj)
+   return make_obj(merge({frame  = 0, colour = white}, obj))
+end
+
 function make_rock_particles()
    for ob in all(obstacles) do
       if ob.type == 'rock' then
-         local p = make_obj({
+         local p = make_rock_particle({
                x = ob.x + randx(8),
                y = ob.y + randx(8) + 4,
-               frames = 50 + randx(50),
-               colour = white
+               frames = 30 + randx(10),
          })
          add(rock_particles, p)
-         animate_obj(p, function()
-                        for f = 1, p.frames do
-                           if f > 85 then
-                              p.colour = dim_grey
-                           elseif f > 65 then
-                              p.colour = silver
-                           elseif f > 50 then
-                              p.colour = white
-                           elseif f > 20 then
-                              p.colour = silver
-                           elseif f > 15 then
-                              p.colour = red
-                           elseif f > 10 then
-                              p.colour = orange
-                           elseif f > 5 then
-                              p.colour = yellow
-                           end
-                           yield()
-                        end
-                        p.alive = false
-         end)
+         animate_obj(p, animate_rock_particle(p, rock_decay_table))
       elseif ob.type == 'missile' then
-         local p = make_obj({
+         local p = make_rock_particle({
                x = ob.x + randx(3),
                y = ob.y + randx(6) + 2,
                frames = 30 + randx(10),
-               colour = white
          })
          add(rock_particles, p)
-         animate_obj(p, function()
-                        for f = 1, p.frames do
-                           if f > 29 then
-                              p.colour = silver
-                           elseif f > 23 then
-                              p.colour = white
-                           elseif f > 18 then
-                              p.colour = silver
-                           elseif f > 13 then
-                              p.colour = red
-                           elseif f > 10 then
-                              p.colour = orange
-                           elseif f > 7 then
-                              p.colour = yellow
-                           end
-                           yield()
-                        end
-                        p.alive = false
-         end)
+         animate_obj(p, animate_rock_particle(p, missile_decay_table))
       elseif ob.type == 'lump' then
          for _ = 1, 4 do
-            local p = make_obj({
+            local p = make_rock_particle({
                   x = ob.x + randx(12),
                   y = ob.y + randx(14) + 2,
                   frames = 20 + randx(20),
-                  colour = white
             })
             add(rock_particles, p)
-            animate_obj(p, function()
-                           for f = 1, p.frames do
-                              if f > 20 then
-                                 p.colour = dim_grey
-                              elseif f > 15 then
-                                 p.colour = white
-                              elseif f > 10 then
-                                 p.colour = silver
-                              elseif f > 5 then
-                                 p.colour = yellow
-                              end
-                              yield()
-                           end
-                           p.alive = false
-            end)
+            animate_obj(p, animate_rock_particle(p, lump_decay_table))
          end
       end
    end

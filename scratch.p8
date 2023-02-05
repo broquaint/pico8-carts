@@ -70,6 +70,69 @@ function animate_particle(p)
    add(anims, co)
 end
 
+function animate_lavafall()
+   local co = cocreate(function()
+         local tick = 1
+         default_fall = {
+            --     sx sy  sw  sh  dx  dy dw  dh
+            foo = {sx=24, sy=0,  sw=40, sh=16, dx=62, dy=2},
+            bar = {sx=24, sy=16, sw=40, sh=0,  dx=62, dy=2}
+         }
+         lavafall = copy_table(default_fall)
+         while tick > 0 do
+            if tick % 10 == 0 then
+               -- debug(lavafall)
+               lavafall.foo.sh -= 1
+               lavafall.bar.sh += 1
+               lavafall.bar.sy -= 1
+               lavafall.foo.dy += 1
+               if lavafall.foo.sh == 0 then
+                  --debug('looping!')
+                  --debug(default_fall)
+
+                  -- For some reason I can't see lavafall _does not change_
+                  lavafall.foo = copy_table(default_fall.foo)
+                  lavafall.bar = copy_table(default_fall.bar)
+
+                  --debug(lavafall)
+               end
+            end
+            tick += 1
+            yield()
+         end
+         obj.alive = false
+   end)
+   coresume(co)
+   add(anims, co)
+end
+
+function animate_spark(sp)
+   -- via https://create.roblox.com/docs/mechanics/bezier-curves
+   function lerp(a, b, t)
+	return a + (b - a) * t
+   end
+   function quadraticBezier(t, p0, p1, p2)
+	local l1 = lerp(p0, p1, t)
+	local l2 = lerp(p1, p2, t)
+	local quad = lerp(l1, l2, t)
+	return quad
+   end
+   local co = cocreate(function()
+         local p0 = 127
+         local p1 = 40+randx(50)
+         local p2 = 132
+         local len = 30 + randx(30)
+         for f = 1,len do
+            sp.x += 1
+            sp.y = quadraticBezier(f/len, p0, p1, p2)
+            --debug(sp)
+            yield()
+         end
+   end)
+   coresume(co)
+   add(anims, co)
+end
+
 -- for x=0,127 do
 -- 	pset(x,sin(x/127)*30+64,8)
 --     end
@@ -95,42 +158,17 @@ function _update()
       rect.type = 'rect'
       add(objs, rect)
       animate(rect)
+
+      local sp = make_obj()
+      sp.type = 'spark'
+      sp.x = 32
+      sp.y = 127
+      add(objs, sp)
+      animate_spark(sp)
    end   
 
    if not lavalfall then
-      local co = cocreate(function()
-            local tick = 1
-            default_fall = {
-               --     sx sy  sw  sh  dx  dy dw  dh
-               foo = {sx=24, sy=0,  sw=40, sh=16, dx=62, dy=2},
-               bar = {sx=24, sy=16, sw=40, sh=0,  dx=62, dy=2}
-            }
-            lavafall = copy_table(default_fall)
-            while tick > 0 do
-               if tick % 10 == 0 then
-                  -- debug(lavafall)
-                  lavafall.foo.sh -= 1
-                  lavafall.bar.sh += 1
-                  lavafall.bar.sy -= 1
-                  lavafall.foo.dy += 1
-                  if lavafall.foo.sh == 0 then
-                     debug('looping!')
-                     debug(default_fall)
-
-                     -- For some reason I can't see lavafall _does not change_
-                     lavafall.foo = copy_table(default_fall.foo)
-                     lavafall.bar = copy_table(default_fall.bar)
-
-                     debug(lavafall)
-                  end
-               end
-               tick += 1
-               yield()
-            end
-            obj.alive = false
-      end)
-      coresume(co)
-      add(anims, co)
+      animate_lavafall()
    end
 
    run_animations()
@@ -151,7 +189,9 @@ function _draw()
          --pal(3, 131, 1)
          sspr(0, 16, 16, 16, obj.x, obj.y)
       elseif obj.type == 'particle' then
-         pset(obj.x, obj.y, 7)
+         pset(obj.x, obj.y, silver)
+      elseif obj.type == 'spark' then
+         circfill(obj.x, obj.y, 2, lemon)
       elseif obj.type == 'rect' then
          fillp(✽)
          rectfill(obj.x, obj.y, obj.x + 32, obj.y + 16)

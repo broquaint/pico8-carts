@@ -169,12 +169,17 @@ function rand_tile_x()
    return x - (x % 8)
 end
 
-function make_geyser()
-   -- 16 32 48 64 80 96 112 128 
+function make_geyser(n)
+   -- 16 32 48 64 80 96 112 128
+   local gx = ({0, 16, 32, 48, 64, 80, 96, 112})[randx(8)]
+   -- Don't have 2 geysers in the same place.
+   while any(geysers, function(g) return g.x == gx end) do
+      gx = ({0, 16, 32, 48, 64, 80, 96, 112})[randx(8)]
+   end
+
    return make_obj({
-         x = 0, --({0, 16, 32, 48, 64, 80, 96, 112})[randx(8)]
+         x = gx,
          y = 128,
-         speed = 3,
    })
 end
 
@@ -263,10 +268,16 @@ function populate_obstacles()
       add(obstacles, obstacle)
    end
 
-   if frame_count == 100 then
-      local geyser = make_geyser()
-      animate_obj(geyser, animate_geyser)
-      add(geysers, geyser)
+   -- Geyser(s) every 10 seconds
+   if frame_count % 300 == 0 then
+      local gc = 1 + min(3, depth_count / 30)
+      for n = 1, gc do
+         delay(function()
+               local geyser = make_geyser()
+               animate_obj(geyser, animate_geyser)
+               add(geysers, geyser)
+         end, (n-1)*30)
+      end
    end
 end
 
@@ -284,9 +295,10 @@ function animate_geyser(g)
 
    from = g.y
    to   = -112
-   for f = 1, 100 do
+   local speed = 100 - min(50, (5 * (depth_count / 10)))
+   for f = 1, speed do
       if current_game_state == game_state_playing then
-         g.y = lerp(from, to, easeinquad(f/100))
+         g.y = lerp(from, to, easeinquad(f/speed))
          yield()
       end
    end
@@ -566,6 +578,11 @@ function drop_off_screen_obstacles()
    for idx,obstacle in pairs(obstacles) do
       if obstacle.y < -17 then
          deli(obstacles, idx)
+      end
+   end
+   for idx,geyser in pairs(geysers) do
+      if not geyser.animating then
+         deli(geysers, idx)
       end
    end
 end

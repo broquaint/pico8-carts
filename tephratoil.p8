@@ -364,7 +364,8 @@ function falling_air_streaks()
 end
 
 function rising_heat_particles()
-   if frame_count % 30 == 0 then
+   local spawn_freq = max(10, 30 - (depth_count/5))
+   if frame_count % spawn_freq == 0 then
       local orig_x = 16 + randx(112)
       local p = make_obj({
             x = 16 + orig_x,

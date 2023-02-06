@@ -32,6 +32,7 @@ function init_playing()
    heat_particles = {}
    rock_particles = {}
 
+   background_color = storm
    volcano_rim_y = 127
    stars = {}
    for i = 1,10 do
@@ -60,7 +61,7 @@ function init_playing()
       diving = false,
       health = 3,
       default_health = 3,
-      iframes = false,
+      iframes = 0,
       scanned = {},
       scanned_count = 0,
    })
@@ -121,8 +122,8 @@ end
 
 function calc_player_speed(dir)
    -- player.speed_x *= player.move_dir * FRICTION
-   local accel     = ACCELERATION * (player.iframes and 0.3 or 1)
-   local max_speed = MAX_SPEED    * (player.iframes and 0.3 or 1)
+   local accel     = ACCELERATION * (player.iframes > 0 and 0.3 or 1)
+   local max_speed = MAX_SPEED    * (player.iframes > 0 and 0.3 or 1)
    player.speed_x += dir * accel
    if abs(player.speed_x) > max_speed then
       player.speed_x = dir * max_speed
@@ -548,6 +549,7 @@ function detect_line_intersection(ox1, ox2, oy1, oy2)
       end
    end
 end
+
 function detect_player_collision()
    for obstacle in all(obstacles) do
       local is_lump = obstacle.type == 'lump'
@@ -610,13 +612,13 @@ function detect_proximity()
 end
 
 function handle_player_collision()
-   if not player.iframes and detect_player_collision() then
+   if player.iframes == 0 and detect_player_collision() then
       player.health = max(0, player.health - 1)
-      player.iframes = true
       player.speed_x = 0
       animate(function()
             for i = 1,44 do
                if current_game_state == game_state_playing then
+                  player.iframes += 1
                   if i % 5 == 0 then
                      player.sprite = player.sprite == 1 and 2 or 1
                   end
@@ -625,7 +627,7 @@ function handle_player_collision()
             end
             if current_game_state == game_state_playing then
                player.sprite = 1
-               player.iframes = false
+               player.iframes = 0
             end
       end)
    end
@@ -684,12 +686,6 @@ function _update()
       return
    end
 
-   if depth_count > 2 and depth_count < 8 then
-      volcano_rim_y -= 1
-   elseif depth_count > 8 then
-      rising_heat_particles()
-   end
-
    if frame_count % 30 == 0 then
       depth_count += 1
       -- help find weird memory bug hopefully
@@ -698,6 +694,14 @@ function _update()
       debug('BAD memory usage: ', stat(0))
       debug('anims = ', #g_anims, ', obstacles = ', #obstacles, ', air_streaks = ', #air_streaks, ', heat_particles = ', #heat_particles, ', rock_particles = ', #rock_particles)
    end
+
+   if depth_count > 2 and depth_count < 8 then
+      volcano_rim_y -= 1
+   elseif depth_count > 8 then
+      rising_heat_particles()
+   end
+
+   background_color = depth_count > 7 and black or storm
 
    falling_air_streaks()
    make_rock_particles()
@@ -801,7 +805,7 @@ function draw_obstacle_scan(obstacle)
 end
 
 function _draw()
-   cls(depth_count > 7 and black or storm)
+   cls(background_color)
 
    if depth_count < 8 then
       for star in all(stars) do

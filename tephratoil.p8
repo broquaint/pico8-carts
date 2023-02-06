@@ -36,7 +36,6 @@ function init_playing()
    stars = {}
    for i = 1,10 do
       local star = make_obj({x=randx(127), y=randx(127), blink=2+randx(4),colour=white})
-      debug(star)
       animate_obj(star, function(obj)
                      local alt_colour = obj.blink % 2 == 0 and sky or lemon
                      while depth_count < 10 do
@@ -98,6 +97,9 @@ function init_playing()
 
    showing = { missile = {}, rock = {}, lump = {} }
    current_game_state = game_state_playing
+
+   -- An aggregate animation of all particles.
+   animate(animate_rock_particles)
 end
 
 function _init()
@@ -389,27 +391,10 @@ function rising_heat_particles()
    end
 end
 
-function animate_rock_particle(p, decay_table)
-   return function()
-      local idx = 1
-      local colour = decay_table[idx].colour
-      for f = 1, p.frames do
-         p.frame = f
-         if idx <= #decay_table and f > decay_table[idx].bound then
-            colour = decay_table[idx].colour
-            idx += 1
-         end
-         p.colour = colour
-         yield()
-      end
-      p.alive = false
-   end
-end
-
 rock_decay_table = {
-  { bound = 5,  colour = lemon },
+  { bound = 5,  colour = lemon  },
   { bound = 10, colour = orange },
-  { bound = 15, colour = ember    },
+  { bound = 15, colour = ember  },
   { bound = 20, colour = silver },
   { bound = 50, colour = white  },
   { bound = 65, colour = silver },
@@ -417,23 +402,53 @@ rock_decay_table = {
 }
 
 missile_decay_table = {
-   { bound = 7,  colour = lemon },
+   { bound = 7,  colour = lemon  },
    { bound = 10, colour = orange },
-   { bound = 13, colour = ember    },
+   { bound = 13, colour = ember  },
    { bound = 18, colour = silver },
    { bound = 23, colour = white  },
    { bound = 29, colour = silver },
 }
 
 lump_decay_table = {
-   { bound = 5,  colour = lemon   },
-   { bound = 10, colour = silver   },
-   { bound = 15, colour = white    },
-   { bound = 20, colour = slate },
+   { bound = 5,  colour = lemon  },
+   { bound = 10, colour = silver },
+   { bound = 15, colour = white  },
+   { bound = 20, colour = slate  },
 }
 
+decay_mapping = {
+   rock = rock_decay_table,
+   missile = missile_decay_table,
+   lump = lump_decay_table
+}
+
+function animate_rock_particles()
+   while current_game_state == game_state_playing do
+      for p in all(rock_particles) do
+         if p.alive and p.frame < p.frames then
+            local idx = p.decay_index
+            local decay_table = decay_mapping[p.type]
+            if idx <= #decay_table and p.frame > decay_table[idx].bound then
+               p.decay_index += 1
+               p.colour = decay_table[idx].colour
+            end
+            p.frame += 1
+         else
+            p.alive = false
+         end
+      end
+      yield()
+   end
+end
+
 function make_rock_particle(obj)
-   return make_obj(merge({frame  = 0, colour = white}, obj))
+   return make_obj(merge({
+                         frame = 0,
+                         decay_index = 1,
+                         colour = lemon,
+                         alive = true,
+                         }, obj))
 end
 
 function make_rock_particles()
@@ -443,26 +458,26 @@ function make_rock_particles()
                x = ob.x + randx(8),
                y = ob.y + randx(8) + 4,
                frames = 30 + randx(10),
+               type = 'rock',
          })
          add(rock_particles, p)
-         animate_obj(p, animate_rock_particle(p, rock_decay_table))
       elseif ob.type == 'missile' then
          local p = make_rock_particle({
                x = ob.x + randx(3),
                y = ob.y + randx(6) + 2,
                frames = 30 + randx(10),
+               type = 'missile',
          })
          add(rock_particles, p)
-         animate_obj(p, animate_rock_particle(p, missile_decay_table))
       elseif ob.type == 'lump' then
          for _ = 1, 4 do
             local p = make_rock_particle({
                   x = ob.x + randx(12),
                   y = ob.y + randx(14) + 2,
                   frames = 20 + randx(20),
+                  type = 'lump',
             })
             add(rock_particles, p)
-            animate_obj(p, animate_rock_particle(p, lump_decay_table))
          end
       end
    end
@@ -679,8 +694,9 @@ function _update()
       depth_count += 1
       -- help find weird memory bug hopefully
       -- debug('memory usage: ', stat(0))
-   elseif stat(0) > 800 then
+   elseif stat(0) > 1200 then
       debug('BAD memory usage: ', stat(0))
+      debug('anims = ', #g_anims, ', obstacles = ', #obstacles, ', air_streaks = ', #air_streaks, ', heat_particles = ', #heat_particles, ', rock_particles = ', #rock_particles)
    end
 
    falling_air_streaks()

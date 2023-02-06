@@ -14,8 +14,13 @@ MAX_SPEED = 4
 HIGH_SCORE_DEPTH   = 0
 HIGH_SCORE_SCANNED = 1
 
+game_state_title   = 'title'
 game_state_playing = 'playing'
 game_state_crashed = 'crashed'
+
+-- Default state so title screen works
+g_anims = {}
+frame_count = 0
 
 function init_playing()
    camera()
@@ -105,7 +110,7 @@ end
 
 function _init()
    cartdata("broquaint_tephra_toil")
-   init_playing()
+   current_game_state = game_state_title
 --   dset(0,10)
 --   dset(1,10)
 end
@@ -693,18 +698,7 @@ function drop_dead_particles()
    end
 end
 
-function _update()
-   frame_count += 1
-
-   run_animations()
-
-   if current_game_state != game_state_playing then
-      if btnp(b_x) then
-         init_playing()
-      end
-      return
-   end
-
+function update_game()
    if frame_count % 30 == 0 then
       depth_count += 1
       -- help find weird memory bug hopefully
@@ -750,6 +744,24 @@ function _update()
 
    drop_off_screen_obstacles()
    drop_dead_particles()
+end
+
+function _update()
+   frame_count += 1
+
+   run_animations()
+
+   if current_game_state == game_state_title then
+      if btnp(b_x) then
+         init_playing()
+      end
+   elseif current_game_state == game_state_crashed then
+      if btnp(b_x) then
+         init_playing()
+      end
+   else
+      update_game()
+   end
 end
 
 function display_obstacle_scan(obstacle, colour, scan_pct)
@@ -823,7 +835,7 @@ function draw_obstacle_scan(obstacle)
    return scan_colour
 end
 
-function _draw()
+function draw_game()
    cls(background_color)
 
    if depth_count < 8 then
@@ -922,6 +934,24 @@ function _draw()
       display_end_game_summary()
       print('press ❎ to try again!', 23, 121, storm)
       print('press ❎ to try again!', 22, 120, white)
+   end
+end
+
+function draw_title()
+   cls(storm)
+   sspr(0, 32, 15 * 8, 48, 3, 0)
+
+   -- TODO Cool stuff!
+
+   print('press ❎ to start!', 23, 121, black)
+   print('press ❎ to start!', 22, 120, white)
+end
+
+function _draw()
+   if current_game_state == game_state_title then
+      draw_title()
+   else
+      draw_game()
    end
 end
 

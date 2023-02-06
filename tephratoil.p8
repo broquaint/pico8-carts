@@ -504,15 +504,33 @@ function handle_obstacle_collision()
    for obstacle in all(obstacles) do
       for ob2 in all(obstacles) do
          if obstacle != ob2 and obstacle.last_collide != ob2.last_collide then
-            local o1x1 = obstacle.x + (obstacle.type == 'lump' and 16 or 8)
-            local o2x1 = ob2.x + (ob2.type == 'lump' and 16 or 8)
+            local islump1 = obstacle.type == 'lump'
+            local islump2 = ob2.type == 'lump'
+            local o1x1 = obstacle.x + (islump1 and 16 or 8)
+            local o2x1 = ob2.x      + (islump2 and 16 or 8)
+            local o2y1 = ob2.y      + (islump2 and 16 or 8)
             if obstacle.y > ob2.y and obstacle.y<(ob2.y+8) then
                if obstacle.x > ob2.x and obstacle.x < o2x1 then
-                  obstacle.angle = -obstacle.angle
+                  -- Lumps only bounce off other lumps
+                  if not islump1 or (islump1 and islump2) then
+                     obstacle.angle = -obstacle.angle
+                  -- Lumps speed up non lumps
+                  elseif not islump1 and islump2 then
+                     obstacle.speed *= 1.2
+                  end
                   obstacle.last_collide = ob2
-               elseif o1x1 < o2x1 and o1x1 > ob2.x then
-                  ob2.angle = -ob2.angle
                   ob2.last_collide = obstacle
+               elseif o1x1 < o2x1 and o1x1 > ob2.x then
+                  -- Lumps only bounce off other lumps
+                  if not islump2 or (islump1 and islump2) then
+                     obstacle.angle = -obstacle.angle
+                     ob2.angle = -ob2.angle
+                  -- Lumps speed up non lumps
+                  elseif not islump2 and islump1 then
+                     ob2.speed *= 1.2
+                  end
+                  ob2.last_collide = obstacle
+                  obstacle.last_collide = ob2
                end
             end
          end

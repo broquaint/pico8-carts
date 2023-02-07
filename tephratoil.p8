@@ -227,7 +227,8 @@ function make_geyser(n)
    return make_obj({
          x = gx,
          y = 128,
-         height = 8+(16*6),
+         -- standard body + depth additon
+         height = (16*6) + (8*min(10,depth_count/20)),
    })
 end
 
@@ -331,8 +332,8 @@ function populate_obstacles()
       add(obstacles, obstacle)
    end
 
-   -- Geyser(s) every 10 seconds
-   if frame_count % 300 == 0 then
+   -- Geyser(s) every 10 seconds except at 10s
+   if frame_count % 300 == 0 and frame_count != 300 then
       local gc = 1 + min(3, depth_count / 30)
       for n = 1, gc do
          delay(function()
@@ -357,7 +358,7 @@ function animate_geyser(g)
    wait(30)
 
    from = g.y
-   to   = -112
+   to   = -(g.height+32)
    local speed = 100 - min(50, (5 * (depth_count / 10)))
    for f = 1, speed do
       if current_game_state == game_state_playing then
@@ -793,7 +794,8 @@ end
 function display_end_game_summary()
    rectfill(18, 47, 114, 117, storm)
    rectfill(16, 45, 112, 115, silver)
-   print('science over! scanned:', 18, 47, storm)
+--   print('science over! scanned:', 18, 47, storm)
+   print('research over! results:', 18, 47, storm)
 
    if(#showing.missile > 0) print(#showing.missile, 18, 57, storm)
    for idx,o in pairs(showing.missile) do
@@ -923,23 +925,19 @@ function draw_game()
    pal(moss, sand)
    for g in all(geysers) do
       sspr(14*8, 0, 16, 8, g.x, g.y)
-      for i = 0,5 do
-         sspr(14*8, 8, 16, 16, g.x, g.y+8+(i*16))
+      local body_y = g.y
+      for i = 1,(g.height/8) do
+         body_y += 8
+         sspr(14*8, 8, 16, 8, g.x, body_y)
       end
-      sspr(14*8, 24, 16, 8, g.x, g.y+g.height)
-      --sspr(14*8, 0, 16, 8, g.x, g.y)
-      --rectfill(g.x, g.y, g.x+16,g.y+32, ember)
+      sspr(14*8, 24, 16, 8, g.x, body_y+8)
    end
    pal(moss, moss)
 
-   -- print('cool', 16, 16, frame_count % 16)
    spr(player.sprite, player.x, player.y)
-   -- sspr(3*8, 0, 16, 8, player.x-8, player.y+8, 32, 24)
    -- rect(player.x + 1, player.y + 1, player.x + 6, player.y + 6, lime)
 
-   --rectfill(0, 0, 128, 7, slate)
    print('depth ' .. depth_count .. 'M', 1, 1, white)
-   -- print('health ', 36, 1, white)
    for i = 1,player.default_health do
       spr((player.health >= i and 3 or 4), 35 + i*7)
    end

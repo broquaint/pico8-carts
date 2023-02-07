@@ -21,6 +21,19 @@ game_state_crashed = 'crashed'
 -- Default state so title screen works
 g_anims = {}
 frame_count = 0
+depth_count = 0
+
+function init_title()
+   stars = {}
+   for i = 1,10 do
+      local star = make_obj({x=5+randx(117), y=32+randx(80), blink=2+randx(4),colour=white})
+      add(stars, star)
+   end
+
+   animate_stars()
+
+   current_game_state = game_state_title
+end
 
 function init_playing()
    camera()
@@ -39,21 +52,6 @@ function init_playing()
 
    background_color = storm
    volcano_rim_y = 127
-   stars = {}
-   for i = 1,10 do
-      local star = make_obj({x=randx(127), y=randx(127), blink=2+randx(4),colour=white})
-      animate_obj(star, function(obj)
-                     local alt_colour = obj.blink % 2 == 0 and sky or lemon
-                     while depth_count < 10 do
-                        if frame_count % obj.blink == 0 then
-                           obj.colour = obj.colour == white and alt_colour or white
-                        end
-                        wait(obj.blink*3)
-                        yield()
-                     end
-      end)
-      add(stars, star)
-   end
 
    player = make_obj({
       x = 32,
@@ -106,13 +104,14 @@ function init_playing()
 
    -- An aggregate animation of all particles.
    animate(animate_rock_particles)
+   animate_stars()
 end
 
 function _init()
    cartdata("broquaint_tephra_toil")
-   current_game_state = game_state_title
 --   dset(0,10)
 --   dset(1,10)
+   init_title()
 end
 
 function run_animations()
@@ -121,6 +120,21 @@ function run_animations()
          coresume(obj.co)
       else
          del(g_anims, obj)
+      end
+   end
+end
+
+function animate_stars()
+   for star in all(stars) do
+      if not star.animating then
+         animate_obj(star, function(obj)
+                        while depth_count < 10 do
+                           local alt_colour = obj.blink % 2 == 0 and sky or lemon
+                           obj.colour = obj.colour == white and alt_colour or white
+                           wait(obj.blink*20)
+                           yield()
+                        end
+         end)
       end
    end
 end
@@ -940,6 +954,10 @@ end
 function draw_title()
    cls(storm)
    sspr(0, 32, 15 * 8, 48, 3, 0)
+
+   for star in all(stars) do
+         pset(star.x, star.y, star.colour)
+   end
 
    -- TODO Cool stuff!
 

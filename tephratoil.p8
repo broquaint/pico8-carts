@@ -165,15 +165,19 @@ function animate_player_dive(obj)
    end
 end
 
+function in_bound(x)
+   return x > 0 and x < 120
+end
+
 function move_player()
    -- A judder or slow down or something would be better.
    if btn(b_right) then
       local next_x = player.x + calc_player_speed(1)
-      player.x = next_x < 120 and next_x or player.x
+      player.x = in_bound(next_x) and next_x or player.x
       player.move_dir = 1
    elseif btn(b_left) then
       local next_x = player.x + calc_player_speed(-1)
-      player.x = next_x > 0 and next_x or player.x
+      player.x = in_bound(next_x) and next_x or player.x
       player.move_dir = -1
    elseif player.move_dir != 0 and abs(player.speed_x) > 0 then
       -- Apply friction slowly, make it feel slidey

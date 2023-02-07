@@ -865,14 +865,13 @@ function draw_game()
       end
 
       if depth_count > 2 then
-         pal(slate, black)
-         for n = 0, 7 do
-            local offset = n*17
-            spr(32, 1 +  offset, volcano_rim_y)
-            spr(33, 9 +  offset, volcano_rim_y)
-            spr(34, 17 + offset, volcano_rim_y)
-         end
-         rectfill(0, volcano_rim_y+8, 127, 127, black)
+         fillp(░)
+         rectfill(0, volcano_rim_y, 127, volcano_rim_y+6, black)
+         fillp(▒)
+         rectfill(0, volcano_rim_y+7, 127, volcano_rim_y+12, black)
+
+         fillp()
+         rectfill(0, volcano_rim_y+13, 127, 127, black)
       end
    end
 

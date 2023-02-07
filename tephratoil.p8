@@ -483,7 +483,7 @@ function make_rock_particles()
    for ob in all(obstacles) do
       if ob.type == 'rock' then
          local p = make_rock_particle({
-               x = ob.x + randx(8),
+               x = ob.x + randx(4),
                y = ob.y + randx(8) + 4,
                frames = 30 + randx(10),
                type = 'rock',
@@ -891,7 +891,11 @@ function draw_game()
    end
 
    for p in all(rock_particles) do
-      pset(p.x, p.y, p.colour)
+      if p.frame < 11 then
+         circfill(p.x, p.y, p.frame < 5 and 2 or 1, p.frame % 3 == 0 and white or lemon)
+      else
+         pset(p.x, p.y, p.colour)
+      end
    end
 
    local scan_pct = 0

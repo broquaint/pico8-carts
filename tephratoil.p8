@@ -89,7 +89,7 @@ function init_playing()
    animate(animate_rock_particles)
    animate_stars()
 
-   music(0)
+   delay(function() music(0, 500) end, 20)
 end
 
 function _init()

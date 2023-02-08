@@ -67,36 +67,10 @@ function init_playing()
       iframes = 0,
       scanned = {},
       scanned_count = 0,
+      upgrade_level = 0,
+      can_scan = {rock=1}
    })
 
-   obstacle_frequency = {
-      {rock=1},
-      {lump=1},
-      {rock=2},
-      {missile=1},
-      {rock=3},
-      {rock=3, missile=1},
-      {rock=3, missile=1, lump=1},
-      {rock=4, lump=2},
-      {rock=4, missile=1},
-      {rock=5},
-      {rock=5, lump=2},
-      {rock=5, missile=1},
-      {rock=5, missile=2, lump=1},
-      {rock=6, missile=1, lump=1},
-      {rock=6},
-      {rock=6, missile=2, lump=2},
-      {rock=7, lump=1},
-      {rock=7, missile=2},
-      {rock=7, missile=2},
-      {rock=7, missile=2},
-      {rock=7, missile=2, lump=2},
-      {rock=4, missile=3},
-      {rock=4, missile=3, lump=1},
-      {rock=4, missile=4},
-      {rock=4, missile=4},
-      {rock=3, missile=5},
-   }
    obstacle_level = 1
 
    showing = { missile = {}, rock = {}, lump = {} }
@@ -290,6 +264,35 @@ function make_lump(n)
          scan_length = 25
    })
 end
+
+obstacle_frequency = {
+   {rock=1},
+   {lump=1},
+   {rock=2},
+   {missile=1},
+   {rock=3},
+   {rock=3, missile=1},
+   {rock=3, missile=1, lump=1},
+   {rock=4, lump=2},
+   {rock=4, missile=1},
+   {rock=5},
+   {rock=5, lump=2},
+   {rock=5, missile=1},
+   {rock=5, missile=2, lump=1},
+   {rock=6, missile=1, lump=1},
+   {rock=6},
+   {rock=6, missile=2, lump=2},
+   {rock=7, lump=1},
+   {rock=7, missile=2},
+   {rock=7, missile=2},
+   {rock=7, missile=2},
+   {rock=7, missile=2, lump=2},
+   {rock=4, missile=3},
+   {rock=4, missile=3, lump=1},
+   {rock=4, missile=4},
+   {rock=4, missile=4},
+   {rock=3, missile=5},
+}
 
 function get_obstacles()
    if obstacle_level <= #obstacle_frequency then
@@ -620,11 +623,22 @@ function detect_player_collision()
    end
 end
 
+function maybe_upgrade()
+   if player.upgrade_level == 0 and player.scanned_count > 7 then
+      player.can_scan.missile = 1
+      player.upgrade_level += 1
+   end
+end
+
+function can_scan_obstacle(obstacle)
+   return player.can_scan[obstacle.type]
+end
+
 function detect_proximity()
    local prox = 128
    local nearest = nil
    for o in all(obstacles) do
-      if not o.data_scanned then
+      if not o.data_scanned and can_scan_obstacle(o) then
          o.closest = false
          local a = abs(o.y - player.y)
          local b = abs(o.x - player.x)
@@ -652,6 +666,7 @@ function detect_proximity()
          -- Keep count of total so the UI remains static on death screen.
          player.scanned_count += 1
          nearest.data_scanned = true
+         maybe_upgrade()
       end
    end
 end
@@ -787,8 +802,7 @@ function _update()
 end
 
 function display_obstacle_scan(obstacle, colour, scan_pct)
-   line(obstacle.x - 2, obstacle.y - 1, obstacle.x + (10 * scan_pct), obstacle.y - 1, colour)
-   line(obstacle.x - 2, obstacle.y - 2, obstacle.x + (10 * scan_pct), obstacle.y - 2, colour)
+   rectfill(obstacle.x - 2, obstacle.y - 1, obstacle.x + (10 * scan_pct), obstacle.y - 2, colour)
 end
 
 function display_end_game_summary()
@@ -901,28 +915,37 @@ function draw_game()
    local scan_pct = 0
    local closest = nil
    pal(wine, leather, 1)
+   pal(pink, denim, 1)
    for obstacle in all(obstacles) do
+      local scannable = can_scan_obstacle(obstacle) and not obstacle.data_scanned
       if obstacle.type == 'lump' then
+         if scannable and obstacle.y < 43 and obstacle.y > 11 then
+            fillp(∧)
+            circfill(obstacle.x+8,obstacle.y+6, 12, pink)
+            fillp(p)
+         end
          local os = obstacle.sprite
          sspr(os.sx, os.sy, os.sw, os.sh, obstacle.x, obstacle.y)
-         --pal(wine, wine)
       else
+         if scannable and obstacle.y < 43 and obstacle.y > 11 then
+            fillp(∧)
+            circfill(obstacle.x+4,obstacle.y+3,obstacle.type == 'rock' and 8 or 6, pink)
+            fillp(p)
+         end
          spr(obstacle.sprite, obstacle.x, obstacle.y)
-         -- rect(obstacle.x + 1, obstacle.y + 1, obstacle.x + 6, obstacle.y + 6, lime)
       end
-      -- print(nice_pos(obstacle.speed), obstacle.x - 3, obstacle.y, white)
-      if obstacle.closest and not obstacle.data_scanned then
-         closest = obstacle
-         local scan_colour = draw_obstacle_scan(obstacle)
-         scan_pct = min(closest.scan_time, closest.scan_length) / closest.scan_length
-         -- Should prolly rectfill
-         display_obstacle_scan(obstacle, scan_colour, scan_pct)
-         -- print('dist ' .. tostr(obstacle.distance_from_pp), 1, 60, white)
-      elseif obstacle.data_scanned then
-         display_obstacle_scan(obstacle, lemon, 1)
-      elseif obstacle.scan_time > 0 then
-         scan_pct = obstacle.scan_time / obstacle.scan_length
-         display_obstacle_scan(obstacle, storm, scan_pct)
+      if can_scan_obstacle(obstacle) then
+         if obstacle.closest and not obstacle.data_scanned then
+            closest = obstacle
+            local scan_colour = draw_obstacle_scan(obstacle)
+            scan_pct = min(closest.scan_time, closest.scan_length) / closest.scan_length
+            display_obstacle_scan(obstacle, scan_colour, scan_pct)
+         elseif obstacle.data_scanned then
+            display_obstacle_scan(obstacle, lemon, 1)
+         elseif obstacle.scan_time > 0 then
+            scan_pct = obstacle.scan_time / obstacle.scan_length
+            display_obstacle_scan(obstacle, storm, scan_pct)
+         end
       end
    end
 

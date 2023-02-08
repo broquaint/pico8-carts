@@ -639,7 +639,7 @@ function notification(msg)
       animate_obj(notifications, function(obj)
                      while #obj.queue > 0 do
                         obj.y = obj.queue_top
-                        local n = sub(obj.queue[1], 1, 7) == 'upgrade' and 60 or min(20,60-#obj.queue*9)
+                        local n = sub(obj.queue[1], 1, 7) == 'upgrade' and 60 or min(10,60-#obj.queue*9)
                         wait(n)
                         obj.from = obj.queue_top
                         obj.to   = obj.queue_top - 8
@@ -664,16 +664,32 @@ function close_miss_notification(obstacle)
 end
 
 function maybe_upgrade()
-   local missiles_scanned = count(player.scanned, function(o) return o.type == 'missile' end)
+   local scan_counts = { rock = 0, missile = 0, lump = 0, geyser = 0 }
+   for o in all(player.scanned) do
+      scan_counts[o.type] += 1
+   end
+
    if player.upgrade_level == 0 and player.scanned_count > 7 then
       player.can_scan.missile = 1
       player.upgrade_level += 1
-      notification('upgrade, scan small rocks!')
-   elseif player.upgrade_level == 1 and missiles_scanned > 3 then
+      player.health = min(player.default_health, player.health + 1)
+      notification('upgrade, scan lapilli!')
+   elseif player.upgrade_level == 1 and scan_counts.missile > 3 then
       player.default_health = 4
       player.health = 4
       player.upgrade_level += 1
       notification('upgrade, more shields!')
+   elseif player.upgrade_level == 2 and scan_counts.missile > 6 and scan_counts.rock > 14 then
+      player.can_scan.lump = 1
+      player.upgrade_level += 1
+      player.health = player.default_health
+      notification('upgrade, scan big bombs!')
+   elseif player.upgrade_level == 3 and scan_counts.lump > 3 then
+      player.can_scan.lump = 1
+      player.default_health = 6
+      player.health = 6
+      player.upgrade_level += 1
+      notification('upgrade, even more shields!')
    end
 end
 
@@ -960,7 +976,7 @@ function draw_game()
       local highlight = sub(msg, 1, 7) == 'upgrade' and sky
          or sub(msg, 1, 3) == 'hit' and ember
          or sub(msg, 1, 5) == 'close' and lemon
-         or white
+         or silver
       local colour = (idx == 1 and notifications.y != notifications.queue_top) and slate or highlight
       print(msg, 32, msg_y, colour)
       msg_y += 8

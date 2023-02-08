@@ -624,8 +624,13 @@ function detect_player_collision()
 end
 
 function maybe_upgrade()
+   local missiles_scanned = count(player.scanned, function(o) return o.type == 'missile' end)
    if player.upgrade_level == 0 and player.scanned_count > 7 then
       player.can_scan.missile = 1
+      player.upgrade_level += 1
+   elseif player.upgrade_level == 1 and missiles_scanned > 3 then
+      player.default_health = 4
+      player.health = 4
       player.upgrade_level += 1
    end
 end
@@ -966,7 +971,8 @@ function draw_game()
 
    print('depth ' .. depth_count .. 'M', 1, 1, white)
    for i = 1,player.default_health do
-      spr((player.health >= i and 3 or 4), 35 + i*7)
+      local x_offset = i < 4 and (i*7) or ((i-3) * 7)
+      spr((player.health >= i and 3 or 4), 35 + x_offset, i < 4 and 0 or 2)
    end
 
    print('scanned ' .. tostr(player.scanned_count), 66, 1, white)

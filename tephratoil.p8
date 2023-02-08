@@ -53,6 +53,15 @@ function init_playing()
    background_color = storm
    volcano_rim_y = 127
 
+   notifications = {
+      queue = {},
+      queue_top = 46,
+      animating = false,
+      y = 46,
+      frames = 20,
+      close_misses = {},
+   }
+
    player = make_obj({
       x = 32,
       y = 12,
@@ -126,17 +135,16 @@ function calc_player_speed(dir)
    return player.speed_x
 end
 
-
-function animate_player_dive(obj)
+function animate_y_axis(obj, easing)
    for f = 1, obj.frames do
       if current_game_state == game_state_playing then
-         -- if(obj.crashed or obj.collected) return
-         local was_y = obj.y
-         obj.y = lerp(obj.from, obj.to, easeoutquad(f/obj.frames))
-         -- debug('moved ', was_y - obj.y, ' was ', was_y, ' now ', obj.y)
+         obj.y = lerp(obj.from, obj.to, easing(f/obj.frames))
          yield()
       end
    end
+end
+function animate_player_dive(obj)
+   animate_y_axis(obj, easeoutquad)
 end
 
 function in_bound(x)
@@ -203,6 +211,7 @@ function make_geyser(n)
          y = 128,
          -- standard body + depth additon
          height = (16*6) + (8*min(10,depth_count/20)),
+         type = 'geyser',
    })
 end
 
@@ -607,7 +616,7 @@ function detect_player_collision()
       local oy2 = obstacle.y + (is_lump and 14 or 6)
 
       if detect_line_intersection(ox1, ox2, oy1, oy2) then
-         return true
+         return obstacle
       end
    end
 
@@ -615,11 +624,42 @@ function detect_player_collision()
       local ox1 = geyser.x + 1
       local ox2 = geyser.x + 6
       local oy1 = geyser.y - 2
-      local oy2 = geyser.y + geyser.height - 6
+      local oy2 = geyser.y + geyser.height - 8 -- Add 2px to account for movement
 
       if detect_line_intersection(ox1, ox2, oy1, oy2) then
-         return true
+         return geyser
       end
+   end
+end
+
+function notification(msg)
+   add(notifications.queue, msg)
+
+   if not notifications.animating then
+      animate_obj(notifications, function(obj)
+                     while #obj.queue > 0 do
+                        obj.y = obj.queue_top
+                        local n = sub(obj.queue[1], 1, 7) == 'upgrade' and 60 or min(20,60-#obj.queue*9)
+                        wait(n)
+                        obj.from = obj.queue_top
+                        obj.to   = obj.queue_top - 8
+                        animate_y_axis(obj, easeoutquad)
+                        deli(obj.queue, 1)
+                     end
+      end)
+   end
+end
+
+function close_miss_notification(obstacle)
+   if not any(notifications.close_misses, function(o) return o == obstacle end) then
+      local health_prior = player.health
+      delay(function()
+            -- Don't count collisions as misses!
+            if health_prior == player.health then
+               notification('close miss!')
+            end
+      end, 10)
+      add(notifications.close_misses, obstacle)
    end
 end
 
@@ -628,10 +668,12 @@ function maybe_upgrade()
    if player.upgrade_level == 0 and player.scanned_count > 7 then
       player.can_scan.missile = 1
       player.upgrade_level += 1
+      notification('upgrade, scan small rocks!')
    elseif player.upgrade_level == 1 and missiles_scanned > 3 then
       player.default_health = 4
       player.health = 4
       player.upgrade_level += 1
+      notification('upgrade, more shields!')
    end
 end
 
@@ -643,11 +685,16 @@ function detect_proximity()
    local prox = 128
    local nearest = nil
    for o in all(obstacles) do
+      local a = abs(o.y - player.y)
+      local b = abs(o.x - player.x)
+      local d = sqrt((a * a) + (b * b))
+
+      if o.y < 45 and d < 10 then
+         close_miss_notification(o)
+      end
+
       if not o.data_scanned and can_scan_obstacle(o) then
          o.closest = false
-         local a = abs(o.y - player.y)
-         local b = abs(o.x - player.x)
-         local d = sqrt((a * a) + (b * b))
 
          if o.y < 45 and d < 40 and o.y > (player.y-2) and d < prox then
             nearest = o
@@ -667,6 +714,7 @@ function detect_proximity()
       end
       local sl = max(3, nearest.scan_length - (depth_count \ 10))
       if not nearest.data_scanned and nearest.scan_time >= nearest.scan_length then
+         notification('scanned ' .. rock_map_to_name[nearest.type])
          add(player.scanned, nearest)
          -- Keep count of total so the UI remains static on death screen.
          player.scanned_count += 1
@@ -676,8 +724,19 @@ function detect_proximity()
    end
 end
 
+-- Scientific classification FTW:
+-- https://en.wikipedia.org/wiki/Tephra#Classification
+rock_map_to_name = {
+   rock = 'small bomb',
+   missile = 'lapilli',
+   lump = 'big bomb',
+   geyser = 'lava geyser'
+}
+
 function handle_player_collision()
-   if player.iframes == 0 and detect_player_collision() then
+   local collided_with = detect_player_collision()
+   if player.iframes == 0 and collided_with then
+      notification('hit by a ' .. rock_map_to_name[collided_with.type])
       player.health = max(0, player.health - 1)
       player.speed_x = 0
       animate(function()
@@ -894,6 +953,17 @@ function draw_game()
          fillp()
          rectfill(0, volcano_rim_y+13, 127, 127, black)
       end
+   end
+
+   local msg_y = notifications.y
+   for idx, msg in pairs(notifications.queue) do
+      local highlight = sub(msg, 1, 7) == 'upgrade' and sky
+         or sub(msg, 1, 3) == 'hit' and ember
+         or sub(msg, 1, 5) == 'close' and lemon
+         or white
+      local colour = (idx == 1 and notifications.y != notifications.queue_top) and slate or highlight
+      print(msg, 32, msg_y, colour)
+      msg_y += 8
    end
 
    -- scan area

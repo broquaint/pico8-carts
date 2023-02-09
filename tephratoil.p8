@@ -274,7 +274,7 @@ function move_player()
 end
 
 function rand_tile_x()
-   local x = randx(127)
+   local x = 1+randx(110)
    return x - (x % 8)
 end
 
@@ -397,12 +397,20 @@ function get_obstacles()
          missile = 3 + randx(3),
          lump = 2 + randx(2)
       }
+      -- Can have _up_ to 19 obstacles, more than 15 is silly
+      if obstacles.rock+obstacles.missile+obstacles.lump >= 15 then
+         obstacles.rock -= 2
+         obstacles.missile -= 2
+      end
       return obstacles;
    end
 end
 
 function populate_obstacles()
-   if frame_count % 120 == 0 then
+   local spawn_at = obstacle_level < 10 and 120
+      or obstacle_level < 18 and 150
+      or obstacle_level < 26 and 180 or 200
+   if frame_count % spawn_at == 0 then
       local next_obstacles = get_obstacles()
 
       for n = 1, (next_obstacles.rock or 0) do
@@ -766,12 +774,12 @@ function maybe_upgrade()
       player.health = 4
       player.upgrade_level += 1
       notification('upgrade, more shields!')
-   elseif player.upgrade_level == 2 and scan_counts.missile > 6 and scan_counts.rock > 14 then
+   elseif player.upgrade_level == 2 and scan_counts.missile > 8 and scan_counts.rock > 20 then
       player.can_scan.lump = 1
       player.upgrade_level += 1
       player.health = player.default_health
       notification('upgrade, scan big bombs!')
-   elseif player.upgrade_level == 3 and scan_counts.lump > 3 then
+   elseif player.upgrade_level == 3 and scan_counts.lump > 4 then
       player.can_scan.lump = 1
       player.default_health = 6
       player.health = 6
@@ -945,7 +953,7 @@ function update_game()
       player.sprite = 2
       animate_death_screen()
       music(-1, 2000)
-      delay(function() sfx(10) end, 1500)
+      delay(function() sfx(10) end, 45)
       if depth_count > dget(HIGH_SCORE_DEPTH) then
          dset(HIGH_SCORE_DEPTH, depth_count)
          player.new_depth_hs = true
@@ -1177,8 +1185,8 @@ function draw_game()
 
    print('scanned ' .. tostr(player.scanned_count), 66, 1, white)
    if closest then
-      rectfill(105, 1, 125, 5, storm)
-      rectfill(105, 1, 105 + (20 * scan_pct), 5, white)
+      rectfill(107, 1, 125, 5, storm)
+      rectfill(107, 1, 105 + (18 * scan_pct), 5, white)
    end
 
    if current_game_state != game_state_playing then

@@ -181,11 +181,20 @@ ocean_level = make_obj({
       from = 99,
       to = 160,
 })
+scan_area = make_obj({
+      y = 11,
+      from = 11,
+      to = 44,
+      frames = 20,
+})
 function transition_to_playing()
    animate_obj(title_sprite, function()
                   animate_y_axis(title_sprite, easeoutquad, game_state_title)
-                  animate_obj(player, function()
-                                 animate_y_axis(player, easeinquad, game_state_title)
+                  animate_obj(player, function(obj)
+                                 animate_y_axis(obj, easeinquad, game_state_title)
+                  end)
+                  animate_obj(scan_area, function(obj)
+                                 animate_y_axis(obj, easeinquad, game_state_title)
                   end)
    end)
    animate_obj(ocean_level, function()
@@ -1177,9 +1186,9 @@ function draw_title()
    end
 
    local oy = ocean_level.y
-   pal(dusk, midnight, 1)
+   pal(wine, midnight, 1)
    line(0, oy, 127, oy, silver)
-   rectfill(0, oy+1, 127, 127, dusk)
+   rectfill(0, oy+1, 127, 127, wine)
 
    for r in all(reflections) do
       local ry = r.y+(oy-99)
@@ -1192,6 +1201,11 @@ function draw_title()
    pal(moss, (frame_count % 90 < 60) and sand
        or (frame_count % 60 < 30) and amber or lemon, 1)
    sspr(6, 64, 42, 32, 40, 85-99+oy)
+
+   -- scan area
+   fillp(∧)
+   rectfill(0, 11, 127, scan_area.y, dusk)
+   fillp()
 
    spr(player.sprite, player.x, player.y)
 end

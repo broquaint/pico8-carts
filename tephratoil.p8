@@ -32,6 +32,20 @@ function init_title()
 
    animate_stars()
 
+   reflections={}
+   for star in all(stars) do
+      local reflection = {
+         x = star.x,
+         tx = star.x,
+         y = 100 + (27 * ((star.y-32)/112)),
+         dir = 1,
+         star = star,
+      }
+      add(reflections, reflection)
+      animate_obj(reflection, animate_reflection)
+   end
+
+
    current_game_state = game_state_title
 end
 
@@ -121,6 +135,23 @@ function animate_stars()
                         end
          end)
       end
+   end
+end
+
+function animate_reflection(obj)
+   while current_game_state != game_state_playing do
+      if frame_count % 25 == 0 then
+         local twinkle_diff = abs(obj.x - obj.tx)
+         if twinkle_diff >= 3 then
+            obj.dir = -1
+            wait(30)
+         elseif twinkle_diff == 0 then
+            obj.dir = 1
+            wait(30)
+         end
+         obj.tx += obj.dir
+      end
+      yield()
    end
 end
 
@@ -961,6 +992,7 @@ end
 
 function draw_game()
    cls(background_color)
+   pal(dusk, dusk,1)
 
    if depth_count < 8 then
       for star in all(stars) do
@@ -1091,8 +1123,22 @@ function draw_title()
 
    -- TODO Cool stuff!
 
-   print('press ❎ to start!', 23, 121, black)
-   print('press ❎ to start!', 22, 120, white)
+   if frame_count % 60 < 30 then
+      print('press ❎ to start!', 29, 81, black)
+      print('press ❎ to start!', 28, 80, white)
+   else
+      print('press    to start!', 29, 81, black)
+      print('      ❎'          , 29, 81, white)
+      print('press    to start!', 28, 80, white)
+   end
+
+   pal(dusk, midnight, 1)
+   line(0, 99, 127, 99, silver)
+   rectfill(0, 100, 127, 127, dusk)
+   for r in all(reflections) do
+      line(r.x+1, r.y, r.tx, r.y+3, white)
+      pset(r.x+1, r.y, r.star.colour)
+   end
 end
 
 function _draw()

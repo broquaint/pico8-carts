@@ -1116,7 +1116,8 @@ function draw_game()
    pal(pink, denim, 1)
    for obstacle in all(obstacles) do
       local scannable = can_scan_obstacle(obstacle) and not obstacle.data_scanned
-      if obstacle.type == 'lump' then
+      local is_lump   = obstacle.type == 'lump'
+      if is_lump then
          if scannable and obstacle.y < 43 and obstacle.y > 11 then
             fillp(∧)
             circfill(obstacle.x+8,obstacle.y+6, 12, pink)
@@ -1145,6 +1146,9 @@ function draw_game()
             display_obstacle_scan(obstacle, storm, scan_pct)
          end
       end
+      if obstacle_level < 8 then
+         print(rock_map_to_name[obstacle.type], obstacle.x - 8, obstacle.y + (is_lump and obstacle.sprite.sh + 1 or 9), silver)
+      end
    end
 
    pal(moss, sand)
@@ -1156,6 +1160,9 @@ function draw_game()
          sspr(14*8, 8, 16, 8, g.x, body_y)
       end
       sspr(14*8, 24, 16, 8, g.x, body_y+8)
+      if obstacle_level < 8 then
+         print(rock_map_to_name[g.type], g.x - 8, body_y+12, silver)
+      end
    end
    --pal(moss, moss)
 

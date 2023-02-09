@@ -45,6 +45,18 @@ function init_title()
       animate_obj(reflection, animate_reflection)
    end
 
+   player = make_obj({
+      x = 32,
+      y = -8,
+      from   = -8,
+      to     = 12,
+      frames = 20,
+      sprite = 1,
+      cb = function()
+         player.cb = null
+         init_playing()
+      end
+   })
 
    current_game_state = game_state_title
 end
@@ -54,7 +66,7 @@ function init_playing()
 
    g_anims = {}
 
-   frame_count = 0
+   frame_count = 1
    depth_count = 0
 
    obstacles = {}
@@ -155,6 +167,32 @@ function animate_reflection(obj)
    end
 end
 
+title_sprite = make_obj({
+      x = 3,
+      y = 0,
+      frames = 20,
+      from = 0,
+      to = -40,
+})
+ocean_level = make_obj({
+      x = 3,
+      y = 99,
+      frames = 20,
+      from = 99,
+      to = 160,
+})
+function transition_to_playing()
+   animate_obj(title_sprite, function()
+                  animate_y_axis(title_sprite, easeoutquad, game_state_title)
+                  animate_obj(player, function()
+                                 animate_y_axis(player, easeinquad, game_state_title)
+                  end)
+   end)
+   animate_obj(ocean_level, function()
+                  animate_y_axis(ocean_level, easeoutquad, game_state_title)
+   end)
+end
+
 function calc_player_speed(dir)
    -- player.speed_x *= player.move_dir * FRICTION
    local accel     = ACCELERATION * (player.iframes > 0 and 0.3 or 1)
@@ -166,9 +204,10 @@ function calc_player_speed(dir)
    return player.speed_x
 end
 
-function animate_y_axis(obj, easing)
+function animate_y_axis(obj, easing, state)
+   if(not state) state = game_state_playing
    for f = 1, obj.frames do
-      if current_game_state == game_state_playing then
+      if current_game_state == state then
          obj.y = lerp(obj.from, obj.to, easing(f/obj.frames))
          yield()
       end
@@ -908,7 +947,7 @@ function _update()
 
    if current_game_state == game_state_title then
       if btnp(b_x) then
-         init_playing()
+         transition_to_playing()
       end
    elseif current_game_state == game_state_crashed then
       if btnp(b_x) then
@@ -992,7 +1031,10 @@ end
 
 function draw_game()
    cls(background_color)
+   
    pal(dusk, dusk,1)
+   pal(lime, lime, 1)
+   pal(moss, moss, 1)
 
    if depth_count < 8 then
       for star in all(stars) do
@@ -1115,38 +1157,43 @@ end
 
 function draw_title()
    cls(storm)
-   sspr(0, 32, 15 * 8, 32, 3, 0)
+   sspr(0, 32, 15 * 8, 32, title_sprite.x, title_sprite.y)
 
    for star in all(stars) do
-         pset(star.x, star.y, star.colour)
+      pset(star.x, star.y, star.colour)
    end
 
    -- TODO Cool stuff!
 
-   if frame_count % 60 < 30 then
-      print('press ❎ to start!', 29, 71, black)
-      print('press ❎ to start!', 28, 70, white)
-   else
-      print('press    to start!', 29, 71, black)
-      print('      ❎'          , 29, 71, white)
-      print('press    to start!', 28, 70, white)
+   if ocean_level.y == 99 then
+      if frame_count % 60 < 30 then
+         print('press ❎ to start!', 29, 71, black)
+         print('press ❎ to start!', 28, 70, white)
+      else
+         print('press    to start!', 29, 71, black)
+         print('      ❎'          , 29, 71, white)
+         print('press    to start!', 28, 70, white)
+      end
    end
 
+   local oy = ocean_level.y
    pal(dusk, midnight, 1)
-   line(0, 99, 127, 99, silver)
-   rectfill(0, 100, 127, 127, dusk)
+   line(0, oy, 127, oy, silver)
+   rectfill(0, oy+1, 127, 127, dusk)
 
    for r in all(reflections) do
-      line(r.x+1, r.y, r.tx, r.y+3, white)
-      pset(r.x+1, r.y, r.star.colour)
+      local ry = r.y+(oy-99)
+      line(r.x+1, ry, r.tx, ry+3, white)
+      pset(r.x+1, ry, r.star.colour)
    end
 
    pal(lime, (frame_count % 90 < 60) and coral
        or (frame_count % 60 < 30) and pink or amber, 1)
    pal(moss, (frame_count % 90 < 60) and sand
        or (frame_count % 60 < 30) and amber or lemon, 1)
-   sspr(6, 64, 42, 32, 40, 85)
-   pal(lime, lime)
+   sspr(6, 64, 42, 32, 40, 85-99+oy)
+
+   spr(player.sprite, player.x, player.y)
 end
 
 function _draw()

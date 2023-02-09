@@ -86,6 +86,7 @@ function init_playing()
       y = 46,
       frames = 20,
       close_misses = {},
+      dropping = false,
    }
 
    player = make_obj({
@@ -724,11 +725,11 @@ function notification(msg)
       animate_obj(notifications, function(obj)
                      while #obj.queue > 0 do
                         obj.y = obj.queue_top
-                        local n = sub(obj.queue[1], 1, 7) == 'upgrade' and 60 or min(10,60-#obj.queue*9)
+                        local n = sub(obj.queue[1], 1, 7) == 'upgrade' and 60 or max(5,50-#obj.queue*5)
                         wait(n)
-                        obj.from = obj.queue_top
-                        obj.to   = obj.queue_top - 8
-                        animate_y_axis(obj, easeoutquad)
+                        obj.dropping = true
+                        wait(n)
+                        obj.dropping = false
                         deli(obj.queue, 1)
                      end
       end)
@@ -1072,13 +1073,18 @@ function draw_game()
       end
    end
 
-   local msg_y = notifications.y
-   for idx, msg in pairs(notifications.queue) do
+   local msg_y  = notifications.y
+   local nq_len = #notifications.queue
+   -- Don't show more than 7 notifications
+   for i = 1, min(nq_len, 7) do
+      -- Display in reverse order
+      local idx = nq_len - (i - 1)
+      local msg = notifications.queue[idx]
       local highlight = sub(msg, 1, 7) == 'upgrade' and sky
          or sub(msg, 1, 3) == 'hit' and ember
          or sub(msg, 1, 5) == 'close' and lemon
          or silver
-      local colour = (idx == 1 and notifications.y != notifications.queue_top) and slate or highlight
+      local colour = (idx == 1 and notifications.dropping) and slate or highlight
       print(msg, 32, msg_y, colour)
       msg_y += 8
    end

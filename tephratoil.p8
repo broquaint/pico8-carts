@@ -749,6 +749,12 @@ rock_map_to_name = {
    geyser = 'lava geyser'
 }
 
+-- Lazy animation FTW.
+shake_coords = {
+   {0,0}, {1,0},  {2,0},  {1,0},
+   {0,0}, {-1,0}, {-2,0}, {-1,0}, {0,0}
+}
+
 function handle_player_collision()
    local collided_with = detect_player_collision()
    if player.iframes == 0 and collided_with then
@@ -758,6 +764,7 @@ function handle_player_collision()
       animate(function()
             for i = 1,44 do
                if current_game_state == game_state_playing then
+                  if(shake_coords[i]) camera(shake_coords[i][1], shake_coords[i][2])
                   player.iframes += 1
                   if i % 5 == 0 then
                      player.sprite = player.sprite == 1 and 2 or 1

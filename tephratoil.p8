@@ -466,7 +466,7 @@ function falling_air_streaks()
             y = 128,
             length = 12,
             frames = 141,
-            speed = 2 + rnd(),
+            speed = 2 + rnd() + min(5,depth_count/30),
             colour = silver,
       })
       add(air_streaks, streak)

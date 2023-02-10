@@ -293,6 +293,11 @@ function make_geyser(n)
          -- standard body + depth additon
          height = (16*6) + (8*min(10,depth_count/20)),
          type = 'geyser',
+         closest = false,
+         scan_time = 0,
+         distance_from_pp = 128,
+         data_scanned = false,
+         scan_length = 40,
    })
 end
 
@@ -760,12 +765,13 @@ end
 
 
 upgrade_map = {
-   { rock = 8, type = 'rock', sprite = 32 },
-   { missile = 4, type = 'missile', sprite = 33 },
-   { missile = 8, rock = 30 },
-   { lump = 4, type = 'lump', sprite = 34 }
-   { rock = 100, sprite = 32 }
+   { rock    = 10, type = 'rock', sprite = 32 },
+   { missile = 5,  type = 'missile', sprite = 33 },
+   { missile = 10, rock = 40 },
+   { lump    = 5, type = 'lump', sprite = 34 },
+   { geyser  = 5, sprite = 35 }
 }
+
 function maybe_upgrade()
    local scan_counts = player.scan_counts
 
@@ -787,7 +793,7 @@ function maybe_upgrade()
       player.health = player.default_health
       notification('upgrade, scan big bombs!')
    elseif player.upgrade_level == 3 and #scan_counts.lump >= um.lump then
-      player.can_scan.lump = 1
+      player.can_scan.geyser = 1
       player.default_health = 6
       player.health = 6
       player.upgrade_level += 1
@@ -801,28 +807,59 @@ function can_scan_obstacle(obstacle)
    return player.can_scan[obstacle.type]
 end
 
+function calc_geyser_y_scan(g)
+   local tail_y = g.y + g.height + 12
+   return (g.y > 10 and g.y < 45) and g.y
+      or (g.y <= 10 and tail_y >= 45) and min(27,10+abs(g.y-10))
+      or (tail_y > 10 and tail_y < 45) and tail_y or 0
+end
+
 function detect_proximity()
    local prox = 128
    local nearest = nil
-   for o in all(obstacles) do
-      local a = abs(o.y - player.y)
-      local b = abs(o.x - player.x)
-      local d = sqrt((a * a) + (b * b))
 
-      if o.y < 45 and d < 10 then
-         close_miss_notification(o)
-      end
+   for g in all(geysers) do
+      local gy = calc_geyser_y_scan(g)
 
-      if not o.data_scanned and can_scan_obstacle(o) then
-         o.closest = false
+      if gy > 0 then
+         local a = abs(gy - player.y+4)
+         local b = abs(g.x+8 - player.x+4)
+         local d = sqrt((a * a) + (b * b))
 
-         if o.y < 45 and d < 40 and o.y > (player.y-2) and d < prox then
-            nearest = o
-            o.distance_from_pp = d
-            prox = d
+         if not g.data_scanned and can_scan_obstacle(g) then
+            g.closest = false
+
+            if gy < 45 and d < 50 and gy > (player.y-2) and d < prox then
+               nearest = g
+               g.distance_from_pp = d
+               prox = d
+            end
          end
       end
    end
+
+   if not nearest then
+      for o in all(obstacles) do
+         local a = abs((o.y + (o.type == 'lump' and 8 or 4)) - player.y+4)
+         local b = abs((o.x + (o.type == 'lump' and 8 or 4)) - player.x+4)
+         local d = sqrt((a * a) + (b * b))
+
+         if o.y < 45 and d < 10 then
+            close_miss_notification(o)
+         end
+
+         if not o.data_scanned and can_scan_obstacle(o) then
+            o.closest = false
+
+            if o.y < 45 and d < 40 and o.y > (player.y-2) and d < prox then
+               nearest = o
+               o.distance_from_pp = d
+               prox = d
+            end
+         end
+      end
+   end
+
    if nearest then
       nearest.closest = true
       local dist = nearest.distance_from_pp
@@ -995,13 +1032,16 @@ function _update()
    end
 end
 
-function display_obstacle_scan(obstacle, colour, scan_pct)
+function draw_scan_progress(obstacle, colour, scan_pct)
    rectfill(obstacle.x - 2, obstacle.y - 1, obstacle.x + (10 * scan_pct), obstacle.y - 2, colour)
+end
+function draw_geyser_scan_progress(obstacle, colour, scan_pct)
+   rectfill(obstacle.x + 18, 27, obstacle.x + 18 + (10 * scan_pct), 29, colour)
 end
 
 function display_end_game_summary()
-   rectfill(18, 47, 114, 117, storm)
-   rectfill(16, 45, 112, 115, silver)
+   rectfill(18, 47, 114, 118, storm)
+   rectfill(16, 45, 112, 116, silver)
 --   print('science over! scanned:', 18, 47, storm)
    print('research over! results:', 18, 47, storm)
 
@@ -1061,7 +1101,10 @@ function draw_obstacle_scan(obstacle)
       scan_pattern = 0b1010101010101010.1
    end
    fillp(scan_pattern)
-   line(obstacle.x + 4, obstacle.y + 4, player.x + 4, player.y + 4, scan_colour)
+   local is_geyser = obstacle.type == 'geyser'
+   local ox = obstacle.x + (is_geyser and 8 or 4)
+   local oy = is_geyser and calc_geyser_y_scan(obstacle) or obstacle.y + 4
+   line(ox, oy, player.x + 4, player.y + 4, scan_colour)
    fillp()
    return scan_colour
 end
@@ -1154,12 +1197,12 @@ function draw_game()
             closest = obstacle
             local scan_colour = draw_obstacle_scan(obstacle)
             scan_pct = min(closest.scan_time, closest.scan_length) / closest.scan_length
-            display_obstacle_scan(obstacle, scan_colour, scan_pct)
+            draw_scan_progress(obstacle, scan_colour, scan_pct)
          elseif obstacle.data_scanned then
-            display_obstacle_scan(obstacle, lemon, 1)
+            draw_scan_progress(obstacle, lemon, 1)
          elseif obstacle.scan_time > 0 then
             scan_pct = obstacle.scan_time / obstacle.scan_length
-            display_obstacle_scan(obstacle, storm, scan_pct)
+            draw_scan_progress(obstacle, storm, scan_pct)
          end
       end
       if obstacle_level < 8 then
@@ -1176,6 +1219,20 @@ function draw_game()
          sspr(14*8, 8, 16, 8, g.x, body_y)
       end
       sspr(14*8, 24, 16, 8, g.x, body_y+8)
+
+      if can_scan_obstacle(g) then
+         if g.closest and not g.data_scanned then
+            closest = g
+            local scan_colour = draw_obstacle_scan(g)
+            scan_pct = min(closest.scan_time, closest.scan_length) / closest.scan_length
+            draw_geyser_scan_progress(g, scan_colour, scan_pct)
+         elseif g.data_scanned then
+            draw_geyser_scan_progress(g, lemon, 1)
+         elseif g.scan_time > 0 then
+            scan_pct = g.scan_time / g.scan_length
+            draw_geyser_scan_progress(g, storm, scan_pct)
+         end
+      end
       if obstacle_level < 8 then
          print(rock_map_to_name[g.type], g.x - 8, body_y+12, silver)
       end
@@ -1283,12 +1340,12 @@ __gfx__
 0099499409944490099949900000000000000000000000000000a0000000000044998888899944220444998a7a8944404449988a788994449399993333999939
 0009990000999990000999000000000000000000000000000000000000000000499988aaa8994444044499887a89444044499888a8899444999aa993399aa999
 0000000000000000000000000000000000000000000000000000000000000000499988a7a89944d0044499888889444044449998889944dd99aaaa9999aaaa99
-0000000000000000002222200000000000000000000000000000000000000000449998aa88994dd004449988889444400dd4449999444ddd9aa99aa99aa99aa9
-0022220000aaaa00022224400000000000000000000000000000000000000000d44999888994dd0000d449888944dd000ddd44444dddddd09a9999aaaa9999a9
-0024440000a97a00029889400000000000000000000000000000000000000000ddd49999994dd00000dd4499944dd0000ddddddddddddd009993399aa9933999
-0044490000a89a00049a9940000000000000000000000000000000000000000000dd444494dd000000dddd444ddd0000000ddddd000000009933339999333399
-0099990000aaaa00044444d00000000000000000000000000000000000000000000dddd44dd00000000dddddddd0000000000000000000009339933993399339
-00000000000000000dddddd000000000000000000000000000000000000000000000000ddd000000000000000000000000000000000000009399993333999939
+0000000000000000002222200088880000000000000000000000000000000000449998aa88994dd004449988889444400dd4449999444ddd9aa99aa99aa99aa9
+0022220000aaaa0002222440088aa88000000000000000000000000000000000d44999888994dd0000d449888944dd000ddd44444dddddd09a9999aaaa9999a9
+0024440000a97a000298894009a99a9000000000000000000000000000000000ddd49999994dd00000dd4499944dd0000ddddddddddddd009993399aa9933999
+0044490000a89a00049a99400a9aa9a00000000000000000000000000000000000dd444494dd000000dddd444ddd0000000ddddd000000009933339999333399
+0099990000aaaa00044444d009a99a9000000000000000000000000000000000000dddd44dd00000000dddddddd0000000000000000000009339933993399339
+00000000000000000dddddd008088080000000000000000000000000000000000000000ddd000000000000000000000000000000000000009399993333999939
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000999aa993399aa999
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000899aa998899aa998
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008899998888999988

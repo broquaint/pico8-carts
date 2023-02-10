@@ -17,6 +17,8 @@ HIGH_SCORE_SCANNED = 1
 game_state_title   = 'title'
 game_state_playing = 'playing'
 game_state_crashed = 'crashed'
+game_state_win_transition = 'winning'
+game_state_won     = 'won'
 
 -- Default state so title screen works
 g_anims = {}
@@ -177,7 +179,6 @@ title_sprite = make_obj({
       to = -40,
 })
 ocean_level = make_obj({
-      x = 3,
       y = 99,
       frames = 20,
       from = 99,
@@ -201,6 +202,58 @@ function transition_to_playing()
    end)
    animate_obj(ocean_level, function()
                   animate_y_axis(ocean_level, easeoutquad, game_state_title)
+   end)
+end
+
+summary_screen = make_obj({
+      y = 45,
+      from = 45,
+      to = -100,
+      frames = 20,
+})
+function back_to_playing()
+   -- A combination of init_playing + transition_to_playing
+   ocean_level = make_obj({
+         y = 99,
+         frames = 20,
+         from = 99,
+         to = 160,
+   })
+   scan_area = make_obj({
+         y = 11,
+         from = 11,
+         to = 44,
+         frames = 20,
+   })
+   merge(player, {
+      x = 32,
+      y = -8,
+      from   = -8,
+      to     = 12,
+      frames = 20,
+      sprite = 1,
+      cb = function()
+         player.cb = null
+         init_playing()
+      end
+   })
+
+   summary_screen.from = 5
+   summary_screen.to   = -100
+   animate_obj(summary_screen, function(obj)
+                  animate_y_axis(obj, easeinquad, game_state_won)
+   end)
+
+   animate_obj(title_sprite, function()
+                  animate_obj(player, function(obj)
+                                 animate_y_axis(obj, easeinquad, game_state_won)
+                  end)
+                  animate_obj(scan_area, function(obj)
+                                 animate_y_axis(obj, easeinquad, game_state_won)
+                  end)
+   end)
+   animate_obj(ocean_level, function()
+                  animate_y_axis(ocean_level, easeoutquad, game_state_won)
    end)
 end
 
@@ -874,7 +927,7 @@ function detect_proximity()
          notification('scanned ' .. rock_map_to_name[nearest.type])
          add(player.scanned, nearest)
          add(player.scan_counts[nearest.type], nearest)
-         -- Keep count of total so the UI remains static on death screen.
+         -- Keep count of total so the UI remains static on game over screen.
          player.scanned_count += 1
          nearest.data_scanned = true
          maybe_upgrade()
@@ -928,8 +981,57 @@ function animate_death_screen()
       while #player.scanned > 0 do
          local o = deli(player.scanned, 1)
          add(showing[o.type], o)
-         wait(8)
+         wait(6)
       end
+   end)
+end
+
+function finish_winning()
+   player.cb = null
+   current_game_state = game_state_won
+
+   ocean_level.from   = ocean_level.y
+   ocean_level.to     = 99
+   ocean_level.frames = 45
+   animate_obj(ocean_level, function(obj)
+                  animate_y_axis(ocean_level, easeoutquad, game_state_won)
+   end)
+   for r in all(reflections) do
+      animate_obj(r, animate_reflection)
+   end
+   animate_stars()
+   -- To make stars animate again.
+   depth_count = 0
+
+   animate_death_screen()
+
+   summary_screen.y    = -100
+   summary_screen.from = -100
+   summary_screen.to   = 5
+
+   animate_obj(summary_screen, function(obj)
+                  animate_y_axis(obj, easeinquad, game_state_won)
+   end)
+end
+
+function begin_winning()
+   current_game_state = game_state_win_transition
+   music(-1, 60)
+   animate(function()
+         player.cb = finish_winning
+         player.from   = player.y
+         player.to     = -40
+         player.frames = 15
+         animate_obj(player, function(obj)
+                        animate_y_axis(obj, easeoutquad, game_state_win_transition)
+         end)
+         scan_area.from = scan_area.y
+         scan_area.to   = 11
+         scan_area.frames = 15
+         animate_obj(scan_area, function(obj)
+                        animate_y_axis(obj, easeinquad, game_state_win_transition)
+         end)
+
    end)
 end
 
@@ -1023,11 +1125,15 @@ function _update()
       if btnp(b_x) then
          transition_to_playing()
       end
+   elseif current_game_state == game_state_won then
+      if btnp(b_x) then
+         back_to_playing()
+      end
    elseif current_game_state == game_state_crashed then
       if btnp(b_x) then
          init_playing()
       end
-   else
+   elseif current_game_state == game_state_playing then
       update_game()
    end
 end
@@ -1039,48 +1145,52 @@ function draw_geyser_scan_progress(obstacle, colour, scan_pct)
    rectfill(obstacle.x + 18, 27, obstacle.x + 18 + (10 * scan_pct), 29, colour)
 end
 
-function display_end_game_summary()
-   rectfill(18, 47, 114, 118, storm)
-   rectfill(16, 45, 112, 116, silver)
---   print('science over! scanned:', 18, 47, storm)
-   print('research over! results:', 18, 47, storm)
+function display_end_game_summary(from_y)
+   rectfill(18, from_y+2, 114, from_y+73, storm)
+   rectfill(16, from_y,   112, from_y+71, silver)
+   --   print('science over! scanned:', 18, 47, storm)
+   if current_game_state == game_state_crashed then
+      print('research over! results:', 18, from_y+2, storm)
+   else
+      print('all research completed!', 18, from_y+2, storm)
+   end
 
-   if(#showing.missile > 0) print(#showing.missile, 18, 57, storm)
+   if(#showing.missile > 0) print(#showing.missile, 18, from_y+12, storm)
    for idx,o in pairs(showing.missile) do
       local sx = idx > 45 and (28 + (idx - 45) * 2) or (24 + idx * 2)
-      local sy = idx > 45 and 58 or 56
+      local sy = idx > 45 and (from_y+13) or (from_y+11)
       spr(o.sprite, sx, sy)
    end
 
-   if(#showing.rock > 0) print(#showing.rock, 18, 68, storm)
+   if(#showing.rock > 0) print(#showing.rock, 18, from_y+23, storm)
    for idx,o in pairs(showing.rock) do
       local sx = idx > 40 and (29 + (idx - 40) * 2) or (25 + idx * 2)
-      local sy = idx > 40 and 70 or 66
+      local sy = idx > 40 and (from_y+25) or (from_y+21)
       spr(o.sprite, sx, sy)
    end
 
-   if(#showing.lump > 0) print(#showing.lump, 18, 81, storm)
+   if(#showing.lump > 0) print(#showing.lump, 18, from_y+36, storm)
    for idx,o in pairs(showing.lump) do
       local dx = idx > 32 and (29 + (idx - 32) * 2) or (25 + idx * 2)
-      local dy = idx > 32 and 82 or 78
+      local dy = idx > 32 and (from_y+37) or (from_y+33)
       local os = o.sprite
       sspr(os.sx, os.sy, os.sw, os.sh, dx, dy)
    end
 
-   print('deepest depth ' .. dget(HIGH_SCORE_DEPTH) .. 'M', 18, 98, storm)
+   print('deepest depth ' .. dget(HIGH_SCORE_DEPTH) .. 'M', 18, from_y+53, storm)
    if(player.new_depth_hs) then
-      print('new★', 90, 98, lemon)
+      print('new★', 90, from_y+53, lemon)
    else
       local sign = depth_count == dget(HIGH_SCORE_DEPTH) and '=' or '>'
-      print(sign .. ' ' .. depth_count .. 'M', 90, 98, storm)
+      print(sign .. ' ' .. depth_count .. 'M', 90, from_y+53, storm)
    end
 
-   print('most scanned  ' .. dget(HIGH_SCORE_SCANNED), 18, 107, storm)
+   print('most scanned  ' .. dget(HIGH_SCORE_SCANNED), 18, from_y+62, storm)
    if(player.new_scanned_hs) then
-      print('new★', 90, 107, lemon)
+      print('new★', 90, from_y+62, lemon)
    else
       local sign = player.scanned_count == dget(HIGH_SCORE_SCANNED) and '=' or '>'
-      print(' ' .. sign .. ' ' .. player.scanned_count, 86, 107, storm)
+      print(' ' .. sign .. ' ' .. player.scanned_count, 86, from_y+62, storm)
    end
 end
 
@@ -1111,10 +1221,12 @@ end
 
 function draw_game()
    cls(background_color)
-   
+
+   -- Reset title screen colours
    pal(dusk, dusk,1)
    pal(lime, lime, 1)
    pal(moss, moss, 1)
+   pal(pink, pink, 1)
 
    if depth_count < 8 then
       for star in all(stars) do
@@ -1150,7 +1262,7 @@ function draw_game()
 
    -- scan area
    fillp(∧)
-   rectfill(0, 11, 127, 44, dusk)
+   rectfill(0, 11, 127, scan_area.y, dusk)
    fillp()
 
    for s in all(air_streaks) do
@@ -1261,8 +1373,8 @@ function draw_game()
       print(um[um.type] - #player.scan_counts[um.type], 103, 1, white)
    end
 
-   if current_game_state != game_state_playing then
-      display_end_game_summary()
+   if current_game_state == game_state_crashed then
+      display_end_game_summary(summary_screen.y)
       print('press ❎ to try again!', 23, 121, storm)
       print('press ❎ to try again!', 22, 120, white)
    end
@@ -1278,7 +1390,7 @@ function draw_title()
 
    -- TODO Cool stuff!
 
-   if ocean_level.y == 99 then
+   if ocean_level.y == 99 and current_game_state == game_state_title then
       if frame_count % 60 < 30 then
          print('press ❎ to start!', 29, 71, black)
          print('press ❎ to start!', 28, 70, white)
@@ -1290,9 +1402,9 @@ function draw_title()
    end
 
    local oy = ocean_level.y
-   pal(wine, midnight, 1)
+   pal(pink, midnight, 1)
    line(0, oy, 127, oy, silver)
-   rectfill(0, oy+1, 127, 127, wine)
+   rectfill(0, oy+1, 127, 127, pink)
 
    for r in all(reflections) do
       local ry = r.y+(oy-99)
@@ -1301,10 +1413,15 @@ function draw_title()
    end
 
    pal(lime, (frame_count % 90 < 60) and coral
-       or (frame_count % 60 < 30) and pink or amber, 1)
+       or (frame_count % 60 < 30) and peach or amber, 1)
    pal(moss, (frame_count % 90 < 60) and sand
        or (frame_count % 60 < 30) and amber or lemon, 1)
    sspr(6, 64, 42, 32, 40, 85-99+oy)
+
+   if current_game_state == game_state_won then
+      pal(wine, leather, 1)
+      display_end_game_summary(summary_screen.y)
+   end
 
    -- scan area
    fillp(∧)
@@ -1315,7 +1432,7 @@ function draw_title()
 end
 
 function _draw()
-   if current_game_state == game_state_title then
+   if current_game_state == game_state_title or current_game_state == game_state_won then
       draw_title()
    else
       draw_game()

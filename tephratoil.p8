@@ -102,6 +102,7 @@ function init_playing()
       default_health = 3,
       iframes = 0,
       scanned = {},
+      scan_counts = { rock = {}, missile = {}, lump = {}, geyser = {} },
       scanned_count = 0,
       upgrade_level = 0,
       can_scan = {rock=1}
@@ -757,29 +758,35 @@ function close_miss_notification(obstacle)
    end
 end
 
-function maybe_upgrade()
-   local scan_counts = { rock = 0, missile = 0, lump = 0, geyser = 0 }
-   for o in all(player.scanned) do
-      scan_counts[o.type] += 1
-   end
 
+upgrade_map = {
+   { rock = 8, type = 'rock', sprite = 32 },
+   { missile = 4, type = 'missile', sprite = 33 },
+   { missile = 8, rock = 30 },
+   { lump = 4, type = 'lump', sprite = 34 }
+   { rock = 100, sprite = 32 }
+}
+function maybe_upgrade()
+   local scan_counts = player.scan_counts
+
+   local um = upgrade_map[player.upgrade_level+1]
    local was_ul = player.upgrade_level
-   if player.upgrade_level == 0 and player.scanned_count > 7 then
+   if player.upgrade_level == 0 and #scan_counts.rock >= um.rock then
       player.can_scan.missile = 1
       player.upgrade_level += 1
       player.health = min(player.default_health, player.health + 1)
       notification('upgrade, scan lapilli!')
-   elseif player.upgrade_level == 1 and scan_counts.missile > 3 then
+   elseif player.upgrade_level == 1 and #scan_counts.missile >= um.missile then
       player.default_health = 4
       player.health = 4
       player.upgrade_level += 1
       notification('upgrade, more shields!')
-   elseif player.upgrade_level == 2 and scan_counts.missile > 8 and scan_counts.rock > 20 then
+   elseif player.upgrade_level == 2 and #scan_counts.missile >= um.missile and #scan_counts.rock >= um.rock then
       player.can_scan.lump = 1
       player.upgrade_level += 1
       player.health = player.default_health
       notification('upgrade, scan big bombs!')
-   elseif player.upgrade_level == 3 and scan_counts.lump > 4 then
+   elseif player.upgrade_level == 3 and #scan_counts.lump >= um.lump then
       player.can_scan.lump = 1
       player.default_health = 6
       player.health = 6
@@ -829,6 +836,7 @@ function detect_proximity()
       if not nearest.data_scanned and nearest.scan_time >= nearest.scan_length then
          notification('scanned ' .. rock_map_to_name[nearest.type])
          add(player.scanned, nearest)
+         add(player.scan_counts[nearest.type], nearest)
          -- Keep count of total so the UI remains static on death screen.
          player.scanned_count += 1
          nearest.data_scanned = true
@@ -1179,14 +1187,21 @@ function draw_game()
 
    print('depth ' .. depth_count .. 'M', 1, 1, white)
    for i = 1,player.default_health do
-      local x_offset = i < 4 and (i*7) or ((i-3) * 7)
-      spr((player.health >= i and 3 or 4), 35 + x_offset, i < 4 and 0 or 2)
+      spr((player.health >= i and 3 or 4), 35 + (i*7), 0)
    end
 
-   print('scanned ' .. tostr(player.scanned_count), 66, 1, white)
-   if closest then
-      rectfill(107, 1, 125, 5, storm)
-      rectfill(107, 1, 105 + (18 * scan_pct), 5, white)
+   print('⬆️ ', 83, 1, white)
+   local um = upgrade_map[player.upgrade_level+1]
+   if player.upgrade_level == 2 then
+      local rock_count = max(0, um.rock - #player.scan_counts.rock)
+      spr(32, 93, 0)
+      print(rock_count, 103, 1, white)
+      local missile_count = max(0, um.missile - #player.scan_counts.missile)
+      spr(33, 113, 0)
+      print(missile_count, 123, 1, white)
+   else
+      spr(um.sprite, 93, 0)
+      print(um[um.type] - #player.scan_counts[um.type], 103, 1, white)
    end
 
    if current_game_state != game_state_playing then
@@ -1267,13 +1282,13 @@ __gfx__
 49944444094444409944444400000000000000000079a0000009aa0000aaa00044999988999442200444498aaa89422022499988889944449339933993399339
 0099499409944490099949900000000000000000000000000000a0000000000044998888899944220444998a7a8944404449988a788994449399993333999939
 0009990000999990000999000000000000000000000000000000000000000000499988aaa8994444044499887a89444044499888a8899444999aa993399aa999
-1111111111111111111111110000000000000000000000000000000000000000499988a7a89944d0044499888889444044449998889944dd99aaaa9999aaaa99
-1011111111111101101111110000000000000000000000000000000000000000449998aa88994dd004449988889444400dd4449999444ddd9aa99aa99aa99aa9
-1111111111111011111111010000000000000000000000000000000000000000d44999888994dd0000d449888944dd000ddd44444dddddd09a9999aaaa9999a9
-0011101111001111101111110000000000000000000000000000000000000000ddd49999994dd00000dd4499944dd0000ddddddddddddd009993399aa9933999
-101111111011010111110011000000000000000000000000000000000000000000dd444494dd000000dddd444ddd0000000ddddd000000009933339999333399
-1111110100100111011001110000000000000000000000000000000000000000000dddd44dd00000000dddddddd0000000000000000000009339933993399339
-11000010101111011001111100000000000000000000000000000000000000000000000ddd000000000000000000000000000000000000009399993333999939
+0000000000000000000000000000000000000000000000000000000000000000499988a7a89944d0044499888889444044449998889944dd99aaaa9999aaaa99
+0000000000000000002222200000000000000000000000000000000000000000449998aa88994dd004449988889444400dd4449999444ddd9aa99aa99aa99aa9
+0022220000aaaa00022224400000000000000000000000000000000000000000d44999888994dd0000d449888944dd000ddd44444dddddd09a9999aaaa9999a9
+0024440000a97a00029889400000000000000000000000000000000000000000ddd49999994dd00000dd4499944dd0000ddddddddddddd009993399aa9933999
+0044490000a89a00049a9940000000000000000000000000000000000000000000dd444494dd000000dddd444ddd0000000ddddd000000009933339999333399
+0099990000aaaa00044444d00000000000000000000000000000000000000000000dddd44dd00000000dddddddd0000000000000000000009339933993399339
+00000000000000000dddddd000000000000000000000000000000000000000000000000ddd000000000000000000000000000000000000009399993333999939
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000999aa993399aa999
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000899aa998899aa998
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008899998888999988

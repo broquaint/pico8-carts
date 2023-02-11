@@ -350,7 +350,7 @@ function make_geyser(n)
          scan_time = 0,
          distance_from_pp = 128,
          data_scanned = false,
-         scan_length = 40,
+         scan_length = 24,
    })
 end
 
@@ -375,7 +375,7 @@ function make_rock(n)
          sprite = 15+randx(3),
          speed = min(3.3, speed + n / 6),
          last_collide = rnd(), -- make equality check easier
-         scan_length = 15,
+         scan_length = 12,
          sound = 4,
    })
 end
@@ -409,9 +409,9 @@ function make_lump(n)
          sprite = ({{sx=8*8,    sy=8, sw=16, sh=16},
                     {sx=8*8+16, sy=8, sw=16, sh=16},
                     {sx=8*8+32, sy=8, sw=16, sh=16}})[randx(3)] ,
-         speed = min(2.5, speed + n / 3),
+         speed = min(2, speed + n / 3),
          last_collide = rnd(), -- make equality check easier
-         scan_length = 25,
+         scan_length = 15,
          sound = 6
    })
 end
@@ -821,8 +821,8 @@ upgrade_map = {
    { rock    = 10, type = 'rock', sprite = 32 },
    { missile = 5,  type = 'missile', sprite = 33 },
    { missile = 10, rock = 40 },
-   { lump    = 5, type = 'lump', sprite = 34 },
-   { geyser  = 5, sprite = 35 }
+   { lump    = 5,  type = 'lump', sprite = 34 },
+   { geyser  = 10, type = 'geyser', sprite = 35 }
 }
 
 function maybe_upgrade()
@@ -851,6 +851,9 @@ function maybe_upgrade()
       player.health = 6
       player.upgrade_level += 1
       notification('upgrade, even more shields!')
+   elseif player.upgrade_level == 4 and #scan_counts.geyser >= um.geyser then
+--      notification('research complete!')
+      begin_winning()
    end
 
    sfx(was_ul == player.upgrade_level and 7 or 8)
@@ -918,14 +921,15 @@ function detect_proximity()
       local dist = nearest.distance_from_pp
       if dist >= 10 then
          nearest.scan_time += (dist < 15 and 3 or dist < 25 and 1.5 or 1)
-      else
+      elseif nearest.type != 'geyser' then
          -- Full scan at close proximity
          nearest.scan_time = nearest.scan_length
       end
-      local sl = max(3, nearest.scan_length - (depth_count \ 10))
+      local sl = max(4, nearest.scan_length - (depth_count \ 10))
       if not nearest.data_scanned and nearest.scan_time >= nearest.scan_length then
          notification('scanned ' .. rock_map_to_name[nearest.type])
          add(player.scanned, nearest)
+         -- debug('scanned ', nearest.type)
          add(player.scan_counts[nearest.type], nearest)
          -- Keep count of total so the UI remains static on game over screen.
          player.scanned_count += 1
@@ -976,7 +980,7 @@ function handle_player_collision()
    end
 end
 
-function animate_death_screen()
+function animate_summary_screen()
    animate(function ()
       while #player.scanned > 0 do
          local o = deli(player.scanned, 1)
@@ -995,6 +999,7 @@ function finish_winning()
    ocean_level.frames = 45
    animate_obj(ocean_level, function(obj)
                   animate_y_axis(ocean_level, easeoutquad, game_state_won)
+                  sfx(11)
    end)
    for r in all(reflections) do
       animate_obj(r, animate_reflection)
@@ -1003,7 +1008,7 @@ function finish_winning()
    -- To make stars animate again.
    depth_count = 0
 
-   animate_death_screen()
+   animate_summary_screen()
 
    summary_screen.y    = -100
    summary_screen.from = -100
@@ -1015,9 +1020,13 @@ function finish_winning()
 end
 
 function begin_winning()
-   current_game_state = game_state_win_transition
    music(-1, 60)
    animate(function()
+         current_game_state = game_state_win_transition
+
+         wait(30)
+         player.iframes = 30
+
          player.cb = finish_winning
          player.from   = player.y
          player.to     = -40
@@ -1098,7 +1107,7 @@ function update_game()
    if player.health == 0 then
       current_game_state = game_state_crashed
       player.sprite = 2
-      animate_death_screen()
+      animate_summary_screen()
       music(-1, 2000)
       delay(function() sfx(10) end, 45)
       if depth_count > dget(HIGH_SCORE_DEPTH) then
@@ -1663,6 +1672,7 @@ __sfx__
 4905000018514185201a5211a5201c5211c5201d5211f5201f5201f5201c5201c5201f5201f525245250050000500005000050000500005000050000500005000050000500005000050000500005000050000500
 490800000f714107111372120723217321f7211a711137130b7110471102715000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 1910000011524115201153413530115300c5440c5300c5300c5300c52005520055150050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500
+0110000018714187201a7211a7201c7211c7201d7211f7201f7201f7201c7201c7201f7201f7201c7201c7201c7201c7201d7211d7201d7201f7311f7301f730247312473024730247351f700187001870018700
 __music__
 00 00424344
 01 00014344

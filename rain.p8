@@ -10,6 +10,7 @@ function _init()
    frame_count = 1
    rain_particles = {}
    wind = 0
+   wind_force = 1
 end
 
 splash_map = {
@@ -17,7 +18,7 @@ splash_map = {
 }
 function animate_rain(obj)
    while obj.y < 125 do
-      local wind_speed = is_slow(obj) and rnd()*0.5 or rnd()
+      local wind_speed = is_slow(obj) and wind_force*0.5 or wind_force
       obj.x += wind > 0 and wind*wind_speed or 0
       obj.y += obj.speed
       yield()
@@ -38,7 +39,7 @@ function is_slow(p)
 end
 
 function rand_tile_x()
-   local x = -96+randx(224)
+   local x = -128+randx(256)
    x = x - (x % 3)
    function occupies_tile(p)
       return p.y < 1 and p.x == x
@@ -54,7 +55,7 @@ function _update60()
    run_animations()
 
    if frame_count % 20 == 0 then
-      for i = 1,30 do
+      for i = 1,40 do
          local rp = make_obj({
                x = rand_tile_x(),
                y = -randx(20),
@@ -69,7 +70,11 @@ function _update60()
       end
    end
 
-   if frame_count % 360 == 0 then
+   if frame_count % 30 == 0 then
+      wind_force = -1+randx(2) + rnd()
+   end
+
+   if frame_count % 300 == 0 then
       local dir = wind == 0 and 1 or 0
       animate(function()
             local frames = 100
@@ -104,7 +109,8 @@ function draw_rain(p)
    else
       local c = is_slow(p) and slate or dusk
       local l = 3 --is_slow(p) and 3 or 4
-      line(p.x, p.y, p.x-wind, p.y-l, c)
+      local x2 = wind > 0.2 and p.x-wind_force or p.x
+      line(p.x, p.y, x2, p.y-l, c)
       if not is_slow(p) then
          pset(p.x, p.y, dusk)
       end

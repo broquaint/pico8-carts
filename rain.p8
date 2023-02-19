@@ -88,12 +88,18 @@ function _update60()
       end
    end
 
-   if frame_count % 30 == 0 then
+   if frame_count % 90 == 0 then
       local n = rnd()
-      wind_force = n > 0.5 and n or 1+n
+      local new_force = n > 0.5 and n or 1+n
+      animate(function()
+            for i = 1,30 do
+               wind_force = (i/30)*new_force
+               yield()
+            end
+      end)
    end
 
-   if frame_count % 300 == 0 and randx(3) == 1 then
+   if frame_count % 300 == 0 and randx(4) == 1 then
       local dir = wind == 0 and 1 or 0
       animate(function()
             local frames = 100

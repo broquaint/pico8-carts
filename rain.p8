@@ -6,7 +6,7 @@ __lua__
 #include animation.lua
 
 function _init()
-   g_anims={}
+   g_anims = {}
    frame_count = 1
    rain_particles = {}
    wind = 0
@@ -20,7 +20,8 @@ function animate_rain(obj)
    while obj.y < 125 do
       local wind_speed = is_slow(obj) and wind_force*0.5 or wind_force
       obj.x += wind > 0 and wind*wind_speed or 0
-      obj.y += obj.speed
+      -- 0.8 is a lazy hack to slow all rain down.
+      obj.y += 0.8*obj.speed
       yield()
    end
 
@@ -45,7 +46,7 @@ function rand_tile_x()
       return p.y < 1 and p.x == x
    end
    while any(rain_particles, occupies_tile) do
-      x = -96+randx(224)
+      x = -128+randx(256)
       x = x - (x % 3)
    end
    return x
@@ -108,7 +109,7 @@ function draw_rain(p)
       end
    else
       local c = is_slow(p) and slate or dusk
-      local l = 3 --is_slow(p) and 3 or 4
+      local l = wind > 0.2 and 4 or 3
       local x2 = wind > 0.2 and p.x-wind_force or p.x
       line(p.x, p.y, x2, p.y-l, c)
       if not is_slow(p) then
@@ -121,7 +122,7 @@ function _draw()
    pal(black,midnight,1)
 
    cls(black)
-   line(1,127,127,127,storm)
+   line(1, 127, 127, 127, storm)
    for p in all(rain_particles) do
       if is_slow(p) then
          draw_rain(p)

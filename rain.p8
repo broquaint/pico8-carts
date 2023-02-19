@@ -56,7 +56,9 @@ function _update60()
    run_animations()
 
    if frame_count % 20 == 0 then
-      for i = 1,40 do
+      local rain_amount = min(40, frame_count / 40)
+      rain_amount = rain_amount == 40 and rain_amount * (0.5 + rnd()*0.5) or rain_amount
+      for i = 1,rain_amount do
          local rp = make_obj({
                x = rand_tile_x(),
                y = -randx(20),

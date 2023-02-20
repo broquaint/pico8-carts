@@ -10,10 +10,12 @@ function _init()
    frame_count = 1
    rain_particles = {}
    streaks = {}
+   lull = false
    title_colour = title_fade[1]
    wind = 0
    wind_force = 1
    wind_blowing = true
+   drop_tot = 60
 
    music(0,10000)
    menuitem(1, "♪ toggle sound", function()
@@ -68,8 +70,6 @@ title_fade = {
    midnight
 }
 
-drop_tot = 60
-
 function _update60()
    run_animations()
 
@@ -93,8 +93,24 @@ function _update60()
       end
    end
 
+   if frame_count % 600 == 0 and randx(12) == 1 and not lull then
+      local orig_tot = drop_tot
+      lull = true
+      animate(function()
+            for i = 1,300 do
+               drop_tot = max(15,orig_tot*((300-i))/300)
+               yield()
+            end
+            wait(540)
+            for i = 1,300 do
+               drop_tot = max(15, (i/300)*orig_tot)
+               yield()
+            end
+            lull = false
+      end)
+   end
+
    if frame_count % 20 == 0 then
-      -- TODO introduce lulls in the rain
       local rain_amount = min(drop_tot, frame_count / drop_tot)
       rain_amount = rain_amount == drop_tot and rain_amount * (0.5 + rnd()*0.5) or rain_amount
       for i = 1,rain_amount do
@@ -124,7 +140,7 @@ function _update60()
       end)
    end
 
-   if frame_count > 500 and frame_count % 300 == 0 then -- and randx(4) == 1 then
+   if frame_count > 660 and frame_count % 300 == 0 and randx(4) == 1 then
       local was_dir = wind
       local dir = wind == 0 and ({-1,1})[randx(2)] or 0
       animate(function()

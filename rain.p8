@@ -28,7 +28,7 @@ splash_map = {
    black, black, storm, slate, dusk, storm, black
 }
 function animate_rain(obj)
-   while obj.y < 125 do
+   while obj.y < 127 do
       local wind_speed  = is_slow(obj) and wind_force*0.5 or wind_force
       local wind_effect = wind != 0 and wind*wind_speed or 0
       obj.x += wind_blowing and wind_effect or 0
@@ -38,10 +38,9 @@ function animate_rain(obj)
    end
 
    obj.splashing = true
-   local do_splash = randx(3) == 1
    for i = 1,7 do
       obj.sprite = i
-      obj.splash = do_splash and splash_map[i] or -1
+      obj.splash = splash_map[i]
       wait(2+randx(2))
    end
    wait(1)
@@ -105,7 +104,8 @@ function _update60()
                speed = min(2, 0.75+rnd()+(1.2/i)),
                splashing = false,
                splash = -1,
-               sprite = 1
+               sprite = 1,
+               bright = randx(10) == 1
          })
          rp.wind_speed = is_slow(rp) and rnd()*0.5 or rnd()
          add(rain_particles, rp)
@@ -156,22 +156,22 @@ function draw_rain(p)
       spr(s, p.x, 120)
       if p.splash > 0 then
          if p.x % 2 == 0 then
-            pset(p.x+2, p.y - 1, p.splash)
-            pset(p.x+4, p.y - 1, p.splash)
+            pset(p.x+2, p.y - 2, p.splash)
+            pset(p.x+4, p.y - 2, p.splash)
          else
-            pset(p.x+3, p.y - 1, p.splash)
+            pset(p.x+3, p.y - 2, p.splash)
          end
       end
    else
-      local c = is_slow(p) and slate or dusk
-      local l = abs(wind) > 0.2 and 3 or 2
+      local c = is_slow(p) and slate or p.bright and silver or dusk
+      local l = (is_slow(p) and 0 or 1) + abs(wind) > 0.2 and 3 or 2
       local x2 = p.x
       if (wind_blowing and abs(wind) > 0.2) then
          x2 = wind > 0 and p.x - wind_force or p.x + wind_force
       end
       line(p.x, p.y, x2, p.y-l, c)
       if not is_slow(p) then
-         pset(p.x, p.y, dusk)
+         pset(p.x, p.y, silver)
       end
    end
 end
@@ -184,10 +184,10 @@ function _draw()
    if #title_fade > 0 then
       pal(moss, title_colour, 1)
       sspr(0, 32, 127, 32, 6, 32)
-   end
 
-   for _,s in pairs(streaks) do
-      line(s.x, s.y, s.x, 1, black)
+      for _,s in pairs(streaks) do
+         line(s.x, s.y, s.x, 1, black)
+      end
    end
 
    line(1, 127, 127, 127, storm)

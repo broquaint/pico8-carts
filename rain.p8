@@ -117,6 +117,11 @@ function _update60()
    end
 
    frame_count += 1
+   -- Protect against integer overflow.
+   if frame_count < 0 then
+      -- Reset to a point after the "build up" has passed.
+      frame_count = 1600
+   end
 end
 
 function draw_rain(p)

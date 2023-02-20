@@ -9,6 +9,7 @@ function _init()
    g_anims = {}
    frame_count = 1
    rain_particles = {}
+   streaks = {}
    title_colour = title_fade[1]
    wind = 0
    wind_force = 1
@@ -76,6 +77,20 @@ function _update60()
    if frame_count % 120 == 0 then
       if #title_fade > 0 then
          title_colour = deli(title_fade, 1)
+         for p in all(rain_particles) do
+            if p.x > 5 and p.x < 127 and p.y > 32 and p.y < 100
+               and not any(streaks, function(p2) return p2 == p end) then
+               add(streaks, p)
+            end
+         end
+      end
+   end
+
+   if #title_fade > 0 then
+      for p in all(rain_particles) do
+         if p.x > 5 and p.x < 127 and p.y > 32 and p.y < 100 and not(streaks[tostr(p.x)]) then
+            streaks[tostr(p.x)] = p
+         end
       end
    end
 
@@ -166,12 +181,17 @@ function _draw()
       sspr(0, 32, 127, 32, 6, 32)
    end
 
+   for _,s in pairs(streaks) do
+      line(s.x, s.y, s.x, 1, black)
+   end
+
    line(1, 127, 127, 127, storm)
    for p in all(rain_particles) do
       if is_slow(p) then
          draw_rain(p)
       end
    end
+
    for p in all(rain_particles) do
       if not is_slow(p) then
          draw_rain(p)

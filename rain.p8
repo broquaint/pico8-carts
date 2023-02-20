@@ -12,7 +12,15 @@ function _init()
    title_colour = title_fade[1]
    wind = 0
    wind_force = 1
+   wind_blowing = true
+
    music(0,10000)
+   menuitem(1, "♪ toggle sound", function()
+               music(stat(16) > -1 and -1 or 0)
+   end)
+   menuitem(2, "∧ toggle wind", function()
+               wind_blowing = not wind_blowing
+   end)
 end
 
 splash_map = {
@@ -20,8 +28,9 @@ splash_map = {
 }
 function animate_rain(obj)
    while obj.y < 125 do
-      local wind_speed = is_slow(obj) and wind_force*0.5 or wind_force
-      obj.x += wind > 0 and wind*wind_speed or 0
+      local wind_speed  = is_slow(obj) and wind_force*0.5 or wind_force
+      local wind_effect = wind > 0 and wind*wind_speed or 0
+      obj.x += wind_blowing and wind_effect or 0
       -- 0.8 is a lazy hack to slow all rain down.
       obj.y += 0.8*obj.speed
       yield()
@@ -139,7 +148,7 @@ function draw_rain(p)
    else
       local c = is_slow(p) and slate or dusk
       local l = wind > 0.2 and 4 or 3
-      local x2 = wind > 0.2 and p.x-wind_force or p.x
+      local x2 = (wind_blowing and wind > 0.2) and p.x-wind_force or p.x
       line(p.x, p.y, x2, p.y-l, c)
       if not is_slow(p) then
          pset(p.x, p.y, dusk)

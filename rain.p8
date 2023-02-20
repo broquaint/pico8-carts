@@ -30,7 +30,7 @@ splash_map = {
 function animate_rain(obj)
    while obj.y < 125 do
       local wind_speed  = is_slow(obj) and wind_force*0.5 or wind_force
-      local wind_effect = wind > 0 and wind*wind_speed or 0
+      local wind_effect = wind != 0 and wind*wind_speed or 0
       obj.x += wind_blowing and wind_effect or 0
       -- 0.8 is a lazy hack to slow all rain down.
       obj.y += 0.8*obj.speed
@@ -52,14 +52,12 @@ function is_slow(p)
 end
 
 function rand_tile_x()
-   local x = -128+randx(256)
-   x = x - (x % 3)
+   local x = -128+randx(384)
    function occupies_tile(p)
       return p.y < 1 and p.x == x
    end
    while any(rain_particles, occupies_tile) do
-      x = -128+randx(256)
-      x = x - (x % 3)
+      x = -128+randx(384)
    end
    return x
 end
@@ -70,6 +68,8 @@ title_fade = {
    storm,
    midnight
 }
+
+drop_tot = 60
 
 function _update60()
    run_animations()
@@ -95,8 +95,9 @@ function _update60()
    end
 
    if frame_count % 20 == 0 then
-      local rain_amount = min(40, frame_count / 40)
-      rain_amount = rain_amount == 40 and rain_amount * (0.5 + rnd()*0.5) or rain_amount
+      -- TODO introduce lulls in the rain
+      local rain_amount = min(drop_tot, frame_count / drop_tot)
+      rain_amount = rain_amount == drop_tot and rain_amount * (0.5 + rnd()*0.5) or rain_amount
       for i = 1,rain_amount do
          local rp = make_obj({
                x = rand_tile_x(),
@@ -112,23 +113,24 @@ function _update60()
       end
    end
 
-   if frame_count % 90 == 0 then
+   if frame_count % 120 == 0 then
       local n = rnd()
       local new_force = n > 0.5 and n or 1+n
       animate(function()
-            for i = 1,30 do
-               wind_force = (i/30)*new_force
+            for i = 1,60 do
+               wind_force = (i/60)*new_force
                yield()
             end
       end)
    end
 
-   if frame_count % 300 == 0 and randx(4) == 1 then
-      local dir = wind == 0 and 1 or 0
+   if frame_count > 500 and frame_count % 300 == 0 then -- and randx(4) == 1 then
+      local was_dir = wind
+      local dir = wind == 0 and ({-1,1})[randx(2)] or 0
       animate(function()
             local frames = 100
             for i = 1,frames do
-               wind = dir > 0 and (i/frames) or 1-(i/frames)
+               wind = abs(dir) > 0 and sgn(dir)*(i/frames) or sgn(was_dir)*(1-(i/frames))
                yield()
             end
       end)
@@ -162,8 +164,11 @@ function draw_rain(p)
       end
    else
       local c = is_slow(p) and slate or dusk
-      local l = wind > 0.2 and 4 or 3
-      local x2 = (wind_blowing and wind > 0.2) and p.x-wind_force or p.x
+      local l = abs(wind) > 0.2 and 3 or 2
+      local x2 = p.x
+      if (wind_blowing and abs(wind) > 0.2) then
+         x2 = wind > 0 and p.x - wind_force or p.x + wind_force
+      end
       line(p.x, p.y, x2, p.y-l, c)
       if not is_slow(p) then
          pset(p.x, p.y, dusk)

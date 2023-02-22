@@ -1,6 +1,8 @@
 pico-8 cartridge // http://www.pico-8.com
 version 39
 __lua__
+-- just rain
+-- by broquaint
 
 #include utils.lua
 #include animation.lua

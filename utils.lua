@@ -193,6 +193,7 @@ function spr_rotate(x,y,rot,mx,my,w,flip,scale)
   end
 end
 
-function nth_frame(n)
-   return frame_count % n == 0
+function nth_frame(n, of)
+   if(not of) of = frame_count
+   return of % n == 0
 end

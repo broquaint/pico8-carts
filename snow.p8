@@ -43,12 +43,14 @@ end
 wobble = {-1,0,0,1}
 function animate_snowflake(p)
    while p.y < 126 do
-      if p.y % 20.0 == 0.0 and randx(3) == 1 then
-            p.dir      = wobble[randx(4)]
-            p.flipping = 100
+      if not p.flipping and flr(p.y) % 20 == 0 and randx(3) == 1 then
+         p.dir      = wobble[randx(4)]
+         if p.dir != 0 then
+            p.flipping = 100+({20,40,60,80})[randx(4)]
             p.flipped  = 1
             p.from     = p.x
             p.to       = p.x + (p.dir*8)
+         end
       end
 
       local next_x = p.dir != 0 and lerp(p.from, p.to, easeoutquad(p.flipped/p.flipping)) or p.x
@@ -58,8 +60,9 @@ function animate_snowflake(p)
          break
       end
 
-      if not p.is_slow and p.flipping and p.dir != 0 then
-         if nth_frame(20, p.flipped) then
+      if not p.is_slow and p.flipping then
+         -- 5 sprite changes to go: 1,2,3,4,1
+         if nth_frame(p.flipping/5, p.flipped) then
             p.sprite = (p.sprite + p.dir) % 4
          end
          p.flipped += 1

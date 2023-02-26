@@ -30,33 +30,54 @@ function has_fallen(p)
    return false
 end
 
-wobble = {-1,0,1}
+wobble = {-1,0,0,1}
 function animate_snowflake(p)
    while p.y < 126 do
       if p.y % 20.0 == 0.0 and randx(3) == 1 then
-            p.dir = wobble[randx(3)]
-            p.flipping = 40
+            p.dir      = wobble[randx(4)]
+            p.flipping = 100
+            p.flipped  = 1
+            p.from     = p.x
+            p.to       = p.x + (p.dir*8)
       end
-      local next_x, next_y = p.x+(p.dir*0.1), p.y + 0.25
+
+      local next_x = p.dir != 0 and lerp(p.from, p.to, easeoutquad(p.flipped/p.flipping)) or p.x
+      local next_y = p.y + p.speed
+
       if has_fallen({x=next_x, y=next_y}) then
          break
       end
-      if p.flipping and p.dir != 0 then
-         if nth_frame(10, p.flipping) then
+
+      if not p.is_slow and p.flipping and p.dir != 0 then
+         if nth_frame(20, p.flipped) then
             p.sprite = (p.sprite + p.dir) % 4
          end
-         p.flipping -= 1
-         if(p.flipping == 0) p.flipping = false
+         p.flipped += 1
+         if p.flipped == p.flipping then
+            p.flipping = false
+            p.dir = 0
+         end
       end
+
       p.y = next_y
       p.x = next_x
       yield()
    end
-   add_snow_fall(p)
+   if not p.is_slow then
+      add_snow_fall(p)
+   end
 end
 
 function make_snowflake()
-   local p = make_obj({x = randx(127), y = -randx(32), dir = 1, sprite = 0, flipping=false})
+   local p = make_obj({
+         x = -32 + randx(200),
+         y = -randx(32),
+         speed = ({0.25,0.25,0.1})[randx(3)],
+         dir = 0,
+         sprite = 0,
+         flipping = false
+   })
+   p.is_slow = p.speed == 0.1
    add(snow_particles, p)
    animate_obj(p, animate_snowflake)
 end
@@ -69,7 +90,6 @@ function compact_snow()
       if y != '126' then
          local next_row = tostr(tonum(y)+1)
          new_fall[next_row] = row
-         debug('compacting ', y)
       end
    end
    snow_fall = new_fall
@@ -78,8 +98,8 @@ end
 function _update60()
    run_animations()
 
-   if nth_frame(90) then
-      for i = 1,10 do
+   if nth_frame(60) then
+      for i = 1,20 do
          add(snow_particles, make_snowflake())
       end
    end
@@ -109,8 +129,11 @@ function _draw()
 
    line(0, 127, 127, 127, moss)
    for p in all(snow_particles) do
-      spr(p.sprite, p.x, p.y)
-      --pset(p.x,p.y,white)
+      if p.is_slow then
+         pset(p.x, p.y, silver)
+      else
+         spr(p.sprite, p.x, p.y)
+      end
    end
 
    for i, col in pairs(snow_fall) do

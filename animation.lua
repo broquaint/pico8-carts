@@ -1,7 +1,7 @@
 function run_animations()
    for obj in all(g_anims) do
       if costatus(obj.co) != 'dead' then
-         coresume(obj.co)
+         assert(coresume(obj.co))
       else
          del(g_anims, obj)
       end

@@ -14,16 +14,16 @@ function _init()
 end
 
 function add_snow_fall(p)
-   local at_y = flr(p.y)
+   local at_y = tostr(flr(p.y))
    if not snow_fall[at_y] then
       snow_fall[at_y] = {}
    end
-   local at_x = flr(p.x)
-   snow_fall[at_y][at_x] = {at_x,at_y}
+   local at_x = tostr(flr(p.x))
+   snow_fall[at_y][at_x] = {at_x, at_y, p.sprite}
 end
 
 function has_fallen(p)
-   local at_x, at_y = flr(p.x), flr(p.y)
+   local at_x, at_y = tostr(flr(p.x)), tostr(flr(p.y))
    if snow_fall[at_y] and snow_fall[at_y][at_x] then
       return true
    end
@@ -61,12 +61,36 @@ function make_snowflake()
    animate_obj(p, animate_snowflake)
 end
 
+function compact_snow()
+   local new_fall = {}
+
+   for y, row in pairs(snow_fall) do
+      -- Not 127 because the "stops" at 126
+      if y != '126' then
+         local next_row = tostr(tonum(y)+1)
+         new_fall[next_row] = row
+         debug('compacting ', y)
+      end
+   end
+   snow_fall = new_fall
+end
+
 function _update60()
    run_animations()
 
    if nth_frame(90) then
       for i = 1,10 do
          add(snow_particles, make_snowflake())
+      end
+   end
+
+   if nth_frame(1800) then
+      compact_snow()
+   end
+
+   for idx, p in pairs(snow_particles) do
+      if not p.animating then
+         deli(snow_particles, idx)
       end
    end
 
@@ -86,6 +110,15 @@ function _draw()
    line(0, 127, 127, 127, moss)
    for p in all(snow_particles) do
       spr(p.sprite, p.x, p.y)
+      --pset(p.x,p.y,white)
+   end
+
+   for i, col in pairs(snow_fall) do
+      for j, row in pairs(col) do
+         --spr(row[3], row[1], tonum(i))
+         line(row[1]-1,i+1,row[1]+1,i+1,white)
+      end
+   end
    end
 end
 

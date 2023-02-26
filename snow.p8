@@ -30,6 +30,16 @@ function has_fallen(p)
    return false
 end
 
+function count_snow_fall()
+   local c = 0
+   for i, row in pairs(snow_fall) do
+      for j, col in pairs(row) do
+         c += 1
+      end
+   end
+   return c
+end
+
 wobble = {-1,0,0,1}
 function animate_snowflake(p)
    while p.y < 126 do
@@ -88,6 +98,16 @@ function make_snowflake()
 end
 
 function compact_snow()
+   -- Only check twice a frame.
+   if not nth_frame(30) then
+      return
+   end
+
+   -- Only compact snow if there's a certain amount.
+   if count_snow_fall() < 1200 then
+      return
+   end
+
    local new_fall = {}
 
    for y, row in pairs(snow_fall) do
@@ -109,9 +129,7 @@ function _update60()
       end
    end
 
-   if nth_frame(1800) then
-      compact_snow()
-   end
+   compact_snow()
 
    for idx, p in pairs(snow_particles) do
       if not p.animating then

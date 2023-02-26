@@ -68,16 +68,21 @@ function animate_snowflake(p)
    end
 end
 
+snow_speeds = {
+   0.27, 0.26, 0.25, 0.24, 0.23, 0.22, 0.21, 0.2,
+   0.15, 0.14, 0.13, 0.12, 0.11
+}
+
 function make_snowflake()
    local p = make_obj({
          x = -32 + randx(200),
          y = -randx(32),
-         speed = ({0.25,0.25,0.1})[randx(3)],
+         speed = snow_speeds[randx(#snow_speeds)],
          dir = 0,
          sprite = 0,
          flipping = false
    })
-   p.is_slow = p.speed == 0.1
+   p.is_slow = p.speed <= 0.15
    add(snow_particles, p)
    animate_obj(p, animate_snowflake)
 end

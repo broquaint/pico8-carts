@@ -49,3 +49,21 @@ end
 function lerp(a,b,t)
    return a+(b-a)*t
 end
+
+function easeinoutquad(t)
+  if(t<.5) then
+    return t*t*2
+  else
+    t-=1
+    return 1-t*t*2
+  end
+end
+function easeoutinquad(t)
+  if t<.5 then
+    t-=.5
+    return .5-t*t*2
+  else
+    t-=.5
+    return .5+t*t*2
+  end
+end

@@ -19,7 +19,7 @@ function add_snow_fall(p)
       snow_fall[at_y] = {}
    end
    local at_x = tostr(flr(p.x))
-   snow_fall[at_y][at_x] = {at_x, at_y, p.sprite}
+   snow_fall[at_y][at_x] = {at_x, at_y, rnd({1,2,2,3,3,3}), 1}
 end
 
 function has_fallen(p)
@@ -121,6 +121,8 @@ function make_snowflake()
    animate_obj(p, animate_snowflake)
 end
 
+snow_decay = {white,white,silver,silver,silver,dusk}
+
 function compact_snow()
    -- Only check twice a frame.
    if not nth_frame(30) then
@@ -128,7 +130,7 @@ function compact_snow()
    end
 
    -- Only compact snow if there's a certain amount.
-   if count_snow_fall() < 1200 then
+   if count_snow_fall() < 1024 then
       return
    end
 
@@ -137,7 +139,14 @@ function compact_snow()
    for y, row in pairs(snow_fall) do
       -- Not 127 because the "stops" at 126
       if y != '126' then
-         local next_row = tostr(tonum(y)+1)
+         local next_row = tostr(y+1)
+         if nth_frame(60) then
+            for idx,p in pairs(row) do
+               if p[4] > 1 or (not snow_fall[tostr(y-1)] or not snow_fall[tostr(y-1)][idx]) then
+                  p[4] = (p[4] < #snow_decay) and p[4]+1 or #snow_decay
+               end
+            end
+         end
          new_fall[next_row] = row
       end
    end
@@ -185,8 +194,9 @@ function _draw()
 
    for i, col in pairs(snow_fall) do
       for j, row in pairs(col) do
-         --spr(row[3], row[1], tonum(i))
-         line(row[1]-1,i+1,row[1]+1,i+1,white)
+         local x, y, len = row[1], i+1, row[3]
+         local x0 = x - (len > 1 and (len > 2 and 1 or (y % 2)) or 0)
+         line(x0, y, x0+len, y, snow_decay[row[4]])
       end
    end
    end

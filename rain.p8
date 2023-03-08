@@ -134,9 +134,10 @@ function _update60()
    if frame_count % 120 == 0 then
       local n = rnd()
       local new_force = n > 0.5 and n or 1+n
+      local delta = -(wind_force - new_force)
       animate(function()
             for i = 1,60 do
-               wind_force = (i/60)*new_force
+               wind_force = wind_force + (delta / 60)
                yield()
             end
       end)

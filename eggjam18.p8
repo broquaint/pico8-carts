@@ -30,7 +30,6 @@ function _update60()
       if sx < 3 then
          player.speed_x += sx
       end
-      player.x += player.speed_x
    end
    if btn(b_left) then
       player.move_dir = -1
@@ -38,8 +37,9 @@ function _update60()
       if sx < 3 then
          player.speed_x += sx
       end
-      player.x += player.speed_x
    end
+   player.speed_x *= 0.991
+   player.x += player.speed_x
 end
 
 function _draw()
@@ -48,7 +48,7 @@ function _draw()
    rectfill(0, 32, 127, 127, orange)
    spr(player.sprite, player.x, player.y)
    rectfill(0, 0, 127, 10)
-   print(dumper(player.speed_x, ' @ ', player.x), 1, 1, white)
+   print(dumper(player.speed_x, ' @ ', player.x), 1, 1, slate)
 end
 
 __gfx__

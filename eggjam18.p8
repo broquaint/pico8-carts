@@ -17,6 +17,7 @@ function _init()
          x = 0,
          y = 0,
    })
+
    player = make_obj({
          x = 12,
          y = 26,
@@ -25,6 +26,16 @@ function _init()
          speed_x = 0,
          move_dir = 0,
    })
+
+   level = {}
+   for i = 1,128 do
+      add(level, make_obj({
+                x = 16 * i,
+                y = 121,
+                height = randx(5),
+                collected = false
+      }))
+   end
 end
 
 function _update60()
@@ -50,17 +61,20 @@ end
 
 function _draw()
    cls(black)
+
    camera(cam.x, cam.y)
    rectfill(cam.x, cam.y,  cam.x+127, cam.y+31, pink)
    rectfill(cam.x, cam.y+32, cam.x+127, cam.y+127, orange)
    spr(player.sprite, player.x, player.y)
+
    rectfill(cam.x, cam.y, cam.x+127, cam.y+7, white)
    print(dumper(player.speed_x, ' @ ', player.x), cam.x+1, cam.y+1, slate)
+
    pal(ember, tea, 1)
-   for i = 0,20 do
-      spr(16, 8*i, 121)
-      spr(16, 8*i, 113)
-      spr(16, 8*i, 105)
+   for sw in all(level) do
+      for i = 1,sw.height do
+         spr(16, sw.x, 127-(8*i))
+      end
    end
 end
 

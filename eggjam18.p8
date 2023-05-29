@@ -23,8 +23,11 @@ function _init()
          y = 26,
          frames = 1,
          sprite = 0,
-         speed_x = 0,
          move_dir = 0,
+         speed_x = 0,
+         speed_y = 0,
+         jumping = false,
+         bounces = 0,
    })
 
    level = {}
@@ -38,7 +41,10 @@ function _init()
    end
 end
 
+water_grav = 12 * 1/40
+air_grav   = 8  * 1/30
 function _update60()
+   frame_count += 1
    if btn(b_right) then
       player.move_dir = 1
       local sx = player.move_dir * 0.01
@@ -54,9 +60,34 @@ function _update60()
       end
    end
    player.speed_x *= 0.991
+   if btn(b_x) and not player.jumping then
+      player.speed_y = -3
+      player.jumping = true
+      player.bounces = 1
+      player.prev_grav = air_grav
+   end
+   if player.jumping then
+      if player.y > 26 then
+         player.speed_y -= water_grav
+         player.prev_grav = water_grav
+      else
+         if player.prev_grav == water_grav then
+            player.bounces += 3
+         end
+         player.speed_y += air_grav
+         player.prev_grav = air_grav
+      end
+      if player.bounces >= 16 then
+         player.jumping = false
+         player.y = 26
+         player.speed_y = 0
+         player.bounces = 0
+      end
+   end
 
    cam.x    += player.speed_x
    player.x += player.speed_x
+   player.y += (1/player.bounces*player.speed_y)
 end
 
 function _draw()
@@ -68,7 +99,7 @@ function _draw()
    spr(player.sprite, player.x, player.y)
 
    rectfill(cam.x, cam.y, cam.x+127, cam.y+7, white)
-   print(dumper(player.speed_x, ' @ ', player.x), cam.x+1, cam.y+1, slate)
+   print(dumper(player.speed_x, ' @ ', player.x, ' ^ ', player.speed_y, ' y ', player.y, ' b ', player.bounces), cam.x+1, cam.y+1, slate)
 
    pal(ember, tea, 1)
    for sw in all(level) do

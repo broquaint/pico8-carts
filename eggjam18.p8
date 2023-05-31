@@ -11,6 +11,7 @@ game_state_won     = 'won'
 -- Default state so title screen works
 g_anims = {}
 frame_count = 0
+WATER_LINE = 32
 
 function _init()
    cam = make_obj({
@@ -19,8 +20,8 @@ function _init()
    })
 
    player = make_obj({
-         x = 12,
-         y = 26,
+         x = 32,
+         y = WATER_LINE-7,
          frames = 1,
          sprite = 0,
          move_dir = 0,
@@ -46,7 +47,7 @@ end
 function animate_splash()
    local s = make_obj({
          x = player.x,
-         y = 26,
+         y = WATER_LINE-7,
    })
    animate_obj(s, function(obj)
                   wait(30)
@@ -84,8 +85,10 @@ function _update60()
       player.bounces = 1
       player.prev_grav = air_grav
    end
+   -- Because we need to calculate from the base of the sprite
+   local wl = WATER_LINE-7
    if player.jumping then
-      if player.y > 26 then
+      if player.y > wl then
          if player.prev_grav == air_grav then
             animate_splash()
          end
@@ -100,7 +103,7 @@ function _update60()
       end
       if player.bounces >= 16 then
          player.jumping = false
-         player.y = 26
+         player.y = wl
          player.speed_y = 0
          player.bounces = 0
       end
@@ -117,6 +120,7 @@ function _draw()
    camera(cam.x, cam.y)
    rectfill(cam.x, cam.y,  cam.x+127, cam.y+31, pink)
    rectfill(cam.x, cam.y+32, cam.x+127, cam.y+127, orange)
+   line(cam.x, WATER_LINE, cam.x+127, WATER_LINE, white)
    spr(player.sprite, player.x, player.y)
 
    rectfill(cam.x, cam.y, cam.x+127, cam.y+7, white)

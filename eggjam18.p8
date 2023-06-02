@@ -29,6 +29,7 @@ function _init()
          speed_y = 0,
          jumping = false,
          bounces = 0,
+         collected = {},
    })
    net = make_obj({
          x = 16,
@@ -44,7 +45,7 @@ function _init()
       add(level, make_obj({
                 x = 16 * i,
                 y = 121,
-                height = randx(5),
+                height = i % 2 == 0 and randx(5) or 3,
                 collected = false
       }))
    end
@@ -90,6 +91,21 @@ function calc_player_speed()
    end
 end
 
+function gather_seaweed()
+   local nx1 = net.x
+   local nx2 = nx1+8
+   for sw in all(level) do
+      if sw.x >= nx1 and sw.x <= nx2 then
+         local swtop = 127 - (8*sw.height)
+         if net.y > swtop then
+            add(player.collected, copy_table(sw))
+            sw.height = 0
+            break
+         end
+      end
+   end
+end
+
 water_grav = 12 * 1/40
 air_grav   = 8  * 1/30
 function _update60()
@@ -128,15 +144,15 @@ function _update60()
       if sx < 4 then
          net.speed_y += sx
       end
-   end
-   if btn(b_down) then
+   elseif btn(b_down) then
       net.move_dir = 1
       local sx = net.move_dir * 0.025
       if sx < 4 then
          net.speed_y += sx
       end
+   else
+      net.speed_y *= 0.95
    end
-
 
    cam.x    += player.speed_x
    player.x += player.speed_x
@@ -149,6 +165,8 @@ function _update60()
    else
       net.speed_y = 0
    end
+
+   gather_seaweed()
 end
 
 function _draw()
@@ -160,7 +178,10 @@ function _draw()
    line(cam.x, WATER_LINE, cam.x+127, WATER_LINE, white)
 
    rectfill(cam.x, cam.y, cam.x+127, cam.y+7, white)
-   print(dumper(player.speed_x, ' @ ', player.x, ' ^ ', player.speed_y, ' y ', player.y, ' b ', player.bounces), cam.x+1, cam.y+1, slate)
+
+   -- print(dumper(player.speed_x, ' @ ', player.x, ' ^ ', net.speed_y, ' y ', net.y, ' b ', player.bounces), cam.x+1, cam.y+1, slate)
+   spr(16, cam.x+2, 0)
+   print(#player.collected, cam.x+9, 1, slate)
 
    pal(ember, tea, 1)
    for sw in all(level) do

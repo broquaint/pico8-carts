@@ -29,7 +29,7 @@ function _init()
          speed_y = 0,
          jumping = false,
          bounces = 0,
-         collected = {},
+         points = 0,
    })
    net = make_obj({
          x = 16,
@@ -93,13 +93,15 @@ end
 
 function gather_seaweed()
    local nx1 = net.x
-   local nx2 = nx1+8
+   local nx2 = nx1+6
+   local ny2 = net.y+7
    for sw in all(level) do
       if sw.x >= nx1 and sw.x <= nx2 then
          local swtop = 127 - (8*sw.height)
-         if net.y > swtop then
-            add(player.collected, copy_table(sw))
-            sw.height = 0
+         if ny2 > swtop then
+            local newh = max(0,(flr((127-ny2)/8)))
+            player.points += sw.height - (sw.height - newh)
+            sw.height = newh
             break
          end
       end
@@ -181,7 +183,7 @@ function _draw()
 
    -- print(dumper(player.speed_x, ' @ ', player.x, ' ^ ', net.speed_y, ' y ', net.y, ' b ', player.bounces), cam.x+1, cam.y+1, slate)
    spr(16, cam.x+2, 0)
-   print(#player.collected, cam.x+9, 1, slate)
+   print(player.points, cam.x+9, 1, slate)
 
    pal(ember, tea, 1)
    for sw in all(level) do

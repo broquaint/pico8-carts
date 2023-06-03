@@ -38,6 +38,8 @@ function _init()
          move_dir = 0,
          speed_x = 0,
          speed_y = 0,
+         pos = 5,
+         cooling_down = false,
    })
 
    level = {}
@@ -137,20 +139,33 @@ function _update60()
 
    calc_player_jump()
 
-   if btn(b_up) then
-      net.move_dir = -1
-      local sx = net.move_dir * 0.03
-      if sx < 4 then
-         net.speed_y += sx
+   -- net movement
+   if not net.cooling_down then
+      if btn(b_up) then
+         if net.pos < 7 then
+            net.pos += 1
+            net.cooling_down = true
+            delay(function() net.cooling_down = false end, 10)
+            animate(function()
+                  for _ = 1,8 do
+                     net.y -= 1
+                     yield()
+                  end
+            end)
+         end
+      elseif btn(b_down) then
+         if net.pos > 2 then
+            net.pos -= 1
+            net.cooling_down = true
+            delay(function() net.cooling_down = false end, 10)
+            animate(function()
+                  for _ = 1,8 do
+                     net.y += 1
+                     yield()
+                  end
+            end)
+         end
       end
-   elseif btn(b_down) then
-      net.move_dir = 1
-      local sx = net.move_dir * 0.04
-      if sx < 4 then
-         net.speed_y += sx
-      end
-   else
-      net.speed_y *= 0.95
    end
 
    cam.x    += player.speed_x
@@ -158,12 +173,6 @@ function _update60()
    player.y += (1/player.bounces*player.speed_y)
 
    net.x    += player.speed_x
-   local ny = net.y + net.speed_y
-   if ny > (WATER_LINE+32) and (ny+8) < 127 then
-      net.y    += net.speed_y
-   else
-      net.speed_y = 0
-   end
 
    gather_seaweed()
 end

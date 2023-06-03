@@ -14,6 +14,13 @@ g_anims = {}
 frame_count = 0
 WATER_LINE = 32
 
+WATER_GRAV  = 12 * 1/40
+AIR_GRAV    = 8  * 1/30
+MAX_SPEED_X = 2.5
+MIN_SPEED_X = 0.25
+ACCEL_X     = 0.02
+DECEL_X     = 0.04
+
 function _init()
    cam = make_obj({
          x = 0,
@@ -25,7 +32,7 @@ function _init()
          y = WATER_LINE-7,
          sprite = 0,
          move_dir = 0,
-         speed_x = 0,
+         speed_x = MIN_SPEED_X,
          speed_y = 0,
          jumping = false,
          bounces = 0,
@@ -72,17 +79,17 @@ function calc_player_jump()
    local wl = WATER_LINE-7
    if player.jumping then
       if player.y > wl then
-         if player.prev_grav == air_grav then
+         if player.prev_grav == AIR_GRAV then
             animate_splash()
          end
-         player.speed_y -= water_grav
-         player.prev_grav = water_grav
+         player.speed_y -= WATER_GRAV
+         player.prev_grav = WATER_GRAV
       else
-         if player.prev_grav == water_grav then
+         if player.prev_grav == WATER_GRAV then
             player.bounces += 3
          end
-         player.speed_y += air_grav
-         player.prev_grav = air_grav
+         player.speed_y += AIR_GRAV
+         player.prev_grav = AIR_GRAV
       end
       if player.bounces >= 16 then
          player.jumping = false
@@ -115,26 +122,26 @@ function gather_seaweed()
    end
 end
 
-water_grav = 12 * 1/40
-air_grav   = 8  * 1/30
 function _update60()
    frame_count += 1
    run_animations()
 
    -- player horizontal movement
-   player.move_dir = 1
-   local sx = player.move_dir * 0.01
-   if sx < 5 then
-      player.speed_x += sx
+   if btn(b_right) then
+      local ps = player.speed_x
+      player.speed_x = ps + ACCEL_X <= MAX_SPEED_X and ps + ACCEL_X or ps
    end
-   player.speed_x *= 0.991
+   if btn(b_left) then
+      local ps = player.speed_x
+      player.speed_x = ps - DECEL_X >= MIN_SPEED_X and ps - DECEL_X or ps
+   end
 
    -- jump/water physics
    if btn(b_x) and not player.jumping then
       player.speed_y = -3
       player.jumping = true
       player.bounces = 1
-      player.prev_grav = air_grav
+      player.prev_grav = AIR_GRAV
    end
 
    calc_player_jump()
@@ -142,7 +149,7 @@ function _update60()
    -- net movement
    if not net.cooling_down then
       if btn(b_up) then
-         if net.pos < 7 then
+         if net.pos < 9 then
             net.pos += 1
             net.cooling_down = true
             delay(function() net.cooling_down = false end, 10)
@@ -189,7 +196,7 @@ function _draw()
 
    -- print(dumper(player.speed_x, ' @ ', player.x, ' ^ ', net.speed_y, ' y ', net.y, ' b ', player.bounces), cam.x+1, cam.y+1, slate)
    spr(16, cam.x+2, 0)
-   print(player.points, cam.x+9, 1, slate)
+   print(dumper(player.points, ' > ', player.speed_x), cam.x+9, 1, slate)
 
    pal(ember, tea, 1)
    for sw in all(level) do

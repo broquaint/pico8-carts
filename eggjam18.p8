@@ -12,8 +12,8 @@ game_state_won     = 'won'
 -- Default state so title screen works
 g_anims = {}
 frame_count = 0
-WATER_LINE = 32
 
+WATER_LINE  = 32
 WATER_GRAV  = 12 * 1/40
 AIR_GRAV    = 8  * 1/30
 MAX_SPEED_X = 2.5
@@ -32,7 +32,7 @@ function _init()
          y = WATER_LINE-7,
          sprite = 0,
          move_dir = 0,
-         speed_x = MIN_SPEED_X,
+         speed_x = 0.5,
          speed_y = 0,
          jumping = false,
          bounces = 0,

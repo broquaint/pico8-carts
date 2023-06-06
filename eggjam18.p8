@@ -143,7 +143,7 @@ end
 
 function gather_seaweed()
    local nx1 = net.x
-   local nx2 = nx1+6
+   local nx2 = nx1+4
    local ny2 = net.y+7
    for sw in all(level) do
       if sw.x >= nx1 and sw.x <= nx2 then

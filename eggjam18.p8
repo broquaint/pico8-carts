@@ -48,6 +48,27 @@ function _init()
          pos = 5,
          cooling_down = false,
    })
+   local horizon = 14
+   local azimuth = 8
+   sun = make_obj({
+         x = 0,
+         y = horizon,
+         minute = 0,
+   })
+   animate_obj(sun, function(obj)
+                  while sun.minute < (60*12) do
+                     if nth_frame(10) then
+                        sun.minute += 1
+                        sun.x      += 1
+                        if sun.x < 64 then
+                           sun.y = lerp(horizon, azimuth, sun.x/64)
+                        else
+                           sun.y = lerp(azimuth, horizon, sun.x/127)
+                        end
+                     end
+                     yield()
+                  end
+   end)
 
    local lvl = {
       0,0,0,0, --0,0,0,0,0,
@@ -213,8 +234,7 @@ function _draw()
    rectfill(cam.x, cam.y+32, cam.x+127, cam.y+127, orange)
    line(cam.x, WATER_LINE, cam.x+127, WATER_LINE, white)
 
-   pal(sky, olive, 0)
-   line(cam.x, 127, cam.x+127, 127, sky)
+   circfill(sun.x+cam.x, sun.y, 3, white)
 
    rectfill(cam.x, cam.y, cam.x+127, cam.y+7, white)
 

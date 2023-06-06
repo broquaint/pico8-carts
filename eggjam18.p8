@@ -48,7 +48,8 @@ function _init()
          pos = 5,
          cooling_down = false,
    })
-   local horizon = 14
+
+   local horizon = 32
    local azimuth = 8
    sun = make_obj({
          x = 0,
@@ -57,13 +58,13 @@ function _init()
    })
    animate_obj(sun, function(obj)
                   while sun.minute < (60*12) do
-                     if nth_frame(10) then
-                        sun.minute += 1
+                     if nth_frame(30) then
+                        sun.minute += (60*12)/128
                         sun.x      += 1
                         if sun.x < 64 then
                            sun.y = lerp(horizon, azimuth, sun.x/64)
                         else
-                           sun.y = lerp(azimuth, horizon, sun.x/127)
+                           sun.y = lerp(azimuth, horizon, (sun.x-64)/64)
                         end
                      end
                      yield()
@@ -230,11 +231,11 @@ function _draw()
    cls(black)
 
    camera(cam.x, cam.y)
+
    rectfill(cam.x, cam.y,  cam.x+127, cam.y+31, pink)
+   circfill(sun.x+cam.x, sun.y, 3, white)
    rectfill(cam.x, cam.y+32, cam.x+127, cam.y+127, orange)
    line(cam.x, WATER_LINE, cam.x+127, WATER_LINE, peach)
-
-   circfill(sun.x+cam.x, sun.y, 3, white)
 
    pal(ember, olive, 0)
    line(cam.x, 127, cam.x+127, 127, ember)
@@ -242,7 +243,10 @@ function _draw()
    rectfill(cam.x, cam.y, cam.x+127, cam.y+6, white)
 
    -- print(dumper(player.speed_x, ' @ ', player.x, ' ^ ', net.speed_y, ' y ', net.y, ' b ', player.bounces), cam.x+1, cam.y+1, slate)
-   print(dumper('★ ', player.points, ' > ', player.speed_x), cam.x+1, 1, slate)
+   local mins = flr(sun.minute % 60)
+   local hour = flr(6 + (sun.minute/60))
+   local time = (hour < 10 and '0'..hour or hour)..':'..(mins < 10 and '0'..mins or mins)
+   print(dumper('★ ', player.points, ' > ', player.speed_x, ' ⧗', time), cam.x+1, 1, slate)
 
    pal(storm, sea, 1)
    for sw in all(level) do

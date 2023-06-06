@@ -232,15 +232,17 @@ function _draw()
    camera(cam.x, cam.y)
    rectfill(cam.x, cam.y,  cam.x+127, cam.y+31, pink)
    rectfill(cam.x, cam.y+32, cam.x+127, cam.y+127, orange)
-   line(cam.x, WATER_LINE, cam.x+127, WATER_LINE, white)
+   line(cam.x, WATER_LINE, cam.x+127, WATER_LINE, peach)
 
    circfill(sun.x+cam.x, sun.y, 3, white)
 
-   rectfill(cam.x, cam.y, cam.x+127, cam.y+7, white)
+   pal(ember, olive, 0)
+   line(cam.x, 127, cam.x+127, 127, ember)
+
+   rectfill(cam.x, cam.y, cam.x+127, cam.y+6, white)
 
    -- print(dumper(player.speed_x, ' @ ', player.x, ' ^ ', net.speed_y, ' y ', net.y, ' b ', player.bounces), cam.x+1, cam.y+1, slate)
-   spr(16, cam.x+2, 0)
-   print(dumper(player.points, ' > ', player.speed_x), cam.x+9, 1, slate)
+   print(dumper('★ ', player.points, ' > ', player.speed_x), cam.x+1, 1, slate)
 
    pal(storm, sea, 1)
    for sw in all(level) do

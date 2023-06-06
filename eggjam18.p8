@@ -21,6 +21,15 @@ MIN_SPEED_X = 0.25
 ACCEL_X     = 0.02
 DECEL_X     = 0.04
 
+-- Default state
+SEAWEED__FRESH = 'fresh'
+-- Top portion picked, ideal height, will regrow
+SEAWEED_PICKED = 'picked'
+-- Too low, regrows but not pickable
+SEAWEED_PRUNED = 'pruned'
+-- The root was pulled, seaweed is gone
+SEAWEED_ROUTED = 'routed'
+
 function _init()
    cam = make_obj({
          x = 0,
@@ -102,10 +111,9 @@ function _init()
       add(sprites, 16)
       add(level, make_obj({
                 x = 16 * i,
-                -- y = 121,
                 height = h,
                 sprites = sprites,
-                collected = false
+                status = SEAWEED__FRESH,
       }))
    end
 
@@ -162,6 +170,13 @@ function gather_seaweed()
             --sfx(sw.height-1)
             player.points += sw.height - delta
             sw.height = newh
+            if delta == 1 then
+               sw.status = SEAWEED_PICKED
+            elseif newh == 0 then
+               sw.status = SEAWEED_ROUTED
+            else
+               sw.status = SEAWEED_PRUNED
+            end
             -- Slow down the player if too much seaweed is cut down
             -- if delta > 1 then
             --    player.speed_x *= (1 - (0.15 * delta))

@@ -17,9 +17,8 @@ WATER_LINE  = 32
 WATER_GRAV  = 12 * 1/40
 AIR_GRAV    = 8  * 1/30
 MAX_SPEED_X = 2.5
-MIN_SPEED_X = 0.25
-ACCEL_X     = 0.02
-DECEL_X     = 0.04
+MIN_SPEED_X = 0.5
+ACCEL_X     = 0.5
 
 -- Default state
 SEAWEED__FRESH = 'fresh'
@@ -46,6 +45,7 @@ function _init()
          jumping = false,
          bounces = 0,
          points = 0,
+         accelerating = false,
    })
    net = make_obj({
          x = 16,
@@ -192,13 +192,35 @@ function _update60()
    run_animations()
 
    -- player horizontal movement
-   if btn(b_right) then
+   if btnp(b_right) then
       local ps = player.speed_x
-      player.speed_x = ps + ACCEL_X <= MAX_SPEED_X and ps + ACCEL_X or ps
+      if not(ps + ACCEL_X > MAX_SPEED_X) and not player.accelerating then
+         player.accelerating = true
+         animate(function()
+               local target = ps + ACCEL_X
+               while player.speed_x < target do
+                  player.speed_x += 0.03
+                  yield()
+               end
+               player.speed_x = target
+               player.accelerating = false
+         end)
+      end
    end
-   if btn(b_left) then
+   if btnp(b_left) then
       local ps = player.speed_x
-      player.speed_x = ps - DECEL_X >= MIN_SPEED_X and ps - DECEL_X or ps
+      if not(ps - ACCEL_X < MIN_SPEED_X) and not player.accelerating then
+         player.accelerating = true
+         animate(function()
+               local target = ps - ACCEL_X
+               while player.speed_x > target do
+                  player.speed_x -= 0.05
+                  yield()
+               end
+               player.speed_x = target
+               player.accelerating = false
+         end)
+      end
    end
 
    -- jump/water physics
@@ -255,6 +277,8 @@ function _draw()
    camera(cam.x, cam.y)
 
    rectfill(cam.x, cam.y,  cam.x+127, cam.y+31, pink)
+   pal(ember, coral, 0)
+   circfill(sun.x+cam.x, sun.y, 4, ember)
    circfill(sun.x+cam.x, sun.y, 3, white)
    rectfill(cam.x, cam.y+32, cam.x+127, cam.y+127, orange)
    line(cam.x, WATER_LINE, cam.x+127, WATER_LINE, peach)
@@ -265,10 +289,16 @@ function _draw()
    rectfill(cam.x, cam.y, cam.x+127, cam.y+6, white)
 
    -- print(dumper(player.speed_x, ' @ ', player.x, ' ^ ', net.speed_y, ' y ', net.y, ' b ', player.bounces), cam.x+1, cam.y+1, slate)
+   pal(ember, coral, 0)
+   for i = 1,(player.speed_x/ACCEL_X) do
+      print('>', cam.x+24+(i*3), 1, orange)
+      print('>', cam.x+25+(i*3), 1, coral)
+   end
+
    local mins = flr(sun.minute % 60)
    local hour = flr(6 + (sun.minute/60))
    local time = (hour < 10 and '0'..hour or hour)..':'..(mins < 10 and '0'..mins or mins)
-   print(dumper('★ ', player.points, ' > ', player.speed_x, ' ⧗', time), cam.x+1, 1, slate)
+   print(dumper('★ ', player.points, '      ⧗', time), cam.x+1, 1, slate)
 
    pal(storm, sea, 1)
    for sw in all(level) do

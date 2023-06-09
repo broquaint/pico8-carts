@@ -109,49 +109,71 @@ function init_day()
       0,0,0
    }
 
+   function make_sw_sprite(sw_x,s)
+      return {x=sw_x,sprite=s}
+   end
    if #lakebed > 0 then
       debug('regrowing lakebed e.g ',lakebed[1])
       for sw in all(lakebed) do
          -- Unpicked seaweed grows
          if sw.status == SEAWEED__FRESH then
-            sw.sprites[#sw.sprites] = rnd({17,18,19})
+            sw.sprites[#sw.sprites] = make_sw_sprite(sw.x, rnd({17,18,19}))
             sw.height = min(7, sw.height+1)
-            add(sw.sprites, 16)
+            add(sw.sprites, make_sw_sprite(sw.x, 16))
             -- Add the tip back to picked seaweed
          elseif sw.status == SEAWEED_PICKED then
             sw.height = min(7, sw.height+1)
-            sw.sprites[#sw.sprites] = 16
+            sw.sprites[#sw.sprites] = make_sw_sprite(sw.x, 16)
             sw.status = SEAWEED__FRESH
          -- Pruned seaweed gets a new shoot
          elseif sw.status == SEAWEED_PRUNED then
             sw.height+=1
-            sw.sprites[sw.height] = 32
+            sw.sprites[sw.height] = make_sw_sprite(sw.x, 32)
             sw.status = SEAWEED_SPROUT
          -- Have sprout turn back into a fresh pickable seaweed
          elseif sw.status == SEAWEED_SPROUT then
-            sw.sprites[sw.height] = 16
+            sw.sprites[sw.height] = make_sw_sprite(sw.x, 16)
             sw.status = SEAWEED__FRESH
          -- Won't regrow, a terminal state (for now)
          elseif sw.status == SEAWEED_ROUTED then
             sw.height = 1
-            sw.sprites[1] = 36
+            sw.sprites[1] = make_sw_sprite(sw.x, 36)
             -- sw.status = SEAWEED_PRUNED
          end
       end
    else
       for i,h in pairs(lvl) do
-         local sprites = {20}
+         local sw_x = 32 + (16 * i)
+         local sprites = {make_sw_sprite(sw_x, 20)}
          for i = 2,(h-1) do
-            add(sprites, 21-i)
+            add(sprites, make_sw_sprite(sw_x, 21-i))
          end
-         add(sprites, 16)
-         add(lakebed, make_obj({
-                   x = 32+16 * i,
+         add(sprites, make_sw_sprite(sw_x, 16))
+         local sw = make_obj({
+                   x = sw_x,
                    height = h,
                    sprites = sprites,
                    status = h == 0 and 'empty' or SEAWEED__FRESH,
-         }))
+         })
+         add(lakebed, sw)
       end
+   end
+
+   for sw in all(lakebed) do
+      if sw.status != 'empty' then
+         animate_obj(sw, function(obj)
+                        local orig_x = obj.x
+                        while obj.height > 0 do
+                           for i,s in pairs(obj.sprites) do
+                              if s.x > (cam.x-8) and s.x < (cam.x+127) and nth_frame(i*30) and s.sprite != 20 then
+                                 -- This is very boring, but it's fine.
+                                 s.x = s.x != orig_x and orig_x or s.x+(i % 2 == 0 and 1 or -1)
+                              end
+                           end
+                           yield()
+                        end
+            end)
+         end
    end
 
    splashes = {}
@@ -218,10 +240,6 @@ function gather_seaweed()
             else
                sw.status = SEAWEED_PRUNED
             end
-            -- Slow down the player if too much seaweed is cut down
-            -- if delta > 1 then
-            --    player.speed_x *= (1 - (0.15 * delta))
-            -- end
             break
          end
       end
@@ -346,10 +364,22 @@ function _draw()
    print(dumper('★ ', player.points, '      ⧗', time), cam.x+1, 1, slate)
 
    pal(storm, sea, 1)
+
+   for sw in all(lakebed) do
+      if sw.x > (cam.x-8) and sw.x < (cam.x+127) then
+         for i = 1,sw.height-1 do
+            local s1 = sw.sprites[i]
+            local s2 = sw.sprites[i+1]
+            local y1 = 1+127-(8*i)+4
+            local y2 = y1 - 8
+            line(s1.x+3, y1, s2.x+3, y2, moss)
+         end
+      end
+   end
    for sw in all(lakebed) do
       if sw.x > (cam.x-8) and sw.x < (cam.x+127) then
          for i = 1,sw.height do
-            spr(sw.sprites[i], sw.x, 1+127-(8*i))
+            spr(sw.sprites[i].sprite, sw.sprites[i].x, 1+127-(8*i))
          end
       end
    end

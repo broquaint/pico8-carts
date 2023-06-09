@@ -146,7 +146,7 @@ function init_day()
          local sw_x = 32 + (16 * i)
          local sprites = {make_sw_sprite(sw_x, 20)}
          for i = 2,(h-1) do
-            add(sprites, make_sw_sprite(sw_x, 21-i))
+            add(sprites, make_sw_sprite(sw_x, rnd({17,18,19})))
          end
          add(sprites, make_sw_sprite(sw_x, 16))
          local sw = make_obj({
@@ -177,6 +177,7 @@ function init_day()
    end
 
    splashes = {}
+   gather_particles = {}
 end
 
 function _init()
@@ -239,6 +240,28 @@ function gather_seaweed()
                sw.status = SEAWEED_ROUTED
             else
                sw.status = SEAWEED_PRUNED
+            end
+            local cm = {[SEAWEED_PICKED] = lime, [SEAWEED_PRUNED] = moss, [SEAWEED_ROUTED] = storm}
+            for i = 1,delta do
+               local p1 = make_obj({x=sw.x+6,y=ny2,colour=cm[sw.status]})
+               animate_obj(p1, function(obj)
+                              wait(10)
+                              obj.x += rnd({1,2})
+                              obj.y -= 1
+                              wait(20)
+                              obj.x += 2
+                              obj.y -= rnd({1,2})
+                              wait(20)
+                              obj.x += rnd({1,2})
+                              obj.y -= 1
+                              wait(20)
+                              obj.x += 2
+                              obj.y -= rnd({1,2})
+                              wait(10)
+                              obj.x = -1
+                              obj.y = -1
+               end)
+               add(gather_particles, p1)
             end
             break
          end
@@ -382,6 +405,10 @@ function _draw()
             spr(sw.sprites[i].sprite, sw.sprites[i].x, 1+127-(8*i))
          end
       end
+   end
+
+   for p in all(gather_particles) do
+      pset(p.x, p.y, p.colour)
    end
 
    spr(player.sprite, player.x, player.y)

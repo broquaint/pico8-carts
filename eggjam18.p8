@@ -4,12 +4,12 @@ __lua__
 
 #include utils.lua
 #include animation.lua
+#include eggjam18_lakebed.lua
 
 game_state_title   = 'title'
 game_state_playing = 'playing'
 game_state_won     = 'won'
 
--- Default state so title screen works
 g_anims = {}
 frame_count = 0
 
@@ -112,22 +112,6 @@ function init_day()
                   end
    end)
 
-   local lvl = {
-      --0,0,0,0, --0,0,0,0,0,
-      5,5,5,5,5,5,
-      4,4,4,4,4,4,
-      5,5,4,4,5,5,
-      0,0,0,
-      4,4,4,4,4,4,
-      3,3,4,4,3,3,
-      0,0,0,
-      5,5,4,4,5,5,
-      4,4,5,5,4,4,
-      3,3,2,2,3,3,
-      3,2,2,2,2,3,
-      0,0,0
-   }
-
    function make_sw_sprite(sw_x,s)
       return {x=sw_x,sprite=s}
    end
@@ -161,7 +145,8 @@ function init_day()
          end
       end
    else
-      for i,h in pairs(lvl) do
+      -- lakebed_seaweed defined in from eggjam18_lakebed
+      for i,h in pairs(lakebed_seaweed) do
          local sw_x = 32 + (16 * i)
          local sprites = {make_sw_sprite(sw_x, 20)}
          for i = 2,(h-1) do

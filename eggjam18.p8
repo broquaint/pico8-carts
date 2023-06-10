@@ -440,7 +440,10 @@ function _draw()
       pset(p.x, p.y, p.colour)
    end
 
-   spr(47+(player.speed_x/ACCEL_X), player.x-4,player.y)
+   if not player.jumping or abs(player.y -  WATER_LINE+7) < 2 then
+      spr(47+(player.speed_x/ACCEL_X), player.x-4,player.y)
+   end
+
    spr(player.sprite, player.x, player.y)
    spr(net.sprite, net.x, net.y)
    line(player.x, player.y+7, net.x+5, net.y, silver)

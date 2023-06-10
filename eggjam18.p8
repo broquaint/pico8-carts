@@ -366,10 +366,35 @@ function _draw()
 
    camera(cam.x, cam.y)
 
+   local hour = sun.minute / 60
+   local sky_colour = hour < 0.5 and wine or
+      hour < 0.8  and aubergine or
+      hour < 1    and salmon or
+      hour < 1.3  and pink or
+      hour > 11.5 and wine or
+      hour > 11.2 and aubergine or
+      hour > 10.8 and salmon or
+      hour > 10.2 and pink or
+      coral
+   pal(pink, sky_colour, 1)
    rectfill(cam.x, cam.y,  cam.x+127, cam.y+31, pink)
+
    pal(ember, coral, 0)
    circfill(sun.x+cam.x, sun.y, 4, ember)
    circfill(sun.x+cam.x, sun.y, 3, white)
+
+   local water_colour = hour < 0.5 and port or
+      hour < 0.8  and leather or
+      hour < 1    and tan or
+      hour < 1.3  and amber or
+      hour > 11.5 and port or
+      hour > 11.2 and leather or
+      hour > 10.8 and tan or
+      hour > 10.2 and amber or
+      orange
+
+   pal(orange, water_colour, 1)
+
    rectfill(cam.x, cam.y+32, cam.x+127, cam.y+127, orange)
    line(cam.x, WATER_LINE, cam.x+127, WATER_LINE, peach)
 

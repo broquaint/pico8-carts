@@ -160,18 +160,18 @@ function init_day()
       end
    else
       -- lakebed_seaweed defined in from eggjam18_lakebed
-      for i,h in pairs(lakebed_seaweed) do
+      for i,t in pairs(lakebed_seaweed) do
          local sw_x = 32 + (16 * i)
          local sprites = {make_sw_sprite(sw_x, 20)}
-         for i = 2,(h-1) do
+         for i = 2,(t.height-1) do
             add(sprites, make_sw_sprite(sw_x, rnd({17,18,19})))
          end
          add(sprites, make_sw_sprite(sw_x, 16))
          local sw = make_obj({
                    x = sw_x,
-                   height = h,
+                   height = t.height,
+                   status = t.status,
                    sprites = sprites,
-                   status = h == 0 and 'empty' or SEAWEED__FRESH,
          })
          add(lakebed, sw)
       end

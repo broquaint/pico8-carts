@@ -120,7 +120,6 @@ function init_day()
          speed_y = 0,
          jumping = false,
          bounces = 0,
-         points = 0,
          tips = 0,
          trunks = 0,
          accelerating = false,
@@ -245,30 +244,31 @@ function calc_player_jump()
    end
 end
 
+local GATHER_COLOUR = {[KELP_PICKED] = lime, [KELP_PRUNED] = moss, [KELP_ROUTED] = storm}
 function gather_kelp()
    local nx1 = net.x
    local nx2 = nx1+4
    local ny2 = net.y+7
    for kelp in all(lakebed) do
       if kelp.x >= nx1 and kelp.x <= nx2 then
-         local kelptop = 127 - (8*kelp.height)
-         if ny2 > kelptop then
-            local newh = max(0,(flr((127-ny2)/8)))
+         local kelp_top = 127 - (8*kelp.height)
+         if ny2 > kelp_top then
+            local newh  = max(0,(flr((127-ny2)/8)))
             local delta = kelp.height - newh
 
-            --sfx(kelp.height-1)
-            player.points += kelp.height - delta
             kelp.height = newh
-            if delta == 1 then
+            if delta == 1 and kelp.status == KELP__FRESH then
+               player.tips += 1
                kelp.status = KELP_PICKED
             elseif newh == 0 then
                kelp.status = KELP_ROUTED
             else
+               player.trunks += kelp.status != KELP_SPROUT and 1 or 0
                kelp.status = KELP_PRUNED
             end
-            local cm = {[KELP_PICKED] = lime, [KELP_PRUNED] = moss, [KELP_ROUTED] = storm}
+
             for i = 1,delta do
-               local p1 = make_obj({x=kelp.x+6,y=ny2,colour=cm[kelp.status]})
+               local p1 = make_obj({x=kelp.x+6,y=ny2,colour=GATHER_COLOUR[kelp.status]})
                animate_obj(p1, function(obj)
                               wait(10)
                               obj.x += rnd({1,2})
@@ -434,7 +434,7 @@ function _draw()
    local mins = flr(sun.minute % 60)
    local hour = flr(6 + (sun.minute/60))
    local time = (hour < 10 and '0'..hour or hour)..':'..(mins < 10 and '0'..mins or mins)
-   print(dumper('★ ', player.points, '      ⧗', time), cam.x+1, 1, slate)
+   print(dumper('^ ', player.tips, ' L', player.trunks, '       ⧗', time), cam.x+1, 1, slate)
 
    pal(storm, sea, 1)
 

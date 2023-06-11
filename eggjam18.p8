@@ -245,6 +245,30 @@ function calc_player_jump()
 end
 
 local GATHER_COLOUR = {[KELP_PICKED] = lime, [KELP_PRUNED] = moss, [KELP_ROUTED] = storm}
+function animate_gathered_kelp(kelp, ny2, count)
+   for i = 1,count do
+      local p1 = make_obj({x=kelp.x+6,y=ny2,colour=GATHER_COLOUR[kelp.status]})
+      animate_obj(p1, function(obj)
+                     wait(10)
+                     obj.x += rnd({1,2}) + player.speed_x
+                     obj.y -= 1
+                     wait(20)
+                     obj.x += 2
+                     obj.y -= rnd({1,2})
+                     wait(20)
+                     obj.x += rnd({1,2})  + player.speed_x
+                     obj.y -= 1
+                     wait(20)
+                     obj.x += 2
+                     obj.y -= rnd({1,2})  + player.speed_x
+                     wait(10)
+                     obj.x = -1
+                     obj.y = -1
+      end)
+      add(gather_particles, p1)
+   end
+end
+
 function gather_kelp()
    local nx1 = net.x
    local nx2 = nx1+4
@@ -267,27 +291,7 @@ function gather_kelp()
                kelp.status = KELP_PRUNED
             end
 
-            for i = 1,delta do
-               local p1 = make_obj({x=kelp.x+6,y=ny2,colour=GATHER_COLOUR[kelp.status]})
-               animate_obj(p1, function(obj)
-                              wait(10)
-                              obj.x += rnd({1,2})
-                              obj.y -= 1
-                              wait(20)
-                              obj.x += 2
-                              obj.y -= rnd({1,2})
-                              wait(20)
-                              obj.x += rnd({1,2})
-                              obj.y -= 1
-                              wait(20)
-                              obj.x += 2
-                              obj.y -= rnd({1,2})
-                              wait(10)
-                              obj.x = -1
-                              obj.y = -1
-               end)
-               add(gather_particles, p1)
-            end
+            animate_gathered_kelp(kelp, ny2, delta+1)
             break
          end
       end

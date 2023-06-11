@@ -21,72 +21,72 @@ MIN_SPEED_X = 0.5
 ACCEL_X     = 0.5
 
 -- Default state
-SEAWEED__FRESH = 'fresh'
+KELP__FRESH = 'fresh'
 -- Top portion picked, ideal height, will regrow
-SEAWEED_PICKED = 'picked'
+KELP_PICKED = 'picked'
 -- Too low, regrows but not pickable
-SEAWEED_PRUNED = 'pruned'
--- The root was pulled, seaweed won't grow again.
-SEAWEED_ROUTED = 'routed'
+KELP_PRUNED = 'pruned'
+-- The root was pulled, kelp won't grow again.
+KELP_ROUTED = 'routed'
 -- Pruned and regrowing.
-SEAWEED_SPROUT = 'sprout'
+KELP_SPROUT = 'sprout'
 
 lakebed = {}
 function init_lakebed()
-      function make_sw_sprite(sw_x,s)
-      return {x=sw_x,sprite=s}
+      function make_kelp_sprite(kelp_x,s)
+      return {x=kelp_x,sprite=s}
    end
    if #lakebed > 0 then
       debug('regrowing lakebed e.g ',lakebed[1])
-      for sw in all(lakebed) do
-         -- Unpicked seaweed grows
-         if sw.status == SEAWEED__FRESH then
-            sw.sprites[#sw.sprites] = make_sw_sprite(sw.x, rnd({17,18,19}))
-            sw.height = min(7, sw.height+1)
-            add(sw.sprites, make_sw_sprite(sw.x, 16))
-            -- Add the tip back to picked seaweed
-         elseif sw.status == SEAWEED_PICKED then
-            sw.height = min(7, sw.height+1)
-            sw.sprites[#sw.sprites] = make_sw_sprite(sw.x, 16)
-            sw.status = SEAWEED__FRESH
-         -- Pruned seaweed gets a new shoot
-         elseif sw.status == SEAWEED_PRUNED then
-            sw.height+=1
-            sw.sprites[sw.height] = make_sw_sprite(sw.x, 32)
-            sw.status = SEAWEED_SPROUT
-         -- Have sprout turn back into a fresh pickable seaweed
-         elseif sw.status == SEAWEED_SPROUT then
-            sw.sprites[sw.height] = make_sw_sprite(sw.x, 16)
-            sw.status = SEAWEED__FRESH
+      for kelp in all(lakebed) do
+         -- Unpicked kelp grows
+         if kelp.status == KELP__FRESH then
+            kelp.sprites[#kelp.sprites] = make_kelp_sprite(kelp.x, rnd({17,18,19}))
+            kelp.height = min(7, kelp.height+1)
+            add(kelp.sprites, make_kelp_sprite(kelp.x, 16))
+            -- Add the tip back to picked kelp
+         elseif kelp.status == KELP_PICKED then
+            kelp.height = min(7, kelp.height+1)
+            kelp.sprites[#kelp.sprites] = make_kelp_sprite(kelp.x, 16)
+            kelp.status = KELP__FRESH
+         -- Pruned kelp gets a new shoot
+         elseif kelp.status == KELP_PRUNED then
+            kelp.height+=1
+            kelp.sprites[kelp.height] = make_kelp_sprite(kelp.x, 32)
+            kelp.status = KELP_SPROUT
+         -- Have sprout turn back into a fresh pickable kelp
+         elseif kelp.status == KELP_SPROUT then
+            kelp.sprites[kelp.height] = make_kelp_sprite(kelp.x, 16)
+            kelp.status = KELP__FRESH
          -- Won't regrow, a terminal state (for now)
-         elseif sw.status == SEAWEED_ROUTED then
-            sw.height = 1
-            sw.sprites[1] = make_sw_sprite(sw.x, 36)
-            -- sw.status = SEAWEED_PRUNED
+         elseif kelp.status == KELP_ROUTED then
+            kelp.height = 1
+            kelp.sprites[1] = make_kelp_sprite(kelp.x, 36)
+            -- kelp.status = KELP_PRUNED
          end
       end
    else
-      -- lakebed_seaweed defined in from eggjam18_lakebed
-      for i,t in pairs(lakebed_seaweed) do
-         local sw_x = 48 + (16 * i)
-         local sprites = {make_sw_sprite(sw_x, 20)}
+      -- lakebed_kelp defined in from eggjam18_lakebed
+      for i,t in pairs(lakebed_kelp) do
+         local kelp_x = 48 + (16 * i)
+         local sprites = {make_kelp_sprite(kelp_x, 20)}
          for i = 2,(t.height-1) do
-            add(sprites, make_sw_sprite(sw_x, rnd({17,18,19})))
+            add(sprites, make_kelp_sprite(kelp_x, rnd({17,18,19})))
          end
-         add(sprites, make_sw_sprite(sw_x, t.status == 'fresh' and 16 or 32))
-         local sw = make_obj({
-                   x = sw_x,
+         add(sprites, make_kelp_sprite(kelp_x, t.status == 'fresh' and 16 or 32))
+         local kelp = make_obj({
+                   x = kelp_x,
                    height = t.height,
                    status = t.status,
                    sprites = sprites,
          })
-         add(lakebed, sw)
+         add(lakebed, kelp)
       end
    end
 
-   for sw in all(lakebed) do
-      if sw.status != 'empty' then
-         animate_obj(sw, function(obj)
+   for kelp in all(lakebed) do
+      if kelp.status != 'empty' then
+         animate_obj(kelp, function(obj)
                         local orig_x = obj.x
                         while obj.height > 0 do
                            for i,s in pairs(obj.sprites) do
@@ -121,6 +121,8 @@ function init_day()
          jumping = false,
          bounces = 0,
          points = 0,
+         tips = 0,
+         trunks = 0,
          accelerating = false,
    })
    net = make_obj({
@@ -243,29 +245,30 @@ function calc_player_jump()
    end
 end
 
-function gather_seaweed()
+function gather_kelp()
    local nx1 = net.x
    local nx2 = nx1+4
    local ny2 = net.y+7
-   for sw in all(lakebed) do
-      if sw.x >= nx1 and sw.x <= nx2 then
-         local swtop = 127 - (8*sw.height)
-         if ny2 > swtop then
+   for kelp in all(lakebed) do
+      if kelp.x >= nx1 and kelp.x <= nx2 then
+         local kelptop = 127 - (8*kelp.height)
+         if ny2 > kelptop then
             local newh = max(0,(flr((127-ny2)/8)))
-            local delta = sw.height - newh
-            --sfx(sw.height-1)
-            player.points += sw.height - delta
-            sw.height = newh
+            local delta = kelp.height - newh
+
+            --sfx(kelp.height-1)
+            player.points += kelp.height - delta
+            kelp.height = newh
             if delta == 1 then
-               sw.status = SEAWEED_PICKED
+               kelp.status = KELP_PICKED
             elseif newh == 0 then
-               sw.status = SEAWEED_ROUTED
+               kelp.status = KELP_ROUTED
             else
-               sw.status = SEAWEED_PRUNED
+               kelp.status = KELP_PRUNED
             end
-            local cm = {[SEAWEED_PICKED] = lime, [SEAWEED_PRUNED] = moss, [SEAWEED_ROUTED] = storm}
+            local cm = {[KELP_PICKED] = lime, [KELP_PRUNED] = moss, [KELP_ROUTED] = storm}
             for i = 1,delta do
-               local p1 = make_obj({x=sw.x+6,y=ny2,colour=cm[sw.status]})
+               local p1 = make_obj({x=kelp.x+6,y=ny2,colour=cm[kelp.status]})
                animate_obj(p1, function(obj)
                               wait(10)
                               obj.x += rnd({1,2})
@@ -376,7 +379,7 @@ function _update60()
 
    net.x    += player.speed_x
 
-   gather_seaweed()
+   gather_kelp()
 end
 
 function _draw()
@@ -435,21 +438,21 @@ function _draw()
 
    pal(storm, sea, 1)
 
-   for sw in all(lakebed) do
-      if sw.x > (cam.x-8) and sw.x < (cam.x+127) then
-         for i = 1,sw.height-1 do
-            local s1 = sw.sprites[i]
-            local s2 = sw.sprites[i+1]
+   for kelp in all(lakebed) do
+      if kelp.x > (cam.x-8) and kelp.x < (cam.x+127) then
+         for i = 1,kelp.height-1 do
+            local s1 = kelp.sprites[i]
+            local s2 = kelp.sprites[i+1]
             local y1 = 1+127-(8*i)+4
             local y2 = y1 - 8
             line(s1.x+3, y1, s2.x+3, y2, moss)
          end
       end
    end
-   for sw in all(lakebed) do
-      if sw.x > (cam.x-8) and sw.x < (cam.x+127) then
-         for i = 1,sw.height do
-            spr(sw.sprites[i].sprite, sw.sprites[i].x, 1+127-(8*i))
+   for kelp in all(lakebed) do
+      if kelp.x > (cam.x-8) and kelp.x < (cam.x+127) then
+         for i = 1,kelp.height do
+            spr(kelp.sprites[i].sprite, kelp.sprites[i].x, 1+127-(8*i))
          end
       end
    end

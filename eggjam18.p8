@@ -32,6 +32,76 @@ SEAWEED_ROUTED = 'routed'
 SEAWEED_SPROUT = 'sprout'
 
 lakebed = {}
+function init_lakebed()
+      function make_sw_sprite(sw_x,s)
+      return {x=sw_x,sprite=s}
+   end
+   if #lakebed > 0 then
+      debug('regrowing lakebed e.g ',lakebed[1])
+      for sw in all(lakebed) do
+         -- Unpicked seaweed grows
+         if sw.status == SEAWEED__FRESH then
+            sw.sprites[#sw.sprites] = make_sw_sprite(sw.x, rnd({17,18,19}))
+            sw.height = min(7, sw.height+1)
+            add(sw.sprites, make_sw_sprite(sw.x, 16))
+            -- Add the tip back to picked seaweed
+         elseif sw.status == SEAWEED_PICKED then
+            sw.height = min(7, sw.height+1)
+            sw.sprites[#sw.sprites] = make_sw_sprite(sw.x, 16)
+            sw.status = SEAWEED__FRESH
+         -- Pruned seaweed gets a new shoot
+         elseif sw.status == SEAWEED_PRUNED then
+            sw.height+=1
+            sw.sprites[sw.height] = make_sw_sprite(sw.x, 32)
+            sw.status = SEAWEED_SPROUT
+         -- Have sprout turn back into a fresh pickable seaweed
+         elseif sw.status == SEAWEED_SPROUT then
+            sw.sprites[sw.height] = make_sw_sprite(sw.x, 16)
+            sw.status = SEAWEED__FRESH
+         -- Won't regrow, a terminal state (for now)
+         elseif sw.status == SEAWEED_ROUTED then
+            sw.height = 1
+            sw.sprites[1] = make_sw_sprite(sw.x, 36)
+            -- sw.status = SEAWEED_PRUNED
+         end
+      end
+   else
+      -- lakebed_seaweed defined in from eggjam18_lakebed
+      for i,t in pairs(lakebed_seaweed) do
+         local sw_x = 48 + (16 * i)
+         local sprites = {make_sw_sprite(sw_x, 20)}
+         for i = 2,(t.height-1) do
+            add(sprites, make_sw_sprite(sw_x, rnd({17,18,19})))
+         end
+         add(sprites, make_sw_sprite(sw_x, t.status == 'fresh' and 16 or 32))
+         local sw = make_obj({
+                   x = sw_x,
+                   height = t.height,
+                   status = t.status,
+                   sprites = sprites,
+         })
+         add(lakebed, sw)
+      end
+   end
+
+   for sw in all(lakebed) do
+      if sw.status != 'empty' then
+         animate_obj(sw, function(obj)
+                        local orig_x = obj.x
+                        while obj.height > 0 do
+                           for i,s in pairs(obj.sprites) do
+                              if s.x > (cam.x-8) and s.x < (cam.x+127) and nth_frame(i*30) and s.sprite != 20 then
+                                 -- This is very boring, but it's fine.
+                                 s.x = s.x != orig_x and orig_x or s.x+(i % 2 == 0 and 1 or -1)
+                              end
+                           end
+                           yield()
+                        end
+            end)
+         end
+   end
+end
+
 function init_day()
    g_anims = {}
    frame_count = 0
@@ -55,7 +125,7 @@ function init_day()
    })
    net = make_obj({
          x = 16,
-         y = WATER_LINE + 64,
+         y = WATER_LINE + 48,
          sprite = 1,
          move_dir = 0,
          speed_x = 0,
@@ -113,7 +183,7 @@ function init_day()
    })
    animate_obj(sun, function(obj)
                   while sun.minute < (60*12) do
-                     if nth_frame(30) then
+                     if nth_frame(15) then
                         sun.minute += (60*12)/128
                         sun.x      += 1
                         if sun.x < 64 then
@@ -126,73 +196,7 @@ function init_day()
                   end
    end)
 
-   function make_sw_sprite(sw_x,s)
-      return {x=sw_x,sprite=s}
-   end
-   if #lakebed > 0 then
-      debug('regrowing lakebed e.g ',lakebed[1])
-      for sw in all(lakebed) do
-         -- Unpicked seaweed grows
-         if sw.status == SEAWEED__FRESH then
-            sw.sprites[#sw.sprites] = make_sw_sprite(sw.x, rnd({17,18,19}))
-            sw.height = min(7, sw.height+1)
-            add(sw.sprites, make_sw_sprite(sw.x, 16))
-            -- Add the tip back to picked seaweed
-         elseif sw.status == SEAWEED_PICKED then
-            sw.height = min(7, sw.height+1)
-            sw.sprites[#sw.sprites] = make_sw_sprite(sw.x, 16)
-            sw.status = SEAWEED__FRESH
-         -- Pruned seaweed gets a new shoot
-         elseif sw.status == SEAWEED_PRUNED then
-            sw.height+=1
-            sw.sprites[sw.height] = make_sw_sprite(sw.x, 32)
-            sw.status = SEAWEED_SPROUT
-         -- Have sprout turn back into a fresh pickable seaweed
-         elseif sw.status == SEAWEED_SPROUT then
-            sw.sprites[sw.height] = make_sw_sprite(sw.x, 16)
-            sw.status = SEAWEED__FRESH
-         -- Won't regrow, a terminal state (for now)
-         elseif sw.status == SEAWEED_ROUTED then
-            sw.height = 1
-            sw.sprites[1] = make_sw_sprite(sw.x, 36)
-            -- sw.status = SEAWEED_PRUNED
-         end
-      end
-   else
-      -- lakebed_seaweed defined in from eggjam18_lakebed
-      for i,t in pairs(lakebed_seaweed) do
-         local sw_x = 32 + (16 * i)
-         local sprites = {make_sw_sprite(sw_x, 20)}
-         for i = 2,(t.height-1) do
-            add(sprites, make_sw_sprite(sw_x, rnd({17,18,19})))
-         end
-         add(sprites, make_sw_sprite(sw_x, 16))
-         local sw = make_obj({
-                   x = sw_x,
-                   height = t.height,
-                   status = t.status,
-                   sprites = sprites,
-         })
-         add(lakebed, sw)
-      end
-   end
-
-   for sw in all(lakebed) do
-      if sw.status != 'empty' then
-         animate_obj(sw, function(obj)
-                        local orig_x = obj.x
-                        while obj.height > 0 do
-                           for i,s in pairs(obj.sprites) do
-                              if s.x > (cam.x-8) and s.x < (cam.x+127) and nth_frame(i*30) and s.sprite != 20 then
-                                 -- This is very boring, but it's fine.
-                                 s.x = s.x != orig_x and orig_x or s.x+(i % 2 == 0 and 1 or -1)
-                              end
-                           end
-                           yield()
-                        end
-            end)
-         end
-   end
+   init_lakebed()
 
    splashes = {}
    gather_particles = {}
@@ -291,7 +295,7 @@ function _update60()
    frame_count += 1
    run_animations()
 
-   if not(sun.minute < (60*4)) then
+   if not(sun.minute < (60*12)) then
       init_day()
    end
 

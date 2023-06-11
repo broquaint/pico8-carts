@@ -8,6 +8,7 @@ __lua__
 
 game_state_title   = 'title'
 game_state_playing = 'playing'
+game_state_day_summary = 'day_summary'
 game_state_won     = 'won'
 
 g_anims = {}
@@ -103,6 +104,8 @@ function init_lakebed()
 end
 
 function init_day()
+   game_state = 'playing'
+
    g_anims = {}
    frame_count = 0
 
@@ -298,15 +301,8 @@ function gather_kelp()
    end
 end
 
-function _update60()
-   frame_count += 1
-   run_animations()
-
-   if not(sun.minute < (60*12)) then
-      init_day()
-   end
-
-   -- player horizontal movement
+function harvest_kelp()
+      -- player horizontal movement
    if btnp(b_right) then
       local ps = player.speed_x
       if not(ps + ACCEL_X > MAX_SPEED_X) and not player.accelerating then
@@ -363,7 +359,7 @@ function _update60()
             end)
          end
       elseif btn(b_down) then
-         if net.pos > 2 then
+         if net.pos > 0 then
             net.pos -= 1
             net.cooling_down = true
             delay(function() net.cooling_down = false end, 10)
@@ -386,11 +382,26 @@ function _update60()
    gather_kelp()
 end
 
-function _draw()
-   cls(black)
+function _update60()
+   frame_count += 1
+   run_animations()
 
-   camera(cam.x, cam.y)
+   if game_state == game_state_playing and not(sun.minute < (60*3)) then
+      g_anims = {}
+      cam.x = 0
+      game_state = 'day_summary'
+   end
 
+   if game_state == game_state_playing then
+      harvest_kelp()
+   elseif game_state == game_state_day_summary then
+      if btnp(b_x) then
+         init_day()
+      end
+   end
+end
+
+function draw_harvesting()
    local hour = sun.minute / 60
    local sky_colour = hour < 0.5 and wine or
       hour < 0.8  and aubergine or
@@ -431,14 +442,14 @@ function _draw()
    -- print(dumper(player.speed_x, ' @ ', player.x, ' ^ ', net.speed_y, ' y ', net.y, ' b ', player.bounces), cam.x+1, cam.y+1, slate)
    pal(ember, coral, 0)
    for i = 1,(player.speed_x/ACCEL_X) do
-      print('>', cam.x+24+(i*3), 1, orange)
-      print('>', cam.x+25+(i*3), 1, coral)
+      print('>', cam.x+35+(i*3), 1, orange)
+      print('>', cam.x+36+(i*3), 1, coral)
    end
 
    local mins = flr(sun.minute % 60)
    local hour = flr(6 + (sun.minute/60))
    local time = (hour < 10 and '0'..hour or hour)..':'..(mins < 10 and '0'..mins or mins)
-   print(dumper('^ ', player.tips, ' L', player.trunks, '       ⧗', time), cam.x+1, 1, slate)
+   print(dumper('^', player.tips, ' L', player.trunks, '       ⧗', time), cam.x+1, 1, slate)
 
    pal(storm, sea, 1)
 
@@ -485,6 +496,23 @@ function _draw()
 
    for f in all(fishies) do
       sspr(f.sx, f.sy, f.w, f.h, f.x, f.y)
+   end
+end
+
+function draw_day_summary()
+   print('end of the day!', 16 , 32, white)
+   print(dumper('gathered: ^', player.tips, ' L', player.trunks), 16, 48, white)
+end
+
+function _draw()
+   cls(black)
+
+   camera(cam.x, cam.y)
+
+   if game_state == game_state_playing then
+      draw_harvesting()
+   elseif game_state == game_state_day_summary then
+      draw_day_summary()
    end
 end
 

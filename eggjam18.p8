@@ -219,7 +219,25 @@ function init_day()
 end
 
 function _init()
-   init_day()
+   -- init_day()
+   game_state = game_state_title
+   g_anims = {}
+   frame_count = 0
+
+   cam = make_obj({
+         x = 0,
+         y = 0,
+   })
+
+   local horizon = 32
+   local azimuth = 8
+   sun = make_obj({
+         x = 0,
+         y = horizon,
+         minute = 0,
+   })
+
+   init_lakebed()
 end
 
 function animate_splash()
@@ -408,7 +426,7 @@ function harvest_kelp()
    end
 
    -- jump/water physics
-   if btn(b_x) and not player.jumping then
+   if frame_count > 10 and btn(b_x) and not player.jumping then
       player.speed_y = -3
       player.jumping = true
       player.bounces = 1
@@ -472,66 +490,14 @@ function _update60()
 
    if game_state == game_state_playing then
       harvest_kelp()
-   elseif game_state == game_state_day_summary or game_state == game_state_run_summary then
+   elseif game_state == game_state_day_summary or game_state == game_state_run_summary or game_state then
       if btnp(b_x) then
          init_day()
       end
    end
 end
 
-function draw_harvesting()
-   local hour = sun.minute / 60
-   local sky_colour = hour < 0.5 and wine or
-      hour < 0.8  and aubergine or
-      hour < 1    and salmon or
-      hour < 1.3  and pink or
-      hour > 11.5 and wine or
-      hour > 11.2 and aubergine or
-      hour > 10.8 and salmon or
-      hour > 10.2 and pink or
-      coral
-
-   pal(pink, sky_colour, 1)
-   rectfill(cam.x, cam.y,  cam.x+127, cam.y+31, pink)
-
-   pal(ember, coral, 0)
-   circfill(sun.x+cam.x, sun.y, 4, ember)
-   circfill(sun.x+cam.x, sun.y, 3, white)
-
-   local water_colour = hour < 0.5 and port or
-      hour < 0.8  and leather or
-      hour < 1    and tan or
-      hour < 1.3  and amber or
-      hour > 11.5 and port or
-      hour > 11.2 and leather or
-      hour > 10.8 and tan or
-      hour > 10.2 and amber or
-      orange
-
-   pal(orange, water_colour, 1)
-
-   rectfill(cam.x, cam.y+32, cam.x+127, cam.y+127, orange)
-   line(cam.x, WATER_LINE, cam.x+127, WATER_LINE, peach)
-
-   pal(ember, olive, 0)
-   line(cam.x, 127, cam.x+127, 127, ember)
-
-   rectfill(cam.x, cam.y, cam.x+127, cam.y+6, slate)
-
-   -- print(dumper(player.speed_x, ' @ ', player.x, ' ^ ', net.speed_y, ' y ', net.y, ' b ', player.bounces), cam.x+1, cam.y+1, slate)
-   pal(ember, coral, 0)
-   for i = 1,(player.speed_x/ACCEL_X) do
-      print('>', cam.x+(i*3), 1, orange)
-      print('>', cam.x+(i*3), 1, coral)
-   end
-
-   local mins = flr(sun.minute % 60)
-   local hour = flr(6 + (sun.minute/60))
-   local time = (hour < 10 and '0'..hour or hour)..':'..(mins < 10 and '0'..mins or mins)
-   print(dumper('^', player.tips, ' L', player.trunks, ' N', player.nets, ' ⧗', time), cam.x+21, 1, white)
-
-   pal(storm, sea, 1)
-
+function draw_kelp()
    for kelp in all(lakebed) do
       if kelp.x > (cam.x-8) and kelp.x < (cam.x+127) then
          for i = 1,kelp.height-1 do
@@ -550,6 +516,71 @@ function draw_harvesting()
          end
       end
    end
+end
+
+function draw_sky()
+   local hour = sun.minute / 60
+   local sky_colour = hour < 0.5 and wine or
+      hour < 0.8  and aubergine or
+      hour < 1    and salmon or
+      hour < 1.3  and pink or
+      hour > 11.5 and wine or
+      hour > 11.2 and aubergine or
+      hour > 10.8 and salmon or
+      hour > 10.2 and pink or
+      coral
+
+   pal(pink, sky_colour, 1)
+   rectfill(cam.x, cam.y,  cam.x+127, cam.y+31, pink)
+end
+
+function draw_water()
+   local hour = sun.minute / 60
+   local water_colour = hour < 0.5 and port or
+      hour < 0.8  and leather or
+      hour < 1    and tan or
+      hour < 1.3  and amber or
+      hour > 11.5 and port or
+      hour > 11.2 and leather or
+      hour > 10.8 and tan or
+      hour > 10.2 and amber or
+      orange
+
+   pal(orange, water_colour, 1)
+
+   rectfill(cam.x, cam.y+32, cam.x+127, cam.y+127, orange)
+   line(cam.x, WATER_LINE, cam.x+127, WATER_LINE, peach)
+
+   pal(ember, olive, 0)
+   line(cam.x, 127, cam.x+127, 127, ember)
+end
+
+function draw_harvesting()
+   draw_sky()
+
+   pal(ember, coral, 0)
+   circfill(sun.x+cam.x, sun.y, 4, ember)
+   circfill(sun.x+cam.x, sun.y, 3, white)
+
+   draw_water()
+
+   rectfill(cam.x, cam.y, cam.x+127, cam.y+6, slate)
+
+   -- print(dumper(player.speed_x, ' @ ', player.x, ' ^ ', net.speed_y, ' y ', net.y, ' b ', player.bounces), cam.x+1, cam.y+1, slate)
+   pal(ember, coral, 0)
+   for i = 1,(player.speed_x/ACCEL_X) do
+      print('>', cam.x+(i*3), 1, orange)
+      print('>', cam.x+(i*3), 1, coral)
+   end
+
+   local mins = flr(sun.minute % 60)
+   local hour = flr(6 + (sun.minute/60))
+   local time = (hour < 10 and '0'..hour or hour)..':'..(mins < 10 and '0'..mins or mins)
+   print(dumper('^', player.tips, ' L', player.trunks, ' N', player.nets, ' ⧗', time), cam.x+21, 1, white)
+
+   pal(storm, sea, 1)
+
+   draw_kelp()
 
    for p in all(gather_particles) do
       pset(p.x, p.y, p.colour)
@@ -588,6 +619,15 @@ function draw_run_summary()
    print(dumper('gathered: ^', player.tips, ' L', player.trunks), 16, 48, white)
 end
 
+function draw_title()
+   draw_sky()
+   draw_water()
+
+   sspr(0, 32, 128, 128, 0, 5)
+
+   draw_kelp()
+end
+
 function _draw()
    cls(black)
 
@@ -599,6 +639,8 @@ function _draw()
       draw_day_summary()
    elseif game_state == game_state_run_summary then
       draw_run_summary()
+   elseif game_state == game_state_title then
+      draw_title()
    end
 end
 
@@ -635,6 +677,37 @@ __gfx__
 00000000aa000000aaa00000a7a0000007a0000000aaaaaaaaaaa0a000aaaaaaaaaaaa0000aaaaaaaaaaa0a00000000000000000000000000000000000000000
 aaaa00007aaa000007aa00000a7a000007aa0000000aaaaaaaaa0000000aaaaaaaaa0000000aaaaaaaaa00000000000000000000000000000000000000000000
 0777a000007aa000007aa000007aa0000a7aa0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000dd0000000000000000000000000000000000000000000000
+0000dd00000000000000000000000000000000000000000000000000000000000000000000000000dd0000000000dd0000000000000000000000000000000000
+0000dd00000000000000000000000000000000000000000000000000000000000000000000000000dd000000000ddd0000000000000000000000000000000000
+0000dd0000dd0000000000000000000000000000000000000000000000000000000000000000000dddd00000000ddd0000000000000000000000000000000000
+0000dd0000dd00000000000000dd000000000000000000000000000000000000000000000000000dddd0000000dddd0000000000000000000000000000000000
+0000dd000ddd00000000000000dd000000000000000000000000000000000000000000000000000ddddd000000dddd0000000000000000000000000000000000
+0000dd000dd000000000000000dd00000000000000000000000000000000000000000000000000ddd0dd00000ddddd0000000000000000000000000000000000
+0000dd000dd000000000000000dd00000000000000000000000000000000000000000000000000ddd0ddd0000dd0ddd000000000000000000000000000000000
+0000dd00ddd000000000000000dd00000000000000000000000000000000000000000000000000dd00ddd000ddd0ddd000000000000000000000000000000000
+0000dd00dd0000000000000000dd00000000000000000000000000000000000000000000000000dd000dd000dd000dd000000000000000000000000000000000
+0000dd0ddd0000000000000000dd00000000000000000000000000000000000000000000000000dd000dd000dd000dd000000000000000000000000000000000
+0000dd0dd00000000000000000dd0000000000000000000000000000000000000000000000000ddd000dd00ddd000dd000000000000000000000000000000000
+0000ddddd00000000000000000dd0000dddd0000000000000dddd000000000000000000000000dd0000dd00dd0000dd000000000000000000000000000000000
+0000dddd000000000ddddd0000dd00ddddddd0000000000ddddddd00000dd00ddddd000000000dd0000dd00dd0000dd000000000000000000000000000000000
+0000dddd00000000dddddd0000dd00ddddddd000000000dddd0dddd0000dddddddddd00000000dd0000dd00dd0000dd000000ddddd00dd0ddddd0000dddd0000
+0000ddddd000000dddd0dd0000dd00dd000ddd0000000ddd0000dddd000dddddd0ddd00000000dd0000dd0ddd0000dd0000ddddddd00dddddddd000ddddddd00
+0000ddddd00000ddd00ddd0000dd00dd0000dd0000000dd000000ddd000dddd0000dd00000000dd0000ddddd00000ddd00dddd0ddd00dddd0000000dd00ddd00
+000ddd0ddd000ddddddddd0000dd00dd000ddd0000000dd000000ddd000ddd00000dd00000000dd00000dddd000000dd00ddd00ddd00ddd00000000dd000dd00
+000dd00ddd000ddddddd000000dd00dd00dddd000000ddd000000ddd000dd000000dd00000000dd00000dddd000000dd0ddd000ddd00dd000000000ddd000000
+000dd000ddd00dd00000000000dd00dd00ddd0000000dd0000000dd000ddd000000dd00000000dd00000ddd0000000dd0ddd00dddd00dd000000000dddd00000
+000dd0000dd00dd00000000000dd00dd0ddd00000000dd0000000dd000ddd00000ddd00000000dd00000ddd0000000dd0dd000ddd00ddd0000000000dddd0000
+000dd0000dd00dd0000000000ddd00ddddd000000000dd000000ddd000dd000000ddd00000000dd00000ddd0000000dd0ddd0dddd00dd000000000000ddd0000
+000dd0000dd00ddd000ddd000dd000ddddd000000000ddd000ddddd000dd000000dd000000000dd000000dd0000000dd0dddddddd00dd00000000ddd00dd0000
+00ddd0000ddd00dddddddd00ddd000dddd0000000000dddddddddd0000dd000000dd000000000dd000000dd0000000dd000dddddd00dd00000000ddddddd0000
+00ddd00000dd00ddddddd000ddd000dd0000000000000ddddddd000000dd000000dd000000000dd000000dd0000000dd0000000dd00dd000000000dddddd0000
+00dd00000000000000000000000000dd000000000000000000000000000000000000000000000000000000000000000000000000000dd0000000000ddd000000
+000000000000000000000000000000dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 010600001805418052180521805218050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 010600001c0541c0521c0521c0521c050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

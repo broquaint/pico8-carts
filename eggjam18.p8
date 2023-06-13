@@ -9,6 +9,7 @@ __lua__
 game_state_title   = 'title'
 game_state_playing = 'playing'
 game_state_day_summary = 'day_summary'
+game_state_run_summary = 'run_summary'
 game_state_won     = 'won'
 
 g_anims = {}
@@ -103,6 +104,41 @@ function init_lakebed()
    end
 end
 
+function animate_fish(fish, frames, anim)
+   animate_obj(fish, function(obj)
+                  while game_state == game_state_playing and obj.x > (cam.x-obj.w) do
+                     local from = obj.x
+                     local to   = obj.x - 16
+                     local astep  = frames / #anim
+                     for f = 1,frames do
+                        obj.x = lerp(from, to, easeinquad(f/frames))
+                        if f % astep == 0 then
+                           obj.sx = anim[f/astep]*8
+                        end
+                        yield()
+                     end
+                  end
+   end)
+end
+
+function make_wee_fish(f_x, f_y)
+   local fish = make_obj({x=f_x, y=f_y, sx=5*8, sy=16, w=8,  h=8})
+   animate_fish(fish, 45, {7,9,5})
+   return fish
+end
+
+function make_mid_fish(f_x, f_y)
+   local fish = make_obj({x=f_x, y=f_y,  sx=5*8, sy=24, w=16, h=8})
+   animate_fish(fish, 90, {7,9,5})
+   return fish
+end
+
+function make_big_fish(f_x, f_y)
+   local fish = make_obj({x=f_x, y=f_y, sx=5*8, sy=0,  w=16, h=16})
+   animate_fish(fish, 120, {7,9,7,5})
+   return fish
+end
+
 function init_day()
    game_state = 'playing'
 
@@ -140,45 +176,20 @@ function init_day()
    })
 
    ducks = {
-      make_obj({
-            x = 200,
-            y = WATER_LINE-7,
-      })
+      -- make_obj({
+      --       x = 200,
+      --       y = WATER_LINE-7,
+      -- })
    }
 
    fishies = {
-      make_obj({x=192, y=64,  sx=5*8, sy=0,  w=16, h=16}),
-      make_obj({x=256, y=106, sx=5*8, sy=16, w=8,  h=8}),
+      make_wee_fish(256, 106),
+      make_mid_fish(512, 97),
+      make_wee_fish(768, 111),
+      make_wee_fish(1024, 106),
+      make_mid_fish(1312, 97),
    }
 
-   animate_obj(fishies[1], function(obj)
-                  while game_state == game_state_playing do
-                     local from = obj.x
-                     local to   = obj.x - 16
-                     local anim = {7,9,7,5}
-                     for f = 1,60 do
-                        obj.x = lerp(from, to, easeinquad(f/60))
-                        if f % 15 == 0 then
-                           obj.sx = anim[f/15]*8
-                        end
-                        yield()
-                     end
-                  end
-   end)
-   animate_obj(fishies[2], function(obj)
-                  while game_state == game_state_playing do
-                     local from = obj.x
-                     local to   = obj.x - 16
-                     local anim = {7,9,5}
-                     for f = 1,45 do
-                        obj.x = lerp(from, to, easeinquad(f/45))
-                        if f % 15 == 0 then
-                           obj.sx = anim[f/15]*8
-                        end
-                        yield()
-                     end
-                  end
-   end)
    local horizon = 32
    local azimuth = 8
    sun = make_obj({
@@ -188,7 +199,7 @@ function init_day()
    })
    animate_obj(sun, function(obj)
                   while sun.minute < (60*12) do
-                     if nth_frame(15) then
+                     if nth_frame(25) then
                         sun.minute += (60*12)/128
                         sun.x      += 1
                         if sun.x < 64 then
@@ -449,15 +460,19 @@ function _update60()
    frame_count += 1
    run_animations()
 
-   if game_state == game_state_playing and not(sun.minute < (60*3)) then
+   if game_state == game_state_playing and player.nets == 0 then
       g_anims = {}
       cam.x = 0
-      game_state = 'day_summary'
+      game_state = game_state_run_summary
+   elseif game_state == game_state_playing and not(sun.minute < (60*12)) then
+      g_anims = {}
+      cam.x = 0
+      game_state = game_state_day_summary
    end
 
    if game_state == game_state_playing then
       harvest_kelp()
-   elseif game_state == game_state_day_summary then
+   elseif game_state == game_state_day_summary or game_state == game_state_run_summary then
       if btnp(b_x) then
          init_day()
       end
@@ -475,6 +490,7 @@ function draw_harvesting()
       hour > 10.8 and salmon or
       hour > 10.2 and pink or
       coral
+
    pal(pink, sky_colour, 1)
    rectfill(cam.x, cam.y,  cam.x+127, cam.y+31, pink)
 
@@ -567,6 +583,11 @@ function draw_day_summary()
    print(dumper('gathered: ^', player.tips, ' L', player.trunks), 16, 48, white)
 end
 
+function draw_run_summary()
+   print('end of the run!', 16 , 32, white)
+   print(dumper('gathered: ^', player.tips, ' L', player.trunks), 16, 48, white)
+end
+
 function _draw()
    cls(black)
 
@@ -576,6 +597,8 @@ function _draw()
       draw_harvesting()
    elseif game_state == game_state_day_summary then
       draw_day_summary()
+   elseif game_state == game_state_run_summary then
+      draw_run_summary()
    end
 end
 
@@ -596,13 +619,13 @@ __gfx__
 00db0000000330000003d00000d33000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00bb00000003d00000d3000000033000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000bb00000030000003300000033d000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000cc00000000000000cc00000000000000cc00000000000000000000000000000000000000000000000000
 000000000000000000000000000000000000000000ccc0000000000000ccc0000000000000ccc000000000000000000000000000000000000000000000000000
-000000000000000000000000000000000000d0000caddc0c000000000caddcc0000000000caddc0c000000000000000000000000000000000000000000000000
-000b000000000000000000000000000000ddd000cddcddc000000000cdddddc000000000cddcddc0000000000000000000000000000000000000000000000000
-00db000000000000000000000000000000d100000cddcc0c000000000cddccc0000000000cddcc0c000000000000000000000000000000000000000000000000
-00bb00000000000000000000000000000001000000cc00000000000000cc00000000000000cc0000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000caddc0c000000000caddcc0000000000caddc0c000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000d000cddcddc000000000cdddddc000000000cddcddc0000000000000000000000000000000000000000000000000
+000b000000000000000000000000000000ddd0000cddcc0c000000000cddccc0000000000cddcc0c000000000000000000000000000000000000000000000000
+00db000000000000000000000000000000d1000000cc00000000000000cc00000000000000cc0000000000000000000000000000000000000000000000000000
+00bb0000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000bb000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000a00a000000000000a00a000000000000a00a0000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000aaaaaaaa00000000aaaaaaaa00000000aaaaaaaa000000000000000000000000000000000000000000000

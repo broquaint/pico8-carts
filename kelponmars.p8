@@ -37,7 +37,7 @@ KELP_SPROUT = 'sprout'
 
 lakebed = {}
 function init_lakebed()
-      function make_kelp_sprite(kelp_x,s)
+   function make_kelp_sprite(kelp_x,s)
       return {x=kelp_x,sprite=s}
    end
    if #lakebed > 0 then
@@ -164,7 +164,6 @@ function init_day()
          tips = 0,
          trunks = 0,
          accelerating = false,
-         nets = 3,
    })
    net = make_obj({
          x = 16,
@@ -222,7 +221,7 @@ function init_day()
    music(0)
 end
 
-function _init()
+function init_title()
    -- init_day()
    game_state = game_state_title
    g_anims = {}
@@ -242,6 +241,18 @@ function _init()
    })
 
    init_lakebed()
+end
+
+function init_run()
+   run = {
+      tips = 0,
+      trunks = 0,
+      nets = 3,
+   }
+end
+
+function _init()
+   init_title()
 end
 
 function animate_splash()
@@ -375,7 +386,7 @@ function detect_fishies()
       local fy1 = f.y
       local fy2 = f.y + f.h
       if detect_line_intersection(fx1, fx2, fy1, fy2) then
-         player.nets -= 1
+         run.nets -= 1
          net.cooling_down = true
          animate_obj(net, function(obj)
                         obj.sprite = 2
@@ -482,7 +493,7 @@ function _update60()
    frame_count += 1
    run_animations()
 
-   if game_state == game_state_playing and player.nets == 0 then
+   if game_state == game_state_playing and run.nets == 0 then
       g_anims = {}
       cam.x = 0
       music(-1)
@@ -490,13 +501,19 @@ function _update60()
    elseif game_state == game_state_playing and not(sun.minute < (60*12)) then
       g_anims = {}
       cam.x = 0
+      run.tips += player.tips
+      run.trunks += player.trunks
       game_state = game_state_day_summary
    end
 
    if game_state == game_state_playing then
       harvest_kelp()
-   elseif game_state == game_state_day_summary or game_state == game_state_run_summary or game_state then
+   elseif game_state == game_state_day_summary or game_state == game_state_run_summary or game_state == game_state_title then
       if btnp(b_x) then
+         if game_state == game_state_run_summary or game_state == game_state_title then
+            lakebed = {}
+            init_run()
+         end
          init_day()
       end
    end
@@ -581,7 +598,7 @@ function draw_harvesting()
    local mins = flr(sun.minute % 60)
    local hour = flr(6 + (sun.minute/60))
    local time = (hour < 10 and '0'..hour or hour)..':'..(mins < 10 and '0'..mins or mins)
-   print(dumper('^', player.tips, ' L', player.trunks, ' N', player.nets, ' ⧗', time), cam.x+21, 1, white)
+   print(dumper('^', player.tips, ' L', player.trunks, ' N', run.nets, ' ⧗', time), cam.x+21, 1, white)
 
    pal(storm, sea, 1)
 

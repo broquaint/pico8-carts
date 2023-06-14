@@ -108,7 +108,7 @@ end
 
 function animate_fish(fish, frames, anim)
    animate_obj(fish, function(obj)
-                  while game_state == game_state_playing and obj.x > (cam.x-obj.w) do
+                  while current_game_state == game_state_playing and obj.x > (cam.x-obj.w) do
                      local from = obj.x
                      local to   = obj.x - 16
                      local astep  = frames / #anim
@@ -142,7 +142,7 @@ function make_big_fish(f_x, f_y)
 end
 
 function init_day()
-   game_state = 'playing'
+   current_game_state = 'playing'
 
    g_anims = {}
    frame_count = 0
@@ -217,13 +217,11 @@ function init_day()
 
    splashes = {}
    gather_particles = {}
-
-   music(0)
 end
 
 function init_title()
    -- init_day()
-   game_state = game_state_title
+   current_game_state = game_state_title
    g_anims = {}
    frame_count = 0
 
@@ -493,25 +491,26 @@ function _update60()
    frame_count += 1
    run_animations()
 
-   if game_state == game_state_playing and run.nets == 0 then
+   if current_game_state == game_state_playing and run.nets == 0 then
       g_anims = {}
       cam.x = 0
       music(-1)
-      game_state = game_state_run_summary
-   elseif game_state == game_state_playing and not(sun.minute < (60*12)) then
+      current_game_state = game_state_run_summary
+   elseif current_game_state == game_state_playing and not(sun.minute < (60*12)) then
       g_anims = {}
       cam.x = 0
       run.tips += player.tips
       run.trunks += player.trunks
-      game_state = game_state_day_summary
+      current_game_state = game_state_day_summary
    end
 
-   if game_state == game_state_playing then
+   if current_game_state == game_state_playing then
       harvest_kelp()
-   elseif game_state == game_state_day_summary or game_state == game_state_run_summary or game_state == game_state_title then
+   elseif current_game_state == game_state_day_summary or current_game_state == game_state_run_summary or current_game_state == game_state_title then
       if btnp(b_x) then
-         if game_state == game_state_run_summary or game_state == game_state_title then
+         if current_game_state == game_state_run_summary or current_game_state == game_state_title then
             lakebed = {}
+            music(0)
             init_run()
          end
          init_day()
@@ -531,6 +530,9 @@ function draw_kelp()
          end
       end
    end
+
+   pal(storm, sea, 1)
+
    for kelp in all(lakebed) do
       if kelp.x > (cam.x-8) and kelp.x < (cam.x+127) then
          for i = 1,kelp.height do
@@ -600,8 +602,6 @@ function draw_harvesting()
    local time = (hour < 10 and '0'..hour or hour)..':'..(mins < 10 and '0'..mins or mins)
    print(dumper('^', player.tips, ' L', player.trunks, ' N', run.nets, ' ⧗', time), cam.x+21, 1, white)
 
-   pal(storm, sea, 1)
-
    draw_kelp()
 
    for p in all(gather_particles) do
@@ -655,13 +655,13 @@ function _draw()
 
    camera(cam.x, cam.y)
 
-   if game_state == game_state_playing then
+   if current_game_state == game_state_playing then
       draw_harvesting()
-   elseif game_state == game_state_day_summary then
+   elseif current_game_state == game_state_day_summary then
       draw_day_summary()
-   elseif game_state == game_state_run_summary then
+   elseif current_game_state == game_state_run_summary then
       draw_run_summary()
-   elseif game_state == game_state_title then
+   elseif current_game_state == game_state_title then
       draw_title()
    end
 end

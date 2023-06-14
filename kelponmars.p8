@@ -176,19 +176,15 @@ function init_day()
          cooling_down = false,
    })
 
-   ducks = {
-      -- make_obj({
-      --       x = 200,
-      --       y = WATER_LINE-7,
-      -- })
-   }
-
    fishies = {
       make_wee_fish(256, 106),
       make_mid_fish(512, 97),
       make_wee_fish(768, 111),
       make_wee_fish(1024, 106),
       make_mid_fish(1312, 97),
+      make_big_fish(1422, 89),
+      make_wee_fish(1600, 106),
+      make_mid_fish(1750, 97),
    }
 
    local horizon = 32
@@ -243,9 +239,12 @@ end
 
 function init_run()
    run = {
+      day = 1,
       tips = 0,
       trunks = 0,
       nets = 3,
+      family = 50,
+      money = 0,
    }
 end
 
@@ -331,13 +330,17 @@ function gather_kelp()
             local delta = kelp.height - newh
 
             kelp.height = newh
-            if delta == 1 and kelp.status == KELP__FRESH then
-               player.tips += 1
-               kelp.status = KELP_PICKED
+            if delta == 1 then
+               if kelp.status == KELP__FRESH then
+                  player.tips += 1
+                  kelp.status = KELP_PICKED
+               elseif kelp.status == KELP_SPROUT then
+                  kelp.status = KELP_PRUNED
+               end
             elseif newh == 0 then
                kelp.status = KELP_ROUTED
             else
-               player.trunks += kelp.status != KELP_SPROUT and 1 or 0
+               player.trunks += 1 -- kelp.status != KELP_SPROUT and 1 or 0
                kelp.status = KELP_PRUNED
             end
 
@@ -438,16 +441,6 @@ function harvest_kelp()
       end
    end
 
-   -- jump/water physics
-   if frame_count > 10 and btn(b_x) and not player.jumping then
-      player.speed_y = -3
-      player.jumping = true
-      player.bounces = 1
-      player.prev_grav = AIR_GRAV
-   end
-
-   calc_player_jump()
-
    -- net movement
    if not net.cooling_down then
       if btn(b_up) then
@@ -497,8 +490,27 @@ function _update60()
       music(-1)
       current_game_state = game_state_run_summary
    elseif current_game_state == game_state_playing and not(sun.minute < (60*12)) then
-      g_anims = {}
-      cam.x = 0
+      animate_obj(sun, function(obj)
+                     local dest_x = sun.x + 16
+                     local dest_y = sun.y + 8
+                     while sun.x < dest_x do
+                        if nth_frame(25) then
+                           sun.x += 1
+                           sun.y += 1
+                        end
+                        yield()
+                     end
+      end)
+      for s in all({player, net}) do
+         animate_obj(s, function(obj)
+                        local from = obj.x
+                        local to = cam.x+127+(obj.x-cam.x)
+                        for f = 1,120 do
+                           obj.x = lerp(from, to, easeoutquad(f/120))
+                           yield()
+                        end
+         end)
+      end
       run.tips += player.tips
       run.trunks += player.trunks
       current_game_state = game_state_day_summary
@@ -600,7 +612,14 @@ function draw_harvesting()
    local mins = flr(sun.minute % 60)
    local hour = flr(6 + (sun.minute/60))
    local time = (hour < 10 and '0'..hour or hour)..':'..(mins < 10 and '0'..mins or mins)
-   print(dumper('^', player.tips, ' L', player.trunks, ' N', run.nets, ' ⧗', time), cam.x+21, 1, white)
+
+   spr(13, cam.x+19, 0)
+   print(player.tips, cam.x+25, 1, white)
+   spr(14, cam.x+35, 0)
+   print(player.trunks, cam.x+41, 1, white)
+   spr(15, cam.x+51, 0)
+   print(run.nets, cam.x+58, 1, white)
+   print(dumper('⧗', time), cam.x+73, 1, white)
 
    draw_kelp()
 
@@ -632,8 +651,16 @@ function draw_harvesting()
 end
 
 function draw_day_summary()
-   print('end of the day!', 16 , 32, white)
-   print(dumper('gathered: ^', player.tips, ' L', player.trunks), 16, 48, white)
+   draw_harvesting()
+
+   rectfill(cam.x+16, WATER_LINE + 8, cam.x+112, 112, dusk)
+   rectfill(cam.x+15, WATER_LINE + 7, cam.x+111, 111, white)
+   print('end of the day!', cam.x+24, WATER_LINE+16, slate)
+   print('harvested :-', cam.x+24, WATER_LINE+24, slate)
+   spr(13, cam.x+24, WATER_LINE +  32)
+   print(player.tips, cam.x+32, WATER_LINE + 32)
+   spr(14, cam.x+24, WATER_LINE + 40)
+   print(player.trunks, cam.x+32, WATER_LINE + 40)
 end
 
 function draw_run_summary()
@@ -668,12 +695,12 @@ end
 
 __gfx__
 00000000000005000000070000000000000090000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00aaaa00000050000000700000000000044909000000000006660000000000000660000000000000066000000000000006600000000000000000000000000000
-0aacaca0000500000007000000000000043400000000000066600000000000006660000000000000666000000000000066600000000000000000000000000000
-0aacaca0005000000070000000000000aa4400000000055555000004000005555500004000000555550004000000055555000500000000000000000000000000
-0a9aaaa0005000000070000070000007004400000055555555500044005555555550004000555555555006000055555555500600000000000000000000000000
-0aa99aab00050000000700007f0000f7009544400555a655555504460555a655555504400555a655555504400555a65555550440000000000000000000000000
-00aaaabb000050000000700000f00f00009455540755555559555464075555555595546007555555559554600755555555955460000000000000000000000000
+00aaaa00000050000000700000000000044909000000000006660000000000000660000000000000066000000000000006600000000b00000003d0000000d000
+0aacaca0000500000007000000000000043400000000000066600000000000006660000000000000666000000000000066600000000bd00000033000000d0000
+0aacaca0005000000070000000000000aa4400000000055555000004000005555500004000000555550004000000055555000500000bb0000000300000d00000
+0a9aaaa000500000007000007000000700440000005555555550004400555555555000400055555555500600005555555550060000dbb000000d3000000d0000
+0aa99aab00050000000700007f0000f7009544400555a655555504460555a655555504400555a655555504400555a6555555044000bb00000003300000dddd00
+00aaaabb000050000000700000f00f00009455540755555559555464075555555595546007555555559554600755555555955460000b00000003000000000000
 0bbbbbb0000555500007777000000000000addd0077e755995555646077e755599555640077e755599555640077e755599555640000000000000000000000000
 000b00000003300000030000003300000011000077e755555595564677e755555595564077e755555595564077e7555555955640000000000000000000000000
 000bd0000003d0000003000000330000001100005755556599555464575555659955546057555565995554605755556599555460000000000000000000000000

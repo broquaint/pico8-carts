@@ -41,7 +41,6 @@ function init_lakebed()
       return {x=kelp_x,sprite=s}
    end
    if #lakebed > 0 then
-      debug('regrowing lakebed e.g ',lakebed[1])
       for kelp in all(lakebed) do
          -- Unpicked kelp grows
          if kelp.status == KELP__FRESH then
@@ -55,7 +54,7 @@ function init_lakebed()
             kelp.status = KELP__FRESH
          -- Pruned kelp gets a new shoot
          elseif kelp.status == KELP_PRUNED then
-            kelp.height+=1
+            kelp.height = min(7, kelp.height+1)
             kelp.sprites[kelp.height] = make_kelp_sprite(kelp.x, 32)
             kelp.status = KELP_SPROUT
          -- Have sprout turn back into a fresh pickable kelp
@@ -176,23 +175,13 @@ function init_day()
          cooling_down = false,
    })
 
-   fishies = {
-      make_wee_fish(256, 106),
-      make_mid_fish(512, 97),
-      make_wee_fish(768, 111),
-      make_wee_fish(1024, 106),
-      make_mid_fish(1312, 97),
-      make_big_fish(1422, 89),
-      make_wee_fish(1600, 106),
-      make_mid_fish(1750, 97),
-   }
-
    local horizon = 32
    local azimuth = 8
    sun = make_obj({
          x = 0,
          y = horizon,
          minute = 0,
+         setting = false,
    })
    animate_obj(sun, function(obj)
                   while sun.minute < (60*12) do
@@ -210,6 +199,15 @@ function init_day()
    end)
 
    init_lakebed()
+
+   fishies = {}
+   local distribution = { 350, 300, 250, 210, 180, 150 }
+   local dist = distribution[run.day]
+   for x = dist, dist * 25, dist do
+      local make_fishie = rnd() < 0.7 and make_wee_fish or
+         rnd() > 0.2 and make_mid_fish or make_big_fish
+      add(fishies, make_fishie(x, rnd({106, 97, 111, 106, 89})))
+   end
 
    splashes = {}
    gather_particles = {}
@@ -245,6 +243,7 @@ function init_run()
       nets = 3,
       family = 50,
       money = 0,
+      nets_used = 0,
    }
 end
 
@@ -480,6 +479,30 @@ function harvest_kelp()
    detect_fishies()
 end
 
+function set_sun()
+   sun.setting=true
+   animate_obj(sun, function(obj)
+                  local dest_x = sun.x + 16
+                  local dest_y = sun.y + 8
+                  while sun.x < dest_x do
+                     if nth_frame(25) then
+                        sun.x += 1
+                        sun.y += 1
+                     end
+                     yield()
+                  end
+   end)
+end
+
+function glide_off_screen(obj)
+   local from = obj.x
+   local to = cam.x+127+(obj.x-cam.x)
+   for f = 1,120 do
+      obj.x = lerp(from, to, easeoutquad(f/120))
+      yield()
+   end
+end
+
 function _update60()
    frame_count += 1
    run_animations()
@@ -489,38 +512,31 @@ function _update60()
       cam.x = 0
       music(-1)
       current_game_state = game_state_run_summary
-   elseif current_game_state == game_state_playing and not(sun.minute < (60*12)) then
-      animate_obj(sun, function(obj)
-                     local dest_x = sun.x + 16
-                     local dest_y = sun.y + 8
-                     while sun.x < dest_x do
-                        if nth_frame(25) then
-                           sun.x += 1
-                           sun.y += 1
-                        end
-                        yield()
-                     end
-      end)
-      for s in all({player, net}) do
-         animate_obj(s, function(obj)
-                        local from = obj.x
-                        local to = cam.x+127+(obj.x-cam.x)
-                        for f = 1,120 do
-                           obj.x = lerp(from, to, easeoutquad(f/120))
-                           yield()
-                        end
-         end)
+   elseif current_game_state == game_state_playing and (sun.minute == (60*12) or cam.x > lakebed[#lakebed].x) then
+      if cam.x < lakebed[#lakebed].x then
+         set_sun()
       end
-      run.tips += player.tips
-      run.trunks += player.trunks
+      animate_obj(player, glide_off_screen)
+      animate_obj(net, glide_off_screen)
+
+      run.tips += player.tips - 40
+      run.trunks += player.trunks - ((3-run.nets)*10)
+      run.nets = 3
+      run.nets_used += 3 - run.nets
+      run.day += 1
+
       current_game_state = game_state_day_summary
    end
 
    if current_game_state == game_state_playing then
       harvest_kelp()
    elseif current_game_state == game_state_day_summary or current_game_state == game_state_run_summary or current_game_state == game_state_title then
+      if sun.minute == (60*12) and not sun.setting then
+         set_sun()
+      end
+
       if btnp(b_x) then
-         if current_game_state == game_state_run_summary or current_game_state == game_state_title then
+         if current_game_state == game_state_run_summary or current_game_state == game_state_title or (run.tips < 0 or run.trunks < 0) then
             lakebed = {}
             music(0)
             init_run()
@@ -655,17 +671,46 @@ function draw_day_summary()
 
    rectfill(cam.x+16, WATER_LINE + 8, cam.x+112, 112, dusk)
    rectfill(cam.x+15, WATER_LINE + 7, cam.x+111, 111, white)
-   print('end of the day!', cam.x+24, WATER_LINE+16, slate)
-   print('harvested :-', cam.x+24, WATER_LINE+24, slate)
-   spr(13, cam.x+24, WATER_LINE +  32)
-   print(player.tips, cam.x+32, WATER_LINE + 32)
-   spr(14, cam.x+24, WATER_LINE + 40)
-   print(player.trunks, cam.x+32, WATER_LINE + 40)
+
+   local yos = WATER_LINE+8
+   if cam.x > lakebed[#lakebed].x then
+      print('end of the kelp', cam.x+24, yos+8, slate)
+   else
+      print('end of the day', cam.x+24, yos+8, slate)
+   end
+   --spr(15, cam.x+64, WATER_LINE+23)
+   print('harvested:', cam.x+24, yos+16, slate)
+   spr(13, cam.x+24, yos + 26)
+   print(player.tips, cam.x+32, yos + 27)
+   spr(14, cam.x+24, yos + 34)
+   print(player.trunks, cam.x+32, yos + 35)
+
+   pal(black, ember, 1)
+   print(dumper('4 x $hungry - ', player.tips, ' = ',run.tips), cam.x+24, yos+48, run.tips >= 0 and slate or black)
+   print(dumper(player.trunks, ' - $new_nets = ', run.trunks), cam.x+24, yos+56, run.trunks >= 0 and slate or black)
+
+   if run.tips < 0 or run.trunks < 0 then
+      print('game over!', cam.x+48, yos+64, black)
+   end
 end
 
 function draw_run_summary()
-   print('end of the run!', 16 , 32, white)
-   print(dumper('gathered: ^', player.tips, ' L', player.trunks), 16, 48, white)
+   draw_harvesting()
+
+   rectfill(cam.x+16, WATER_LINE + 8, cam.x+112, 112, dusk)
+   rectfill(cam.x+15, WATER_LINE + 7, cam.x+111, 111, white)
+
+   local yos = WATER_LINE+8
+
+   print('end of the run!', cam.x+16 , yos+8, slate)
+   print('total harvest:', cam.x+24, yos+16, slate)
+   spr(13, cam.x+24, yos + 26)
+   print(run.tips > 0 and run.tips or player.tips, cam.x+32, yos + 27)
+   spr(14, cam.x+24, yos + 34)
+   print(run.trunks > 0 and run.trunks or player.trunks, cam.x+32, yos + 35, slate)
+
+   print('days passed: '..run.day, cam.x+24, yos+44, slate)
+   print('nets broken: '..(run.nets_used > 0 and run.nets_used or 3-player.nets), cam.x+24, yos+52, slate)
 end
 
 function draw_title()
@@ -673,6 +718,15 @@ function draw_title()
    draw_water()
 
    sspr(0, 32, 128, 128, 0, 5)
+
+   if frame_count % 120 < 60 then
+      print('press ❎ to start!', 32, 64, black)
+      print('press ❎ to start!', 31, 63, white)
+   else
+      print('press    to start!', 32, 64, black)
+      print('      ❎'          , 32, 64, white)
+      print('press    to start!', 31, 63, white)
+   end
 
    draw_kelp()
 end

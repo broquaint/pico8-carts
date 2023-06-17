@@ -16,6 +16,7 @@ game_state_won     = 'won'
 
 g_anims = {}
 frame_count = 0
+run_state = {}
 
 WATER_LINE  = 32
 WATER_GRAV  = 12 * 1/40
@@ -175,6 +176,9 @@ function init_day()
          cooling_down = false,
    })
 
+   run_state.nets = 3
+   run_state.day = min(7, run_state.day+1)
+
    local horizon = 32
    local azimuth = 8
    sun = make_obj({
@@ -201,15 +205,14 @@ function init_day()
    init_lakebed()
 
    fishies = {}
-   local distribution = { 350, 300, 250, 210, 180, 150 }
-   local dist = distribution[run.day]
+   local distribution = { 350, 300, 250, 210, 180, 150 , 130 }
+   local dist = distribution[run_state.day]
    for x = dist, dist * 25, dist do
       local make_fishie = rnd() < 0.7 and make_wee_fish or
          rnd() > 0.2 and make_mid_fish or make_big_fish
       add(fishies, make_fishie(x, rnd({106, 97, 111, 106, 89})))
    end
 
-   splashes = {}
    gather_particles = {}
 end
 
@@ -236,56 +239,21 @@ function init_title()
 end
 
 function init_run()
-   run = {
-      day = 1,
+   run_state = {
+      day = 0,
       tips = 0,
       trunks = 0,
       nets = 3,
       family = 50,
       money = 0,
       nets_used = 0,
+      won = false,
    }
 end
 
 function _init()
    init_title()
-end
-
-function animate_splash()
-   local s = make_obj({
-         x = player.x,
-         y = WATER_LINE-7,
-   })
-   animate_obj(s, function(obj)
-                  wait(30)
-   end)
-   add(splashes, s)
-end
-
-function calc_player_jump()
-   -- Because we need to calculate from the base of the sprite
-   local wl = WATER_LINE-7
-   if player.jumping then
-      if player.y > wl then
-         if player.prev_grav == AIR_GRAV then
-            animate_splash()
-         end
-         player.speed_y -= WATER_GRAV
-         player.prev_grav = WATER_GRAV
-      else
-         if player.prev_grav == WATER_GRAV then
-            player.bounces += 3
-         end
-         player.speed_y += AIR_GRAV
-         player.prev_grav = AIR_GRAV
-      end
-      if player.bounces >= 16 then
-         player.jumping = false
-         player.y = wl
-         player.speed_y = 0
-         player.bounces = 0
-      end
-   end
+   init_run()
 end
 
 local GATHER_COLOUR = {[KELP_PICKED] = lime, [KELP_PRUNED] = moss, [KELP_ROUTED] = storm}
@@ -386,7 +354,7 @@ function detect_fishies()
       local fy1 = f.y
       local fy2 = f.y + f.h
       if detect_line_intersection(fx1, fx2, fy1, fy2) then
-         run.nets -= 1
+         run_state.nets -= 1
          net.cooling_down = true
          animate_obj(net, function(obj)
                         obj.sprite = 2
@@ -503,29 +471,42 @@ function glide_off_screen(obj)
    end
 end
 
+function end_day()
+   if sun.minute == (60*12) then
+      set_sun()
+   end
+
+   animate_obj(player, glide_off_screen)
+   animate_obj(net, glide_off_screen)
+
+   run_state.tips += player.tips - 40
+   run_state.trunks += player.trunks - ((3-run_state.nets)*10)
+   run_state.nets_used += 3 - run_state.nets
+end
+
+function in_loss_state()
+   return run_state.tips < 0 or run_state.trunks < 0
+end
+
+DAYS_IN_WEEK = 8
 function _update60()
    frame_count += 1
    run_animations()
 
-   if current_game_state == game_state_playing and run.nets == 0 then
-      g_anims = {}
-      cam.x = 0
-      music(-1)
-      current_game_state = game_state_run_summary
-   elseif current_game_state == game_state_playing and (sun.minute == (60*12) or cam.x > lakebed[#lakebed].x) then
-      if cam.x < lakebed[#lakebed].x then
-         set_sun()
+   local end_of_day = sun.minute == (60*12) or cam.x > lakebed[#lakebed].x
+   local end_of_run = run_state.nets == 0
+   if current_game_state == game_state_playing and (end_of_day or end_of_run) then
+      end_day()
+
+      local week_end = run_state.day+1 == DAYS_IN_WEEK
+      local won = week_end and not(in_loss_state())
+
+      if end_of_run or week_end then
+         run_state.won = won
+         music(-1)
       end
-      animate_obj(player, glide_off_screen)
-      animate_obj(net, glide_off_screen)
 
-      run.tips += player.tips - 40
-      run.trunks += player.trunks - ((3-run.nets)*10)
-      run.nets = 3
-      run.nets_used += 3 - run.nets
-      run.day += 1
-
-      current_game_state = game_state_day_summary
+      current_game_state = (end_of_run or week_end) and game_state_run_summary or game_state_day_summary
    end
 
    if current_game_state == game_state_playing then
@@ -536,7 +517,8 @@ function _update60()
       end
 
       if btnp(b_x) then
-         if current_game_state == game_state_run_summary or current_game_state == game_state_title or (run.tips < 0 or run.trunks < 0) then
+         if current_game_state == game_state_run_summary or current_game_state == game_state_title or in_loss_state() then
+            -- reset game state
             lakebed = {}
             music(0)
             init_run()
@@ -634,7 +616,7 @@ function draw_harvesting()
    spr(14, cam.x+35, 0)
    print(player.trunks, cam.x+41, 1, white)
    spr(15, cam.x+51, 0)
-   print(run.nets, cam.x+58, 1, white)
+   print(run_state.nets, cam.x+58, 1, white)
    print(dumper('⧗', time), cam.x+73, 1, white)
 
    draw_kelp()
@@ -651,16 +633,6 @@ function draw_harvesting()
    spr(net.sprite, net.x, net.y)
    line(player.x, player.y+7, net.x+5, net.y, silver)
 
-   for s in all(splashes) do
-      if s.animating then
-         spr(3, s.x, s.y)
-      end
-   end
-
-   for d in all(ducks) do
-      spr(4, d.x, d.y)
-   end
-
    for f in all(fishies) do
       sspr(f.sx, f.sy, f.w, f.h, f.x, f.y)
    end
@@ -674,11 +646,11 @@ function draw_day_summary()
 
    local yos = WATER_LINE+8
    if cam.x > lakebed[#lakebed].x then
-      print('end of the kelp', cam.x+24, yos+8, slate)
+      print('end of kelp, day '..run_state.day, cam.x+24, yos+8, slate)
    else
-      print('end of the day', cam.x+24, yos+8, slate)
+      print('end of day '..run_state.day, cam.x+24, yos+8, slate)
    end
-   --spr(15, cam.x+64, WATER_LINE+23)
+
    print('harvested:', cam.x+24, yos+16, slate)
    spr(13, cam.x+24, yos + 26)
    print(player.tips, cam.x+32, yos + 27)
@@ -686,10 +658,10 @@ function draw_day_summary()
    print(player.trunks, cam.x+32, yos + 35)
 
    pal(black, ember, 1)
-   print(dumper('4 x $hungry - ', player.tips, ' = ',run.tips), cam.x+24, yos+48, run.tips >= 0 and slate or black)
-   print(dumper(player.trunks, ' - $new_nets = ', run.trunks), cam.x+24, yos+56, run.trunks >= 0 and slate or black)
+   print(dumper('4 x $hungry - ', player.tips, ' = ',run_state.tips), cam.x+24, yos+48, run_state.tips >= 0 and slate or black)
+   print(dumper(player.trunks, ' - $new_nets = ', run_state.trunks), cam.x+24, yos+56, run_state.trunks >= 0 and slate or black)
 
-   if run.tips < 0 or run.trunks < 0 then
+   if in_loss_state() then
       print('game over!', cam.x+48, yos+64, black)
    end
 end
@@ -702,15 +674,25 @@ function draw_run_summary()
 
    local yos = WATER_LINE+8
 
-   print('end of the run!', cam.x+16 , yos+8, slate)
-   print('total harvest:', cam.x+24, yos+16, slate)
+   if run_state.won then
+      print('end of the run, you won!', cam.x+16 , yos+4, slate)
+   else
+      print('end of the run!', cam.x+32 , yos+4, slate)
+   end
+   print('kelp harvested:', cam.x+24, yos+16, slate)
    spr(13, cam.x+24, yos + 26)
-   print(run.tips > 0 and run.tips or player.tips, cam.x+32, yos + 27)
+   print(run_state.tips > 0 and run_state.tips or player.tips, cam.x+32, yos + 27)
    spr(14, cam.x+24, yos + 34)
-   print(run.trunks > 0 and run.trunks or player.trunks, cam.x+32, yos + 35, slate)
+   print(run_state.trunks > 0 and run_state.trunks or player.trunks, cam.x+32, yos + 35, slate)
 
-   print('days passed: '..run.day, cam.x+24, yos+44, slate)
-   print('nets broken: '..(run.nets_used > 0 and run.nets_used or 3-player.nets), cam.x+24, yos+52, slate)
+   local nets = run_state.won and run_state.nets_used or run_state.nets_used > 0 and run_state.nets_used or 3-run_state.nets
+   print('nets broken: '..nets, cam.x+24, yos+46, slate)
+   if run_state.won then
+      print('week completed!', cam.x+24, yos+54, lime)
+      print('family fed ♥', cam.x+24, yos+62, lime)
+   else
+      print('days passed: '..run_state.day, cam.x+24, yos+54, slate)
+   end
 end
 
 function draw_title()

@@ -43,24 +43,25 @@ function init_lakebed()
    end
    if #lakebed > 0 then
       for kelp in all(lakebed) do
+         add(kelp.history, kelp.status)
          -- Unpicked kelp grows
-         if kelp.status == KELP__FRESH then
+         if kelp.status == KELP__FRESH and kelp.height < 7 then
             kelp.sprites[#kelp.sprites] = make_kelp_sprite(kelp.x, rnd({17,18,19}))
-            kelp.height = min(7, kelp.height+1)
+            kelp.height += 1
             add(kelp.sprites, make_kelp_sprite(kelp.x, 16))
-            -- Add the tip back to picked kelp
+         -- Add the tip back to picked kelp
          elseif kelp.status == KELP_PICKED then
             kelp.height = min(7, kelp.height+1)
-            kelp.sprites[#kelp.sprites] = make_kelp_sprite(kelp.x, 16)
+            add(kelp.sprites, make_kelp_sprite(kelp.x, 16))
             kelp.status = KELP__FRESH
          -- Pruned kelp gets a new shoot
          elseif kelp.status == KELP_PRUNED then
             kelp.height = min(7, kelp.height+1)
-            kelp.sprites[kelp.height] = make_kelp_sprite(kelp.x, 32)
+            add(kelp.sprites, make_kelp_sprite(kelp.x, 32))
             kelp.status = KELP_SPROUT
          -- Have sprout turn back into a fresh pickable kelp
          elseif kelp.status == KELP_SPROUT then
-            kelp.sprites[kelp.height] = make_kelp_sprite(kelp.x, 16)
+            kelp.sprites[#kelp.sprites] = make_kelp_sprite(kelp.x, 16)
             kelp.status = KELP__FRESH
          -- Won't regrow, a terminal state (for now)
          elseif kelp.status == KELP_ROUTED then
@@ -83,6 +84,7 @@ function init_lakebed()
                    height = t.height,
                    status = t.status,
                    sprites = sprites,
+                   history = {},
          })
          add(lakebed, kelp)
       end
@@ -108,7 +110,7 @@ end
 
 function animate_fish(fish, frames, anim)
    animate_obj(fish, function(obj)
-                  while current_game_state == game_state_playing and obj.x > (cam.x-obj.w) do
+                  while obj.x > (cam.x-obj.w) do
                      local from = obj.x
                      local to   = obj.x - 16
                      local astep  = frames / #anim
@@ -204,13 +206,22 @@ function init_day()
 
    init_lakebed()
 
+   local net_heights = {
+      80,
+      88, 88,
+      96, 96, 96,
+      104, 104, 104, 104, 104,
+      112, 112, 112, 112, 112,
+      120, 120
+   }
+
    fishies = {}
-   local distribution = { 350, 300, 250, 210, 180, 150 , 130 }
+   local distribution = { 350, 300, 250, 210, 180, 150, 130 }
    local dist = distribution[run_state.day]
    for x = dist, dist * 25, dist do
       local make_fishie = rnd() < 0.7 and make_wee_fish or
          rnd() > 0.2 and make_mid_fish or make_big_fish
-      add(fishies, make_fishie(x, rnd({106, 97, 111, 106, 89})))
+      add(fishies, make_fishie(x, rnd(net_heights)))
    end
 
    gather_particles = {}
@@ -296,6 +307,10 @@ function gather_kelp()
             local newh  = max(0,(flr((127-ny2)/8)))
             local delta = kelp.height - newh
 
+            if delta > 0 then
+               kelp.sprites = slice(kelp.sprites, 1, newh)
+            end
+
             kelp.height = newh
             if delta == 1 then
                if kelp.status == KELP__FRESH then
@@ -307,7 +322,7 @@ function gather_kelp()
             elseif newh == 0 then
                kelp.status = KELP_ROUTED
             else
-               player.trunks += 1 -- kelp.status != KELP_SPROUT and 1 or 0
+               player.trunks += 1
                kelp.status = KELP_PRUNED
             end
 
@@ -554,14 +569,14 @@ end
 
 function draw_sky()
    local hour = sun.minute / 60
-   local sky_colour = hour < 0.5 and wine or
-      hour < 0.8  and aubergine or
-      hour < 1    and salmon or
-      hour < 1.3  and pink or
-      hour > 11.5 and wine or
-      hour > 11.2 and aubergine or
-      hour > 10.8 and salmon or
-      hour > 10.2 and pink or
+   local sky_colour = hour < 0.8 and wine or
+      hour < 1.6  and aubergine or
+      hour < 2.2  and salmon or
+      hour < 3.0  and pink or
+      hour > 11.2 and wine or
+      hour > 10.4 and aubergine or
+      hour > 9.8 and salmon or
+      hour > 9.0 and pink or
       coral
 
    pal(pink, sky_colour, 1)
@@ -570,14 +585,14 @@ end
 
 function draw_water()
    local hour = sun.minute / 60
-   local water_colour = hour < 0.5 and port or
-      hour < 0.8  and leather or
-      hour < 1    and tan or
-      hour < 1.3  and amber or
-      hour > 11.5 and port or
-      hour > 11.2 and leather or
-      hour > 10.8 and tan or
-      hour > 10.2 and amber or
+   local water_colour = hour < 0.8 and port or
+      hour < 1.6  and leather or
+      hour < 2.2  and tan or
+      hour < 3.0  and amber or
+      hour > 11.2 and port or
+      hour > 10.4 and leather or
+      hour > 9.8 and tan or
+      hour > 9.0 and amber or
       orange
 
    pal(orange, water_colour, 1)
@@ -793,6 +808,136 @@ aaaa00007aaa000007aa00000a7a000007aa0000000aaaaaaaaa0000000aaaaaaaaa0000000aaaaa
 000000000000000000000000000000dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000000000000000000000000dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+__label__
+22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222
+22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222
+22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222
+22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222
+22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222
+22222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222
+22222222222222222222222222222222222222222222222222222222222222222222222222222222dd2222222222222222222222222222222222222222222222
+2222dd22222222222222222222222222222222222222222222222222222222222222222222222222dd2222222222dd2222222222222222222222222222222222
+2222dd22222222222222222222222222222222222222222222222222222222222222222222222222dd222222222ddd2222222222222222222222222222222222
+2222dd2222dd2222222222222222222222222222222222222222222222222222222222222222222dddd22222222ddd2222222222222222222222222222222222
+2222dd2222dd22222222222222dd222222222222222222222222222222222222222222222222222dddd2222222dddd2222222222222222222222222222222222
+2222dd222ddd22222222222222dd222222222222222222222222222222222222222222222222222ddddd222222dddd2222222222222222222222222222222222
+2222dd222dd222222222222222dd22222222222222222222222222222222222222222222222222ddd2dd22222ddddd2222222222222222222222222222222222
+2222dd222dd222222222222222dd22222222222222222222222222222222222222222222222222ddd2ddd2222dd2ddd222222222222222222222222222222222
+2222dd22ddd222222222222222dd22222222222222222222222222222222222222222222222222dd22ddd222ddd2ddd222222222222222222222222222222222
+2222dd22dd2222222222222222dd22222222222222222222222222222222222222222222222222dd222dd222dd222dd222222222222222222222222222222222
+2222dd2ddd2222222222222222dd22222222222222222222222222222222222222222222222222dd222dd222dd222dd222222222222222222222222222222222
+2222dd2dd22222222222222222dd2222222222222222222222222222222222222222222222222ddd222dd22ddd222dd222222222222222222222222222222222
+2222ddddd22222222222222222dd2222dddd2222222222222dddd222222222222222222222222dd2222dd22dd2222dd222222222222222222222222222222222
+2222dddd222222222ddddd2222dd22ddddddd2222222222ddddddd22222dd22ddddd222222222dd2222dd22dd2222dd222222222222222222222222222222222
+2222dddd22222222dddddd2222dd22ddddddd222222222dddd2dddd2222dddddddddd22222222dd2222dd22dd2222dd222222ddddd22dd2ddddd2222dddd2222
+2222ddddd222222dddd2dd2222dd22dd222ddd2222222ddd2222dddd222dddddd2ddd22222222dd2222dd2ddd2222dd2222ddddddd22dddddddd222ddddddd22
+2222ddddd22222ddd22ddd2222dd22dd2222dd2222222dd222222ddd222dddd2222dd22222222dd2222ddddd22222ddd22dddd2ddd22dddd2222222dd22ddd22
+222ddd2ddd222ddddddddd2222dd22dd222ddd2222222dd222222ddd222ddd22222dd22222222dd22222dddd222222dd22ddd22ddd22ddd22222222dd222dd22
+222dd22ddd222ddddddd222222dd22dd22dddd222222ddd222222ddd222dd222222dd22222222dd22222dddd222222dd2ddd222ddd22dd222222222ddd222222
+222dd222ddd22dd22222222222dd22dd22ddd2222222dd2222222dd222ddd222222dd22222222dd22222ddd2222222dd2ddd22dddd22dd222222222dddd22222
+222dd2222dd22dd22222222222dd22dd2ddd22222222dd2222222dd222ddd22222ddd22222222dd22222ddd2222222dd2dd222ddd22ddd2222222222dddd2222
+222dd2222dd22dd2222222222ddd22ddddd222222222dd222222ddd222dd222222ddd22222222dd22222ddd2222222dd2ddd2dddd22dd222222222222ddd2222
+222dd2222dd22ddd222ddd222dd222ddddd222222222ddd222ddddd222dd222222dd222222222dd222222dd2222222dd2dddddddd22dd22222222ddd22dd2222
+22ddd2222ddd22dddddddd22ddd222dddd2222222222dddddddddd2222dd222222dd222222222dd222222dd2222222dd222dddddd22dd22222222ddddddd2222
+22ddd22222dd22ddddddd222ddd222dd2222222222222ddddddd222222dd222222dd222222222dd222222dd2222222dd2222222dd22dd222222222dddddd2222
+22dd22222222222222222222222222dd222222222222222222222222222222222222222222222222222222222222222222222222222dd2222222222ddd222222
+ffffffffffffffffffffffffffffffddffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiddiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiddiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiidiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii777i777i777ii77ii77iiiiii77777iiiiii777ii77iiiiii77i777i777i777i777ii7iiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii7070707070007i007i00iiii7707077iiiiii7007i70iiii7i00i70070707070i700i70iiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii777077i077ii777i777iiiii777i7770iiiii70i7070iiii777ii70i777077i0i70ii70iiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii7000707i700ii070i070iiii7707i770iiiii70i7070iiiii070i70i7070707ii70iii0iiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii70ii7070777i77i077i0iiiii7777700iiiii70i77i0iiii77i0i70i70707070i70ii7iiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii0iii0i0i000i00ii00iiiiiii00000iiiiiii0ii00iiiiii00iii0ii0i0i0i0ii0iii0iiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiibiiiiiiiiiiiiiiibiiiiiiiiiiiiiiibiiiiiiiiiiiiiiibiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiibdiiiiiiiiiiiiiibdiiiiiiiiiiiiiibdiiiiiiiiiiiiiibdiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiibiiiiiiiiiiiiiiibiiiiiiiiiiiiiiibiiiiiiiiiiiiiiibiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiibiiiiiiiiiiiiiiibiiiiiiiiiiiiiiibiiiiiiiiiiiiiiibiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiibdiiiiiiiiiiiiiibdiiiiiiiiiiiiiibdiiiiiiiiiiiiiibdiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiidbiiiiiiiiiiiiiidbiiiiiiiiiiiiiidbiiiiiiiiiiiiiidbiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiibbiiiiiiiiiiiiiibbiiiiiiiiiiiiiibbiiiiiiiiiiiiiibbiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiibbiiiiiiiiiiiiiibbiiiiiiiiiiiiiibbiiiiiiiiiiiiiibbiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiiii33iiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiiii3diiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii3diiiiiiiiiiiiii3diiiiiiiiiiiiii3diiiiiiiiiiiiii33iiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiiii33iiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiiiid3iiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiid33iiiiiiiiiiiiid33iiiiiiiiiiiiid33iiiiiiiiiiiiii33iiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiii3diiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33diiiiiiiiiiiii33diiiiiiiiiiiii33diiiiiiiiiiiii33iiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiii333iiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii3diiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiii333iiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiii3diiiiiiiiiiiiii3diiiiiiiiiiiiii3diiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiiid3iiiiiiiiiiiiiid3iiiiiiiiiiiii33iiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiid3iiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiii33iiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiii3diiiiiiiiiiiiii3diiiiiiiiiiiiid33iiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii3diiiiiiiiiiiiid33iiiiiiiiiiiiid33iiiiiiiiiiiiii33iiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiii333iiiiiiiiiiiii333iiiiiiiiiiiii33diiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiii333iiiiiiiiiiiii333iiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiiiiiii33diiiiiiiiiiiii33diiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii3diiiiiiiiiiiiii3diiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiiiid3iiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiiii33iiiiiiiiiiiiiid3iiiiiiiiiiiiiid3iiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiid33iiiiiiiiiiiiii3diiiiiiiiiiiiii33iiiiiiiiiiiiii33iiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33iiiiiiiiiiiiid3iiiiiiiiiiiiiii3diiiiiiiiiiiiii3diiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii33diiiiiiiiiiiii33iiiiiiiiiiiiiii3iiiiiiiiiiiiiii3iiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiijj3iiiiiiiiiiiiijj3iiiiiiiiiiiiijj3iiiiiiiiiiiiijj3iiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiijjiiiiiiiiiiiiiijjiiiiiiiiiiiiiijjiiiiiiiiiiiiiijjiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiidjiiiiiiiiiiiiiidjiiiiiiiiiiiiiidjiiiiiiiiiiiiiidjiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiijdiiiiiiiiiiiiiijdiiiiiiiiiiiiiijdiiiiiiiiiiiiiijdiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiijjiiiiiiiiiiiiiijjiiiiiiiiiiiiiijjiiiiiiiiiiiiiijjiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiijiiiiiiiiiiiiiiijiiiiiiiiiiiiiiijiiiiiiiiiiiiiiijiiiiiiiiiiii
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiijiiiiiiiiiiiiiiijiiiiiiiiiiiiiiijiiiiiiiiiiiiiiijiiiiiiiiiiii
+6666666666666666666666666666666666666666666666666666666666666666666j666666666666666j666666666666666j666666666666666j666666666666
+
 __sfx__
 010600001805418052180521805218050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 010600001c0541c0521c0521c0521c050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
